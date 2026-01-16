@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart'; // IMPORTANTE
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+// Certifique-se de que os caminhos dos imports abaixo estão corretos no seu projeto
 import '../../servicos/autenticacao.dart';
 import 'confirmacaoEmail.dart';
 
@@ -32,10 +33,13 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
   bool _isLoading = false;
 
-  // CONTROLE DE VISIBILIDADE DAS SENHAS
+  // CONTROLE DE VISIBILIDADE DAS SENHAS E VALIDAÇÕES VISUAIS
   bool _obscureSenha = true;
   bool _obscureConfirma = true;
+
+  // CORREÇÃO: Variáveis de estado para feedback visual
   bool _senhaValida = false;
+  bool _telefoneValido = false; // <--- Esta variável estava faltando
 
   final AuthService _authService = AuthService();
 
@@ -62,7 +66,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('temp_nome', _nomeController.text.trim());
           await prefs.setString('temp_email', _emailController.text.trim());
-          // Salva o telefone sem formatação se preferir, ou com formatação
           await prefs.setString(
             'temp_telefone',
             _telefoneController.text.trim(),
@@ -70,7 +73,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
           await prefs.setBool('temp_isAdmin', false); // Usuário Comum
 
           // ====================================================
-          // 3. IR PARA TELA DE VERIFICAÇÃO
+          // 3. NAVEGAÇÃO
           // ====================================================
           Navigator.pushReplacement(
             context,
@@ -162,12 +165,51 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             hintText: '(32) 12345-6789',
                           ),
                           keyboardType: TextInputType.phone,
+                          // CORREÇÃO: Atualizar estado _telefoneValido
+                          onChanged: (value) {
+                            setState(() {
+                              // Verifica se tem 11 dígitos numéricos (padrão celular BR)
+                              // maskFormatter.getUnmaskedText() pega apenas os números
+                              _telefoneValido =
+                                  maskFormatter.getUnmaskedText().length >= 11;
+                            });
+                          },
                           validator: (v) {
-                            if (v == null || v.isEmpty)
+                            if (v == null || v.isEmpty) {
                               return 'Informe o telefone';
-                            if (v.length < 14) return 'Telefone incompleto';
+                            }
+                            if (maskFormatter.getUnmaskedText().length < 11) {
+                              return 'Telefone incompleto';
+                            }
                             return null;
                           },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Feedback Visual do Telefone
+                        Row(
+                          children: [
+                            Icon(
+                              _telefoneValido
+                                  ? Icons.check_circle
+                                  : Icons.cancel,
+                              color: _telefoneValido
+                                  ? Colors.green
+                                  : Colors.red,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Mínimo de 11 dígitos',
+                              style: TextStyle(
+                                color: _telefoneValido
+                                    ? Colors.green
+                                    : Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 20),
 
@@ -197,8 +239,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               },
                             ),
                           ),
-                          obscureText:
-                              _obscureSenha, // Controlado pela variável
+                          obscureText: _obscureSenha,
                           onChanged: (valor) {
                             setState(() {
                               _senhaValida = valor.length >= 6;
@@ -251,7 +292,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               Icons.lock_outline,
                               color: corPrimaria,
                             ),
-                            // Botão do Olho
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscureConfirma
@@ -266,8 +306,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               },
                             ),
                           ),
-                          obscureText:
-                              _obscureConfirma, // Controlado pela variável
+                          obscureText: _obscureConfirma,
                           validator: (v) {
                             if (v!.isEmpty) return 'Confirme sua senha';
                             if (v != _senhaController.text) {
