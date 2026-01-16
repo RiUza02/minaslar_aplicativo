@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "882570844401",
+    "firebase_url": "https://minaslar-default-rtdb.firebaseio.com",
+    "project_id": "minaslar",
+    "storage_bucket": "minaslar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:882570844401:android:7b60236dd91190f1f3f150",
+        "android_client_info": {
+          "package_name": "com.example.minaslar_aplicativo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDN3rAfS3n0VNFEgSdlr61FOKya3Yqrq60"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:882570844401:android:abd3b173160cf40cf3f150",
+        "android_client_info": {
+          "package_name": "com.grupo07.app_nutricao"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDN3rAfS3n0VNFEgSdlr61FOKya3Yqrq60"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
