@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
-import 'servicos/autenticacao.dart'; // Certifique-se de importar seu AuthService
+import 'servicos/autenticacao.dart';
 import 'telas/login.dart';
 import 'telas/cadastro.dart';
 
@@ -44,38 +44,39 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      // O app começa aqui
-      home: const RoteadorTelas(),
+      // =========================
+      // ROTAS (CORREÇÃO APLICADA)
+      // =========================
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const RoteadorTelas(), // Rota inicial
+        '/home': (context) => const RoteadorTelas(), // Rota '/home' corrigida
+      },
     );
   }
 }
 
 // ==========================================
-// ROTEADOR DE TELAS (Lógica de Redirecionamento)
+// ROTEADOR DE TELAS
 // ==========================================
 class RoteadorTelas extends StatelessWidget {
   const RoteadorTelas({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 1. Monitora o Login (Auth)
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Carregando autenticação...
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Se tem usuário logado...
         if (snapshot.hasData) {
-          // 2. Verifica se é Admin ou Comum (Firestore)
           return FutureBuilder<bool>(
-            future: AuthService().isUsuarioAdmin(), // Busca no banco
+            future: AuthService().isUsuarioAdmin(),
             builder: (context, snapshotAdmin) {
-              // Carregando verificação de admin...
               if (snapshotAdmin.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
@@ -91,19 +92,17 @@ class RoteadorTelas extends StatelessWidget {
                 );
               }
 
-              // Define qual tela abrir
               final bool isAdmin = snapshotAdmin.data ?? false;
 
               if (isAdmin) {
-                return const HomeAdminScreen(); // TELA 2 (ADMIN)
+                return const HomeAdminScreen();
               } else {
-                return const HomeUsuarioScreen(); // TELA 1 (COMUM)
+                return const HomeUsuarioScreen();
               }
             },
           );
         }
 
-        // Se não está logado, mostra apresentação
         return const TelaApresentacao();
       },
     );
@@ -154,7 +153,7 @@ class HomeAdminScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Painel Admin"),
-        backgroundColor: Colors.red[900], // Cor diferente para diferenciar
+        backgroundColor: Colors.red[900],
         actions: [
           IconButton(
             icon: const Icon(Icons.exit_to_app),
@@ -177,7 +176,7 @@ class HomeAdminScreen extends StatelessWidget {
 }
 
 // =========================
-// TELA DE APRESENTAÇÃO (Login/Cadastro)
+// TELA DE APRESENTAÇÃO
 // =========================
 class TelaApresentacao extends StatelessWidget {
   const TelaApresentacao({super.key});
@@ -192,13 +191,19 @@ class TelaApresentacao extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
+
+              // ------------------------------------------------
+              // IMAGEM RESTAURADA AQUI
+              // ------------------------------------------------
               Image.asset(
-                'assets/logo.jpg',
+                'assets/logo.jpg', // Certifique-se que o caminho está correto
                 width: 300,
                 height: 300,
+                // Caso a imagem não exista ou dê erro, mostra um ícone
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.home_work, size: 150, color: Colors.blue),
               ),
+
               const Spacer(),
               SizedBox(
                 width: double.infinity,

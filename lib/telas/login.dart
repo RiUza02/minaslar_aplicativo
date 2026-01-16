@@ -11,26 +11,24 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Controladores para capturar o texto digitado nos campos
+  // Controladores
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
 
-  // Chave global para validar o formulário e gerenciar seu estado
+  // Chave do formulário
   final _formKey = GlobalKey<FormState>();
 
-  // Serviço de autenticação (comunicação com Firebase/Backend)
+  // Serviço de autenticação
   final AuthService _authService = AuthService();
 
-  // Variável de estado para controlar o loading (feedback visual)
+  // Estado de carregamento
   bool _isLoading = false;
 
-  /// Método responsável pela lógica de login
+  /// Método de Login
   Future<void> _fazerLogin() async {
-    // 1. Valida se os campos estão preenchidos corretamente
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // 3. Chama o serviço de autenticação
       String? erro = await _authService.loginUsuario(
         email: _emailController.text,
         password: _senhaController.text,
@@ -38,18 +36,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() => _isLoading = false);
 
-      // 5. Tratamento de erro
       if (erro != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(erro, style: const TextStyle(color: Colors.white)),
-              backgroundColor: const Color.fromARGB(
-                255,
-                255,
-                110,
-                110,
-              ), // Vermelho customizado
+              backgroundColor: const Color.fromARGB(255, 255, 110, 110),
             ),
           );
         }
@@ -60,10 +52,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   /// Método auxiliar para estilizar inputs
-  InputDecoration _buildInputDecoration(String label) {
+  /// MUDANÇA AQUI: Ícone agora recebe a cor Colors.blue
+  InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.white70),
+
+      // --- ÍCONE AZUL ---
+      prefixIcon: Icon(icon, color: Colors.blue),
+
       enabledBorder: const OutlineInputBorder(
         borderSide: BorderSide(color: Colors.white54),
       ),
@@ -77,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // O tema global (main.dart) já define o fundo como preto.
+      // O tema global define o fundo, mas garantimos contraste aqui se necessário
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
@@ -93,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const Spacer(),
 
-                        // --- LOGO / ÍCONE ---
+                        // --- LOGO ---
                         const Icon(
                           Icons.lock_person,
                           size: 120,
@@ -111,23 +108,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 30),
 
-                        // --- CAMPOS DE TEXTO ---
+                        // --- CAMPOS ---
+
+                        // E-mail
                         TextFormField(
-                          cursorColor: Colors.white,
+                          cursorColor: Colors.blue, // Cursor também azul
                           controller: _emailController,
                           style: const TextStyle(color: Colors.white),
-                          decoration: _buildInputDecoration('E-mail'),
+                          decoration: _buildInputDecoration(
+                            'E-mail',
+                            Icons.email,
+                          ),
                           validator: (v) =>
                               v!.isEmpty ? 'Digite seu e-mail' : null,
                         ),
 
                         const SizedBox(height: 15),
 
+                        // Senha
                         TextFormField(
-                          cursorColor: Colors.white,
+                          cursorColor: Colors.blue, // Cursor também azul
                           controller: _senhaController,
                           style: const TextStyle(color: Colors.white),
-                          decoration: _buildInputDecoration('Senha'),
+                          decoration: _buildInputDecoration(
+                            'Senha',
+                            Icons.lock,
+                          ),
                           obscureText: true,
                           validator: (v) =>
                               v!.isEmpty ? 'Digite sua senha' : null,
@@ -135,10 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 20),
 
-                        // --- BOTÃO DE AÇÃO ---
+                        // --- BOTÃO ---
                         _isLoading
                             ? const CircularProgressIndicator(
-                                color: Colors.white,
+                                color: Colors.blue,
                               )
                             : SizedBox(
                                 width: double.infinity,
@@ -163,7 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // Lado Esquerdo: Cadastro
                               Expanded(
                                 child: Column(
                                   children: [
@@ -181,7 +186,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         );
                                       },
-                                      child: const Text("Criar Conta"),
+                                      child: const Text(
+                                        "Criar Conta",
+                                        style: TextStyle(color: Colors.blue),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -193,7 +201,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 20,
                               ),
 
-                              // Lado Direito: Recuperação
                               Expanded(
                                 child: Column(
                                   children: [

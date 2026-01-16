@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <--- IMPORTANTE: Adicionado
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart'; // <--- 1. IMPORTAÇÃO
 import '../../servicos/autenticacao.dart';
-import 'confirmacaoEmail.dart'; // Certifique-se que o nome do arquivo está correto
+import 'confirmacaoEmail.dart';
 
 class CadastroAdminScreen extends StatefulWidget {
   const CadastroAdminScreen({super.key});
@@ -15,14 +16,29 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
 
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
+  final _telefoneController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmaSenhaController = TextEditingController();
-
-  // Código de segurança para admins
   final _codigoSegurancaController = TextEditingController();
 
+  // ===========================================
+  // MÁSCARA DE TELEFONE (Brasil)
+  // ===========================================
+  final maskFormatter = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
   bool _isLoading = false;
+
+  // Variáveis de validação visual
   bool _senhaValida = false;
+  bool _telefoneValido = false;
+
+  // Variáveis para controlar a visibilidade da senha
+  bool _mostrarSenha = false;
+  bool _mostrarConfirmaSenha = false;
 
   final AuthService _authService = AuthService();
 
@@ -30,36 +46,35 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // 1. Cria o usuário no Firebase Auth (apenas Auth)
+      // 1. Cria o usuário no Firebase Auth
       String? erro = await _authService.cadastrarUsuario(
         email: _emailController.text.trim(),
         password: _senhaController.text,
-        // Nota: Nome e isAdmin não são enviados aqui, pois o novo AuthService
-        // separa a criação do Auth do salvamento no Firestore.
       );
 
       setState(() => _isLoading = false);
 
       if (erro == null) {
         if (mounted) {
-          // ====================================================
-          // 2. SALVAR BACKUP LOCAL (Para caso o app feche)
-          // ====================================================
+          // 2. SALVAR BACKUP LOCAL
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('temp_nome', _nomeController.text.trim());
           await prefs.setString('temp_email', _emailController.text.trim());
-          await prefs.setBool('temp_isAdmin', true); // É Admin
+          // Salva o telefone formatado
+          await prefs.setString(
+            'temp_telefone',
+            _telefoneController.text.trim(),
+          );
+          await prefs.setBool('temp_isAdmin', true);
 
-          // ====================================================
           // 3. IR PARA TELA DE VERIFICAÇÃO
-          // ====================================================
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => VerificacaoEmailScreen(
-                // Passamos os dados para uso imediato
                 emailUsuario: _emailController.text.trim(),
                 nomeUsuario: _nomeController.text.trim(),
+                telefoneUsuario: _telefoneController.text.trim(),
                 isAdmin: true,
               ),
             ),
@@ -105,10 +120,11 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        // CAMPO NOME
                         TextFormField(
                           controller: _nomeController,
                           decoration: const InputDecoration(
-                            labelText: 'Nome do Administrador',
+                            labelText: 'Nome Completo',
                             prefixIcon: Icon(Icons.person, color: corAdmin),
                           ),
                           validator: (v) =>
@@ -116,10 +132,11 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        // CAMPO E-MAIL
                         TextFormField(
                           controller: _emailController,
                           decoration: const InputDecoration(
-                            labelText: 'E-mail Corporativo',
+                            labelText: 'E-mail',
                             prefixIcon: Icon(Icons.email, color: corAdmin),
                           ),
                           keyboardType: TextInputType.emailAddress,
@@ -128,13 +145,84 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        // ===========================================
+                        // CAMPO TELEFONE (COM MÁSCARA)
+                        // ===========================================
+                        TextFormField(
+                          controller: _telefoneController,
+                          // Aplica a máscara
+                          inputFormatters: [maskFormatter],
+                          decoration: const InputDecoration(
+                            labelText: 'Telefone / Celular',
+                            prefixIcon: Icon(Icons.phone, color: corAdmin),
+                            hintText: '(32) 12345-6789',
+                          ),
+                          keyboardType: TextInputType.phone,
+                          onChanged: (valor) {
+                            setState(() {
+                              // Verifica se tem 15 chars: (XX) XXXXX-XXXX
+                              _telefoneValido = valor.length >= 15;
+                            });
+                          },
+                          validator: (v) {
+                            if (v!.isEmpty) return 'Informe o telefone';
+                            if (v.length < 15) return 'Telefone incompleto';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Feedback Visual do Telefone
+                        Row(
+                          children: [
+                            Icon(
+                              _telefoneValido
+                                  ? Icons.check_circle
+                                  : Icons.cancel,
+                              color: _telefoneValido
+                                  ? Colors.green
+                                  : Colors.red,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Mínimo de 11 dígitos',
+                              style: TextStyle(
+                                color: _telefoneValido
+                                    ? Colors.green
+                                    : Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // ===========================================
+                        // CAMPO SENHA
+                        // ===========================================
                         TextFormField(
                           controller: _senhaController,
-                          decoration: const InputDecoration(
+                          obscureText: !_mostrarSenha,
+                          decoration: InputDecoration(
                             labelText: 'Senha',
-                            prefixIcon: Icon(Icons.lock, color: corAdmin),
+                            prefixIcon: const Icon(Icons.lock, color: corAdmin),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _mostrarSenha
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _mostrarSenha = !_mostrarSenha;
+                                });
+                              },
+                            ),
                           ),
-                          obscureText: true,
                           onChanged: (valor) {
                             setState(() {
                               _senhaValida = valor.length >= 6;
@@ -167,17 +255,34 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                         ),
                         const SizedBox(height: 20),
 
+                        // ===========================================
+                        // CAMPO CONFIRMAR SENHA
+                        // ===========================================
                         TextFormField(
                           controller: _confirmaSenhaController,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
-                          decoration: const InputDecoration(
+                          obscureText: !_mostrarConfirmaSenha,
+                          decoration: InputDecoration(
                             labelText: 'Confirmar Senha',
-                            prefixIcon: Icon(
+                            prefixIcon: const Icon(
                               Icons.lock_outline,
                               color: corAdmin,
                             ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _mostrarConfirmaSenha
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _mostrarConfirmaSenha =
+                                      !_mostrarConfirmaSenha;
+                                });
+                              },
+                            ),
                           ),
-                          obscureText: true,
                           validator: (v) {
                             if (v!.isEmpty) return 'Confirme sua senha';
                             if (v != _senhaController.text) {
@@ -189,6 +294,7 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
 
                         const SizedBox(height: 20),
 
+                        // CÓDIGO DE SEGURANÇA
                         TextFormField(
                           controller: _codigoSegurancaController,
                           decoration: const InputDecoration(
@@ -203,6 +309,7 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                         const Spacer(),
                         const SizedBox(height: 20),
 
+                        // BOTÃO
                         SizedBox(
                           width: double.infinity,
                           child: _isLoading

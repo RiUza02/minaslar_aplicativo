@@ -8,14 +8,12 @@ class AuthService {
 
   User? get usuarioAtual => _auth.currentUser;
 
-  // =========================
-  // 1. CADASTRO (Apenas Auth + E-mail)
-  // =========================
+  // ======================================================
+  // 1. CADASTRO (Apenas Auth + Envio de E-mail)
+  // ======================================================
   Future<String?> cadastrarUsuario({
     required String email,
     required String password,
-    // Nota: Nome e isAdmin não são usados aqui agora, pois serão passados
-    // para a tela de verificação para serem salvos depois.
   }) async {
     try {
       // Cria o usuário no Auth
@@ -25,7 +23,7 @@ class AuthService {
       User? user = userCredential.user;
 
       if (user != null) {
-        // Envia o e-mail e não salva nada no banco ainda
+        // Envia o e-mail de verificação
         await user.sendEmailVerification();
       }
 
@@ -37,80 +35,67 @@ class AuthService {
     }
   }
 
-  // =========================
-  // 2. SALVAR DADOS (Novo Método)
-  // =========================
-  // Este método é chamado pela VerificacaoEmailScreen após o e-mail ser validado
-  Future<String?> salvarDadosUsuario({
-    required String uid,
-    required String nome,
-    required String email,
-    required bool isAdmin,
-  }) async {
-    try {
-      Usuario novoUsuario = Usuario(
-        id: uid,
-        nome: nome,
-        email: email,
-        isAdmin: isAdmin,
-      );
-
-      await _firestore.collection('usuarios').doc(uid).set(novoUsuario.toMap());
-
-      return null; // Sucesso
-    } catch (e) {
-      return 'Erro ao salvar dados no banco: $e';
-    }
-  }
-
   // ======================================================
-  // SALVAR DADOS APÓS VERIFICAÇÃO
+  // 2. SALVAR DADOS NO FIRESTORE (ATUALIZADO COM TELEFONE)
   // ======================================================
   Future<String?> salvarDadosNoFirestore({
     required String uid,
     required String nome,
     required String email,
     required bool isAdmin,
+    required String telefone, // <--- NOVO CAMPO OBRIGATÓRIO
   }) async {
     try {
-      await _firestore.collection('users').doc(uid).set({
-        'uid': uid,
-        'nome': nome,
-        'email': email,
-        'isAdmin': isAdmin,
-        // Opcional: Data de criação para ordenação futura
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-      return null; // Sucesso (null significa sem erros)
+      // Cria o objeto Usuario com todos os dados
+      Usuario novoUsuario = Usuario(
+        id: uid,
+        nome: nome,
+        email: email,
+        isAdmin: isAdmin,
+        telefone: telefone, // Passa o telefone para o modelo
+      );
+
+      // Salva na coleção 'usuarios' usando o método toMap() do modelo
+      // Isso garante que os campos no banco fiquem iguais aos do código
+      await _firestore.collection('usuarios').doc(uid).set(novoUsuario.toMap());
+
+      return null; // Sucesso
     } on FirebaseException catch (e) {
-      return e.message;
+      return e.message ?? 'Erro ao acessar o banco de dados.';
     } catch (e) {
-      return 'Erro desconhecido ao salvar dados do usuário.';
+      return 'Erro inesperado ao salvar dados: $e';
     }
   }
 
-  // =========================
-  // REENVIAR E-MAIL
-  // =========================
+  // ======================================================
+  // 3. RECUPERAÇÃO DE SENHA
+  // ======================================================
+  Future<String?> recuperarSenha({required String email}) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _traduzirErro(e.code);
+    }
+  }
+
+  // ======================================================
+  // 4. OUTROS MÉTODOS (Login, Logout, Admin, etc)
+  // ======================================================
+
   Future<String?> reenviarVerificacaoEmail() async {
     try {
       User? user = _auth.currentUser;
       if (user != null) {
         await user.sendEmailVerification();
         return null;
-      } else {
-        return "Nenhum usuário logado.";
       }
+      return "Nenhum usuário logado.";
     } on FirebaseAuthException catch (e) {
       return _traduzirErro(e.code);
-    } catch (e) {
-      return "Erro: $e";
     }
   }
 
-  // =========================
-  // LOGIN, LOGOUT E RECUPERAÇÃO (Mantidos iguais)
-  // =========================
   Future<String?> loginUsuario({
     required String email,
     required String password,
@@ -127,20 +112,6 @@ class AuthService {
     await _auth.signOut();
   }
 
-  Future<String?> recuperarSenha({required String email}) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-      return null;
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') return 'E-mail não encontrado.';
-      if (e.code == 'invalid-email') return 'E-mail inválido.';
-      return 'Erro: ${e.message}';
-    }
-  }
-
-  // =========================
-  // VERIFICAÇÃO DE ADMIN
-  // =========================
   Future<bool> isUsuarioAdmin() async {
     User? user = _auth.currentUser;
     if (user == null) return false;
@@ -150,20 +121,17 @@ class AuthService {
           .collection('usuarios')
           .doc(user.uid)
           .get();
+
       if (doc.exists && doc.data() != null) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         return data['isAdmin'] ?? false;
       }
     } catch (e) {
-      // Em caso de erro de leitura (ex: regras de segurança antes de ter o doc), retorna false
       return false;
     }
     return false;
   }
 
-  // =========================
-  // TRATAMENTO DE ERROS
-  // =========================
   String _traduzirErro(String code) {
     switch (code) {
       case 'email-already-in-use':
@@ -175,6 +143,7 @@ class AuthService {
       case 'user-not-found':
         return 'Usuário não encontrado.';
       case 'wrong-password':
+        return 'Senha incorreta.';
       case 'invalid-credential':
         return 'Credenciais inválidas.';
       default:

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <--- IMPORTANTE: Adicionado
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart'; // IMPORTANTE
 import '../../servicos/autenticacao.dart';
 import 'confirmacaoEmail.dart';
 
@@ -18,10 +19,22 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
+  final _telefoneController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmaSenhaController = TextEditingController();
 
+  // MÁSCARA DE TELEFONE (Brasil)
+  final maskFormatter = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
   bool _isLoading = false;
+
+  // CONTROLE DE VISIBILIDADE DAS SENHAS
+  bool _obscureSenha = true;
+  bool _obscureConfirma = true;
   bool _senhaValida = false;
 
   final AuthService _authService = AuthService();
@@ -37,8 +50,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
       String? erro = await _authService.cadastrarUsuario(
         email: _emailController.text.trim(),
         password: _senhaController.text,
-        // Nota: 'nome' e 'isAdmin' não são enviados aqui pois serão salvos
-        // no Firestore apenas após a validação do e-mail.
       );
 
       setState(() => _isLoading = false);
@@ -46,13 +57,17 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
       if (erro == null) {
         if (mounted) {
           // ====================================================
-          // 2. SALVAR BACKUP LOCAL (Para caso o app feche)
+          // 2. SALVAR BACKUP LOCAL
           // ====================================================
-          // Salvamos o nome e o tipo de usuário (comum = false)
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('temp_nome', _nomeController.text.trim());
           await prefs.setString('temp_email', _emailController.text.trim());
-          await prefs.setBool('temp_isAdmin', false); // <--- Usuário Comum
+          // Salva o telefone sem formatação se preferir, ou com formatação
+          await prefs.setString(
+            'temp_telefone',
+            _telefoneController.text.trim(),
+          );
+          await prefs.setBool('temp_isAdmin', false); // Usuário Comum
 
           // ====================================================
           // 3. IR PARA TELA DE VERIFICAÇÃO
@@ -61,9 +76,9 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => VerificacaoEmailScreen(
-                // Passamos os dados para uso imediato (sem precisar ler do disco agora)
                 emailUsuario: _emailController.text.trim(),
                 nomeUsuario: _nomeController.text.trim(),
+                telefoneUsuario: _telefoneController.text.trim(),
                 isAdmin: false,
               ),
             ),
@@ -134,14 +149,56 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Senha
+                        // ===========================================
+                        // CAMPO TELEFONE (COM MÁSCARA)
+                        // ===========================================
+                        TextFormField(
+                          controller: _telefoneController,
+                          // Aplica a máscara (##) #####-####
+                          inputFormatters: [maskFormatter],
+                          decoration: const InputDecoration(
+                            labelText: 'Telefone / Celular',
+                            prefixIcon: Icon(Icons.phone, color: corPrimaria),
+                            hintText: '(32) 12345-6789',
+                          ),
+                          keyboardType: TextInputType.phone,
+                          validator: (v) {
+                            if (v == null || v.isEmpty)
+                              return 'Informe o telefone';
+                            if (v.length < 14) return 'Telefone incompleto';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ===========================================
+                        // SENHA (COM VISIBILIDADE)
+                        // ===========================================
                         TextFormField(
                           controller: _senhaController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Senha',
-                            prefixIcon: Icon(Icons.lock, color: corPrimaria),
+                            prefixIcon: const Icon(
+                              Icons.lock,
+                              color: corPrimaria,
+                            ),
+                            // Botão do Olho
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureSenha
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureSenha = !_obscureSenha;
+                                });
+                              },
+                            ),
                           ),
-                          obscureText: true,
+                          obscureText:
+                              _obscureSenha, // Controlado pela variável
                           onChanged: (valor) {
                             setState(() {
                               _senhaValida = valor.length >= 6;
@@ -182,18 +239,35 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
                         const SizedBox(height: 10),
 
-                        // Confirmar Senha
+                        // ===========================================
+                        // CONFIRMAR SENHA (COM VISIBILIDADE)
+                        // ===========================================
                         TextFormField(
                           controller: _confirmaSenhaController,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Confirmar Senha',
-                            prefixIcon: Icon(
+                            prefixIcon: const Icon(
                               Icons.lock_outline,
                               color: corPrimaria,
                             ),
+                            // Botão do Olho
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureConfirma
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureConfirma = !_obscureConfirma;
+                                });
+                              },
+                            ),
                           ),
-                          obscureText: true,
+                          obscureText:
+                              _obscureConfirma, // Controlado pela variável
                           validator: (v) {
                             if (v!.isEmpty) return 'Confirme sua senha';
                             if (v != _senhaController.text) {

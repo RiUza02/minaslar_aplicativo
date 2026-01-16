@@ -5,13 +5,15 @@ import '../../servicos/autenticacao.dart';
 
 class VerificacaoEmailScreen extends StatefulWidget {
   final String? emailUsuario;
-  final String? nomeUsuario; // <--- Novo parâmetro
-  final bool? isAdmin; // <--- Novo parâmetro
+  final String? nomeUsuario;
+  final String? telefoneUsuario; // <--- 1. Novo parâmetro
+  final bool? isAdmin;
 
   const VerificacaoEmailScreen({
     super.key,
     this.emailUsuario,
     this.nomeUsuario,
+    this.telefoneUsuario, // <--- Adicionado aqui
     this.isAdmin,
   });
 
@@ -64,22 +66,28 @@ class _VerificacaoEmailScreenState extends State<VerificacaoEmailScreen> {
 
         String nomeFinal =
             widget.nomeUsuario ?? prefs.getString('temp_nome') ?? 'Usuário';
+
+        // <--- 2. Recupera o Telefone
+        String telefoneFinal =
+            widget.telefoneUsuario ?? prefs.getString('temp_telefone') ?? '';
+
         bool adminFinal =
             widget.isAdmin ?? prefs.getBool('temp_isAdmin') ?? false;
 
-        // 2. Chamar o serviço para salvar os dados finais no Firestore
-        // (Certifique-se de ter esse método no seu AuthService)
+        // 3. Chamar o serviço para salvar os dados finais no Firestore
         String? erroSalvar = await _authService.salvarDadosNoFirestore(
           uid: user.uid,
           nome: nomeFinal,
           email: user.email!,
+          telefone: telefoneFinal, // <--- 3. Envia o telefone para o BD
           isAdmin: adminFinal,
         );
 
         if (erroSalvar == null) {
-          // 3. Limpar dados temporários
+          // 4. Limpar dados temporários
           await prefs.remove('temp_nome');
           await prefs.remove('temp_email');
+          await prefs.remove('temp_telefone'); // <--- 4. Limpa o backup
           await prefs.remove('temp_isAdmin');
 
           if (mounted) {
