@@ -1,9 +1,18 @@
 class Usuario {
-  String?
-  id; // Geralmente aqui usamos o UID gerado pelo Firebase Authentication
-  String nome; // Nome completo do usuário
-  String email; // Email do usuário
-  bool isAdmin; // Se for TRUE, é administrador. Se for FALSE, é usuário comum.
+  // Identificador do usuário
+  // Normalmente é o UID gerado pelo Firebase Authentication
+  String? id;
+
+  // Nome completo do usuário
+  String nome;
+
+  // Endereço de e-mail do usuário
+  String email;
+
+  // Define o nível de acesso do usuário
+  // true  -> administrador
+  // false -> usuário comum
+  bool isAdmin;
 
   Usuario({
     this.id,
@@ -12,18 +21,21 @@ class Usuario {
     this.isAdmin = false,
   });
 
-  // Converte para salvar no Banco de Dados
+  // Converte o objeto Usuario em um Map
+  // Usado para salvar os dados no Firebase
   Map<String, dynamic> toMap() {
     return {'nome': nome, 'email': email, 'isAdmin': isAdmin};
   }
 
-  // Converte do Banco de Dados para o App
+  // Cria um objeto Usuario a partir dos dados do Firebase
+  // documentId representa o ID do documento no banco
   factory Usuario.fromMap(Map<String, dynamic> map, String documentId) {
     return Usuario(
       id: documentId,
+      // Define valores padrão caso os campos não existam
       nome: map['nome'] ?? '',
       email: map['email'] ?? '',
-      // Garante que se o campo não existir, ele assume que NÃO é admin
+      // Se o campo não existir, assume que o usuário não é administrador
       isAdmin: map['isAdmin'] ?? false,
     );
   }

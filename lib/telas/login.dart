@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../servicos/autenticacao.dart';
-import 'cadastroUsuario.dart';
-import 'cadastroAdmin.dart';
+import 'Cadastro_login/recuperaSenha.dart';
+import 'cadastro.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,17 +11,26 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // Controladores para capturar o texto digitado nos campos
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
+
+  // Chave global para validar o formulário e gerenciar seu estado
   final _formKey = GlobalKey<FormState>();
+
+  // Serviço de autenticação (comunicação com Firebase/Backend)
   final AuthService _authService = AuthService();
 
+  // Variável de estado para controlar o loading (feedback visual)
   bool _isLoading = false;
 
+  /// Método responsável pela lógica de login
   Future<void> _fazerLogin() async {
+    // 1. Valida se os campos estão preenchidos corretamente
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
+      // 3. Chama o serviço de autenticação
       String? erro = await _authService.loginUsuario(
         email: _emailController.text,
         password: _senhaController.text,
@@ -29,104 +38,201 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() => _isLoading = false);
 
+      // 5. Tratamento de erro
       if (erro != null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(erro), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(erro, style: const TextStyle(color: Colors.white)),
+              backgroundColor: const Color.fromARGB(
+                255,
+                255,
+                110,
+                110,
+              ), // Vermelho customizado
+            ),
           );
         }
       } else {
-        // O login funcionou! O StreamBuilder na main.dart vai notar a mudança
-        // e levará o usuário para a Home automaticamente.
+        Navigator.of(context).pop();
       }
     }
+  }
+
+  /// Método auxiliar para estilizar inputs
+  InputDecoration _buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.white70),
+      enabledBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: Colors.white54),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: Colors.blue),
+      ),
+      border: const OutlineInputBorder(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.lock_person, size: 80, color: Colors.blue),
-                const SizedBox(height: 20),
-                const Text(
-                  "MinasLar Login",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 30),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'E-mail',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) => v!.isEmpty ? 'Digite seu e-mail' : null,
-                ),
-                const SizedBox(height: 15),
-                TextFormField(
-                  controller: _senhaController,
-                  decoration: const InputDecoration(
-                    labelText: 'Senha',
-                    border: OutlineInputBorder(),
-                  ),
-                  obscureText: true,
-                  validator: (v) => v!.isEmpty ? 'Digite sua senha' : null,
-                ),
-                const SizedBox(height: 20),
-                _isLoading
-                    ? const CircularProgressIndicator()
-                    : SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _fazerLogin,
-                          child: const Text('ENTRAR'),
+      // O tema global (main.dart) já define o fundo como preto.
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Spacer(),
+
+                        // --- LOGO / ÍCONE ---
+                        const Icon(
+                          Icons.lock_person,
+                          size: 120,
+                          color: Colors.blue,
                         ),
-                      ),
-                const SizedBox(height: 30),
-                const Divider(),
-                const Text("Não tem conta?"),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CadastroUsuarioScreen(),
+                        const SizedBox(height: 20),
+
+                        const Text(
+                          "Login",
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                        );
-                      },
-                      child: const Text("Criar Conta"),
-                    ),
-                    const Text("|"),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CadastroAdminScreen(),
+                        ),
+                        const SizedBox(height: 30),
+
+                        // --- CAMPOS DE TEXTO ---
+                        TextFormField(
+                          cursorColor: Colors.white,
+                          controller: _emailController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _buildInputDecoration('E-mail'),
+                          validator: (v) =>
+                              v!.isEmpty ? 'Digite seu e-mail' : null,
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        TextFormField(
+                          cursorColor: Colors.white,
+                          controller: _senhaController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _buildInputDecoration('Senha'),
+                          obscureText: true,
+                          validator: (v) =>
+                              v!.isEmpty ? 'Digite sua senha' : null,
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // --- BOTÃO DE AÇÃO ---
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: _fazerLogin,
+                                  child: const Text('ENTRAR'),
+                                ),
+                              ),
+
+                        const Spacer(),
+
+                        // --- RODAPÉ ---
+                        const Divider(color: Colors.white24),
+                        const SizedBox(height: 10),
+
+                        IntrinsicHeight(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Lado Esquerdo: Cadastro
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Não tem conta?",
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const EscolhaTipoCadastroScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text("Criar Conta"),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const VerticalDivider(
+                                color: Colors.white24,
+                                thickness: 1,
+                                width: 20,
+                              ),
+
+                              // Lado Direito: Recuperação
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Esqueceu a senha?",
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const RecuperarSenhaScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text(
+                                        "Recuperar",
+                                        style: TextStyle(
+                                          color: Colors.redAccent,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                      child: const Text(
-                        "Sou Funcionário",
-                        style: TextStyle(color: Colors.red),
-                      ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

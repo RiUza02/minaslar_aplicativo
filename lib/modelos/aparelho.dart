@@ -1,8 +1,16 @@
 class Aparelho {
-  String? id; // O ID do documento no Firebase (opcional na criação)
-  String marca; // Marca do aparelho
-  String cor; // Cor do aparelhos
-  int quantidadeBocas; // Número inteiro para contar as bocas
+  // Identificador do documento no Firebase
+  // Pode ser nulo ao criar um novo registro
+  String? id;
+
+  // Marca do aparelho (ex: Brastemp, Electrolux)
+  String marca;
+
+  // Cor do aparelho
+  String cor;
+
+  // Quantidade de bocas do aparelho
+  int quantidadeBocas;
 
   Aparelho({
     this.id,
@@ -11,18 +19,21 @@ class Aparelho {
     required this.quantidadeBocas,
   });
 
-  // Converte para salvar no Banco de Dados (Firebase)
+  // Converte o objeto Aparelho em um Map
+  // Usado para salvar os dados no Firebase
   Map<String, dynamic> toMap() {
     return {'marca': marca, 'cor': cor, 'quantidadeBocas': quantidadeBocas};
   }
 
-  // Converte do Banco de Dados para o App
+  // Cria um objeto Aparelho a partir dos dados vindos do Firebase
+  // documentId representa o ID do documento no banco
   factory Aparelho.fromMap(Map<String, dynamic> map, String documentId) {
     return Aparelho(
       id: documentId,
+      // Usa string vazia caso o valor não exista
       marca: map['marca'] ?? '',
       cor: map['cor'] ?? '',
-      // Garante que seja um número inteiro, mesmo que venha nulo
+      // Garante que o valor seja inteiro e define um padrão (4) se for nulo
       quantidadeBocas: map['quantidadeBocas']?.toInt() ?? 4,
     );
   }
