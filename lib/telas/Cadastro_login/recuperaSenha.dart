@@ -19,7 +19,6 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // Chama o método no AuthService (você precisa adicionar esse método lá, veja abaixo)
       String? erro = await _authService.recuperarSenha(
         email: _emailController.text.trim(),
       );
@@ -28,24 +27,27 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
 
       if (erro == null) {
         if (mounted) {
-          // Sucesso
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
                 'E-mail de recuperação enviado! Verifique sua caixa de entrada.',
+                // FONTE 20
+                style: TextStyle(fontSize: 15),
               ),
               backgroundColor: Colors.green,
             ),
           );
-          // Opcional: Voltar para o login após enviar
           Navigator.pop(context);
         }
       } else {
-        // Erro
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(erro),
+              content: Text(
+                erro,
+                // FONTE 20
+                style: const TextStyle(fontSize: 15),
+              ),
               backgroundColor: const Color.fromARGB(255, 255, 110, 110),
             ),
           );
@@ -54,11 +56,11 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
     }
   }
 
-  // Mesmo estilo de input da tela de login
   InputDecoration _buildInputDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
+      // FONTE 20 NO LABEL
+      labelStyle: const TextStyle(color: Colors.white70, fontSize: 15),
       enabledBorder: const OutlineInputBorder(
         borderSide: BorderSide(color: Colors.white54),
       ),
@@ -79,75 +81,91 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      // LayoutBuilder para evitar overflow do teclado
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.lock_reset,
-                        size: 100,
-                        color: Colors.blue,
-                      ),
-                      const SizedBox(height: 30),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
 
-                      const Text(
-                        "Esqueceu sua senha?",
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                        const Icon(
+                          Icons.lock_reset,
+                          size: 100,
+                          color: Colors.blue,
                         ),
-                      ),
-                      const SizedBox(height: 10),
+                        const SizedBox(height: 30),
 
-                      const Text(
-                        "Não se preocupe, insira seu e-mail cadastrado abaixo um link para redefinir sua senha será enviado.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 16, color: Colors.white70),
-                      ),
-                      const SizedBox(height: 40),
+                        const Text(
+                          "Esqueceu sua senha?",
+                          style: TextStyle(
+                            fontSize: 30, // FONTE 20 (Era 24)
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
 
-                      TextFormField(
-                        cursorColor: Colors.white,
-                        controller: _emailController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: _buildInputDecoration('E-mail Cadastrado'),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          if (v!.isEmpty) return 'Informe o e-mail';
-                          if (!v.contains('@')) return 'E-mail inválido';
-                          return null;
-                        },
-                      ),
+                        const Text(
+                          "Não se preocupe, insira seu e-mail cadastrado abaixo um link para redefinir sua senha será enviado.",
+                          textAlign: TextAlign.center,
+                          // FONTE 20 (Era 16)
+                          style: TextStyle(fontSize: 15, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 40),
 
-                      const SizedBox(height: 30),
+                        TextFormField(
+                          cursorColor: Colors.white,
+                          controller: _emailController,
+                          // FONTE 20 NO TEXTO DIGITADO
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
+                          decoration: _buildInputDecoration(
+                            'E-mail Cadastrado',
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) {
+                            if (v!.isEmpty) return 'Informe o e-mail';
+                            if (!v.contains('@')) return 'E-mail inválido';
+                            return null;
+                          },
+                        ),
 
-                      _isLoading
-                          ? const CircularProgressIndicator(color: Colors.blue)
-                          : SizedBox(
-                              width: double.infinity,
-                              height: 50,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
+                        const Spacer(),
+
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.blue,
+                              )
+                            : SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  onPressed: _enviarEmailRecuperacao,
+                                  child: const Text(
+                                    'ENVIAR LINK DE RECUPERAÇÃO',
+                                    // FONTE 20 NO BOTÃO
+                                    style: TextStyle(fontSize: 15),
+                                  ),
                                 ),
-                                onPressed: _enviarEmailRecuperacao,
-                                child: const Text('ENVIAR LINK DE RECUPERAÇÃO'),
                               ),
-                            ),
 
-                      const SizedBox(height: 20), // Espaço final
-                    ],
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
               ),

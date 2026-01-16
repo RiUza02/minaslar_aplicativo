@@ -222,7 +222,7 @@ class TelaApresentacao extends StatelessWidget {
                   },
                   child: const Text(
                     'Fazer Login',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -244,7 +244,7 @@ class TelaApresentacao extends StatelessWidget {
                   },
                   child: const Text(
                     'Criar Conta',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

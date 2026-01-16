@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Necessário para pegar o UID
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-// Certifique-se de que os caminhos dos imports abaixo estão corretos no seu projeto
 import '../../servicos/autenticacao.dart';
-import 'confirmacaoEmail.dart';
 
 class CadastroUsuarioScreen extends StatefulWidget {
   const CadastroUsuarioScreen({super.key});
@@ -13,9 +11,6 @@ class CadastroUsuarioScreen extends StatefulWidget {
 }
 
 class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
-  // =========================
-  // CONTROLE DO FORMULÁRIO
-  // =========================
   final _formKey = GlobalKey<FormState>();
 
   final _nomeController = TextEditingController();
@@ -24,7 +19,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
   final _senhaController = TextEditingController();
   final _confirmaSenhaController = TextEditingController();
 
-  // MÁSCARA DE TELEFONE (Brasil)
   final maskFormatter = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
@@ -32,14 +26,10 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
   );
 
   bool _isLoading = false;
-
-  // CONTROLE DE VISIBILIDADE DAS SENHAS E VALIDAÇÕES VISUAIS
   bool _obscureSenha = true;
   bool _obscureConfirma = true;
-
-  // CORREÇÃO: Variáveis de estado para feedback visual
   bool _senhaValida = false;
-  bool _telefoneValido = false; // <--- Esta variável estava faltando
+  bool _telefoneValido = false;
 
   final AuthService _authService = AuthService();
 
@@ -56,39 +46,47 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
         password: _senhaController.text,
       );
 
-      setState(() => _isLoading = false);
-
       if (erro == null) {
-        if (mounted) {
-          // ====================================================
-          // 2. SALVAR BACKUP LOCAL
-          // ====================================================
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('temp_nome', _nomeController.text.trim());
-          await prefs.setString('temp_email', _emailController.text.trim());
-          await prefs.setString(
-            'temp_telefone',
-            _telefoneController.text.trim(),
-          );
-          await prefs.setBool('temp_isAdmin', false); // Usuário Comum
+        // Sucesso no Auth!
+        try {
+          User? user = FirebaseAuth.instance.currentUser;
 
-          // ====================================================
-          // 3. NAVEGAÇÃO
-          // ====================================================
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => VerificacaoEmailScreen(
-                emailUsuario: _emailController.text.trim(),
-                nomeUsuario: _nomeController.text.trim(),
-                telefoneUsuario: _telefoneController.text.trim(),
-                isAdmin: false,
+          if (user != null) {
+            // 2. SALVAR NO FIRESTORE AGORA
+            String? erroFirestore = await _authService.salvarDadosNoFirestore(
+              uid: user.uid,
+              nome: _nomeController.text.trim(),
+              email: _emailController.text.trim(),
+              telefone: _telefoneController.text.trim(),
+              isAdmin: false, // Usuário Comum
+            );
+
+            if (erroFirestore == null) {
+              if (mounted) {
+                // 3. IR DIRETO PARA HOME (Remove histórico anterior)
+                Navigator.of(
+                  context,
+                ).pushNamedAndRemoveUntil('/home', (route) => false);
+              }
+            } else {
+              throw erroFirestore;
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() => _isLoading = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("Erro ao salvar dados: $e"),
+                backgroundColor: Colors.red,
               ),
-            ),
-          );
+            );
+          }
         }
       } else {
+        // Erro Auth
         if (mounted) {
+          setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(erro), backgroundColor: Colors.red),
           );
@@ -99,6 +97,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ... Layout igual ao anterior, sem mudanças visuais
     const Color corPrimaria = Colors.blueAccent;
 
     return Scaffold(
@@ -126,8 +125,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           color: corPrimaria,
                         ),
                         const SizedBox(height: 20),
-
-                        // Nome
                         TextFormField(
                           controller: _nomeController,
                           decoration: const InputDecoration(
@@ -138,8 +135,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               v!.isEmpty ? 'Informe o nome' : null,
                         ),
                         const SizedBox(height: 20),
-
-                        // E-mail
                         TextFormField(
                           controller: _emailController,
                           decoration: const InputDecoration(
@@ -151,13 +146,8 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               !v!.contains('@') ? 'E-mail inválido' : null,
                         ),
                         const SizedBox(height: 20),
-
-                        // ===========================================
-                        // CAMPO TELEFONE (COM MÁSCARA)
-                        // ===========================================
                         TextFormField(
                           controller: _telefoneController,
-                          // Aplica a máscara (##) #####-####
                           inputFormatters: [maskFormatter],
                           decoration: const InputDecoration(
                             labelText: 'Telefone / Celular',
@@ -165,19 +155,15 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             hintText: '(32) 12345-6789',
                           ),
                           keyboardType: TextInputType.phone,
-                          // CORREÇÃO: Atualizar estado _telefoneValido
                           onChanged: (value) {
                             setState(() {
-                              // Verifica se tem 11 dígitos numéricos (padrão celular BR)
-                              // maskFormatter.getUnmaskedText() pega apenas os números
                               _telefoneValido =
                                   maskFormatter.getUnmaskedText().length >= 11;
                             });
                           },
                           validator: (v) {
-                            if (v == null || v.isEmpty) {
+                            if (v == null || v.isEmpty)
                               return 'Informe o telefone';
-                            }
                             if (maskFormatter.getUnmaskedText().length < 11) {
                               return 'Telefone incompleto';
                             }
@@ -185,8 +171,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-
-                        // Feedback Visual do Telefone
                         Row(
                           children: [
                             Icon(
@@ -212,10 +196,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
-
-                        // ===========================================
-                        // SENHA (COM VISIBILIDADE)
-                        // ===========================================
                         TextFormField(
                           controller: _senhaController,
                           decoration: InputDecoration(
@@ -224,7 +204,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               Icons.lock,
                               color: corPrimaria,
                             ),
-                            // Botão do Olho
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscureSenha
@@ -250,8 +229,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               : null,
                         ),
                         const SizedBox(height: 8),
-
-                        // Feedback Visual da Senha
                         Padding(
                           padding: const EdgeInsets.only(top: 5, bottom: 10),
                           child: Row(
@@ -277,12 +254,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
-                        // ===========================================
-                        // CONFIRMAR SENHA (COM VISIBILIDADE)
-                        // ===========================================
                         TextFormField(
                           controller: _confirmaSenhaController,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -315,10 +287,8 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             return null;
                           },
                         ),
-
                         const Spacer(),
                         const SizedBox(height: 20),
-
                         SizedBox(
                           width: double.infinity,
                           child: _isLoading

@@ -40,7 +40,11 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(erro, style: const TextStyle(color: Colors.white)),
+              content: Text(
+                erro,
+                // FONTE 20 NO SNACKBAR
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              ),
               backgroundColor: const Color.fromARGB(255, 255, 110, 110),
             ),
           );
@@ -52,13 +56,12 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   /// Método auxiliar para estilizar inputs
-  /// MUDANÇA AQUI: Ícone agora recebe a cor Colors.blue
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
+      // FONTE 20 NO LABEL (Rótulo do campo)
+      labelStyle: const TextStyle(color: Colors.white70, fontSize: 15),
 
-      // --- ÍCONE AZUL ---
       prefixIcon: Icon(icon, color: Colors.blue),
 
       enabledBorder: const OutlineInputBorder(
@@ -74,7 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // O tema global define o fundo, mas garantimos contraste aqui se necessário
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
@@ -101,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text(
                           "Login",
                           style: TextStyle(
-                            fontSize: 32,
+                            fontSize: 30, // FONTE 20 NO TÍTULO (Era 30)
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -112,9 +114,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // E-mail
                         TextFormField(
-                          cursorColor: Colors.blue, // Cursor também azul
+                          cursorColor: Colors.blue,
                           controller: _emailController,
-                          style: const TextStyle(color: Colors.white),
+                          // FONTE 20 NO TEXTO DIGITADO
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
                           decoration: _buildInputDecoration(
                             'E-mail',
                             Icons.email,
@@ -127,9 +133,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // Senha
                         TextFormField(
-                          cursorColor: Colors.blue, // Cursor também azul
+                          cursorColor: Colors.blue,
                           controller: _senhaController,
-                          style: const TextStyle(color: Colors.white),
+                          // FONTE 20 NO TEXTO DIGITADO
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
                           decoration: _buildInputDecoration(
                             'Senha',
                             Icons.lock,
@@ -155,7 +165,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     foregroundColor: Colors.white,
                                   ),
                                   onPressed: _fazerLogin,
-                                  child: const Text('ENTRAR'),
+                                  child: const Text(
+                                    'ENTRAR',
+                                    // FONTE 20 NO BOTÃO
+                                    style: TextStyle(fontSize: 20),
+                                  ),
                                 ),
                               ),
 
@@ -174,7 +188,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   children: [
                                     const Text(
                                       "Não tem conta?",
-                                      style: TextStyle(color: Colors.white70),
+                                      // FONTE 20
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 15,
+                                      ),
                                     ),
                                     TextButton(
                                       onPressed: () {
@@ -188,7 +206,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                       },
                                       child: const Text(
                                         "Criar Conta",
-                                        style: TextStyle(color: Colors.blue),
+                                        // FONTE 20
+                                        style: TextStyle(
+                                          color: Colors.blue,
+                                          fontSize: 15,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -206,7 +228,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   children: [
                                     const Text(
                                       "Esqueceu a senha?",
-                                      style: TextStyle(color: Colors.white70),
+                                      // FONTE 20
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 15,
+                                      ),
                                     ),
                                     TextButton(
                                       onPressed: () {
@@ -220,8 +246,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                       },
                                       child: const Text(
                                         "Recuperar",
+                                        // FONTE 20
                                         style: TextStyle(
                                           color: Colors.redAccent,
+                                          fontSize: 15,
                                         ),
                                       ),
                                     ),

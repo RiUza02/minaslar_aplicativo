@@ -17,7 +17,7 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
 
             const Text(
               'Escolha o tipo de conta',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 30),
@@ -32,7 +32,7 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
                 icon: const Icon(Icons.admin_panel_settings),
                 label: const Text(
                   'Administrador',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(fontSize: 20),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent,
@@ -61,7 +61,7 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
                 icon: const Icon(Icons.person),
                 label: const Text(
                   'Usuário Comum',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(fontSize: 20),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
