@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'firebase_options.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'servicos/autenticacao.dart';
 import 'telas/login.dart';
 import 'telas/cadastro.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  await Supabase.initialize(
+    // ⚠️ COLOQUE SUAS CHAVES AQUI
+    url: 'https://uwkxgmmjubpincteqckc.supabase.co',
+    anonKey: 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8',
+  );
+
   runApp(const MyApp());
 }
 
@@ -20,10 +24,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'MinasLar',
       debugShowCheckedModeBanner: false,
-
-      // =========================
-      // TEMA GLOBAL
-      // =========================
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: Colors.black,
@@ -43,29 +43,23 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(),
         ),
       ),
-
-      // =========================
-      // ROTAS (CORREÇÃO APLICADA)
-      // =========================
       initialRoute: '/',
-      routes: {
-        '/': (context) => const RoteadorTelas(), // Rota inicial
-        '/home': (context) => const RoteadorTelas(), // Rota '/home' corrigida
-      },
+      routes: {'/': (context) => const RoteadorTelas()},
     );
   }
 }
 
 // ==========================================
-// ROTEADOR DE TELAS
+// ROTEADOR DE TELAS (CORRIGIDO PARA SUPABASE)
 // ==========================================
 class RoteadorTelas extends StatelessWidget {
   const RoteadorTelas({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    // MUDANÇA CRÍTICA: Ouvindo Supabase em vez de Firebase
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -73,7 +67,11 @@ class RoteadorTelas extends StatelessWidget {
           );
         }
 
-        if (snapshot.hasData) {
+        // Verifica se existe uma sessão válida (Usuário logado)
+        final session = snapshot.data?.session;
+
+        if (session != null) {
+          // Usuário está logado -> Verifica se é Admin
           return FutureBuilder<bool>(
             future: AuthService().isUsuarioAdmin(),
             builder: (context, snapshotAdmin) {
@@ -103,6 +101,7 @@ class RoteadorTelas extends StatelessWidget {
           );
         }
 
+        // Se session for nula, usuário não está logado
         return const TelaApresentacao();
       },
     );
@@ -191,19 +190,13 @@ class TelaApresentacao extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-
-              // ------------------------------------------------
-              // IMAGEM RESTAURADA AQUI
-              // ------------------------------------------------
               Image.asset(
-                'assets/logo.jpg', // Certifique-se que o caminho está correto
+                'assets/logo.jpg',
                 width: 300,
                 height: 300,
-                // Caso a imagem não exista ou dê erro, mostra um ícone
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.home_work, size: 150, color: Colors.blue),
               ),
-
               const Spacer(),
               SizedBox(
                 width: double.infinity,

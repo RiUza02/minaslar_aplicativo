@@ -1,26 +1,10 @@
 class Cliente {
-  // Identificador do documento no Firebase
-  // É nulo ao criar um novo cliente
   String? id;
-
-  // Nome completo do cliente
   String nome;
-
-  // Endereço residencial ou comercial
   String endereco;
-
-  // Telefone de contato (celular ou fixo)
   String telefone;
-
-  // CPF do cliente (somente para Pessoa Física)
   String? cpf;
-
-  // CNPJ do cliente (somente para Pessoa Jurídica)
   String? cnpj;
-
-  // Indica se o cliente é problemático
-  // true  -> cliente dá problemas
-  // false -> cliente normal
   bool clienteProblematico;
 
   Cliente({
@@ -33,31 +17,32 @@ class Cliente {
     this.clienteProblematico = false,
   });
 
-  // Converte o objeto Cliente em um Map
-  // Usado para salvar os dados no Firebase
+  // Converte para salvar no Supabase
   Map<String, dynamic> toMap() {
     return {
+      // Nota: Não enviamos o ID aqui (o banco gera automático)
       'nome': nome,
       'endereco': endereco,
       'telefone': telefone,
       'cpf': cpf,
       'cnpj': cnpj,
-      'clienteProblematico': clienteProblematico,
+      // ⚠️ IMPORTANTE: Nome da coluna com underline (snake_case)
+      'cliente_problematico': clienteProblematico,
     };
   }
 
-  // Cria um objeto Cliente a partir dos dados do Firebase
-  // documentId representa o ID do documento no banco
-  factory Cliente.fromMap(Map<String, dynamic> map, String documentId) {
+  // Cria objeto vindo do Supabase
+  // ⚠️ Removi o parâmetro 'documentId' porque o ID já vem dentro do map
+  factory Cliente.fromMap(Map<String, dynamic> map) {
     return Cliente(
-      id: documentId,
-      // Define valores padrão caso algum campo não exista
+      id: map['id'], // O ID vem aqui dentro agora
       nome: map['nome'] ?? '',
       endereco: map['endereco'] ?? '',
       telefone: map['telefone'] ?? '',
       cpf: map['cpf'],
       cnpj: map['cnpj'],
-      clienteProblematico: map['clienteProblematico'] ?? false,
+      // ⚠️ Lendo da coluna correta do banco
+      clienteProblematico: map['cliente_problematico'] ?? false,
     );
   }
 }

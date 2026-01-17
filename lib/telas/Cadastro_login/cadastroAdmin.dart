@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Necessário para pegar o UID
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../servicos/autenticacao.dart';
 
@@ -34,59 +33,42 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
 
   final AuthService _authService = AuthService();
 
+  // ==========================================
+  // FUNÇÃO CORRIGIDA PARA SUPABASE
+  // ==========================================
   Future<void> _cadastrarAdmin() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // 1. Cria o usuário no Firebase Auth
+      // Chamamos o método único que cria o login E salva os dados na tabela
       String? erro = await _authService.cadastrarUsuario(
         email: _emailController.text.trim(),
         password: _senhaController.text,
+        nome: _nomeController.text.trim(),
+        telefone: _telefoneController.text.trim(),
+        isAdmin: true, // IMPORTANTE: Passamos TRUE pois é tela de Admin
       );
 
+      if (mounted) setState(() => _isLoading = false);
+
       if (erro == null) {
-        // Sucesso no Auth! Agora salvamos no Firestore.
-        try {
-          User? user = FirebaseAuth.instance.currentUser;
+        // Sucesso!
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Administrador criado com sucesso!"),
+              backgroundColor: Colors.green,
+            ),
+          );
 
-          if (user != null) {
-            // 2. SALVAR NO FIRESTORE AGORA (Lógica movida para cá)
-            String? erroFirestore = await _authService.salvarDadosNoFirestore(
-              uid: user.uid,
-              nome: _nomeController.text.trim(),
-              email: _emailController.text.trim(),
-              telefone: _telefoneController.text.trim(),
-              isAdmin: true, // É Admin
-            );
-
-            if (erroFirestore == null) {
-              if (mounted) {
-                // 3. IR DIRETO PARA HOME
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/home', (route) => false);
-              }
-            } else {
-              throw erroFirestore;
-            }
-          }
-        } catch (e) {
-          if (mounted) {
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Erro ao salvar dados: $e"),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          // Redireciona para a raiz (RoteadorTelas), que vai detectar o login e mandar para a Home
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         }
       } else {
-        // Erro no Auth (ex: email já existe)
+        // Erro
         if (mounted) {
-          setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(erro), backgroundColor: Colors.red),
+            SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
           );
         }
       }
@@ -95,7 +77,6 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... (O restante do layout permanece EXATAMENTE igual, não precisa mudar nada visualmente)
     const Color corAdmin = Colors.red;
 
     return Scaffold(

@@ -1,153 +1,90 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import '../modelos/usuario.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  User? get usuarioAtual => _auth.currentUser;
+  User? get usuarioAtual => _supabase.auth.currentUser;
 
-  // ======================================================
-  // 1. CADASTRO (Apenas Auth + Envio de E-mail)
-  // ======================================================
+  // 1. CADASTRO (Cria Login + Salva dados na tabela usuarios)
   Future<String?> cadastrarUsuario({
     required String email,
     required String password,
+    required String nome,
+    required String telefone,
+    bool isAdmin = false,
   }) async {
     try {
-      // Cria o usuário no Auth
-      UserCredential userCredential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      // Cria o login na Auth do Supabase
+      final AuthResponse res = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
 
-      User? user = userCredential.user;
-
-      if (user != null) {
-        // Envia o e-mail de verificação
-        await user.sendEmailVerification();
+      if (res.user != null) {
+        // Insere os dados extras na tabela 'usuarios'
+        await _supabase.from('usuarios').insert({
+          'id': res.user!.id, // Vincula com o Auth ID
+          'email': email,
+          'nome': nome,
+          'telefone': telefone,
+          'is_admin': isAdmin,
+        });
       }
-
       return null; // Sucesso
-    } on FirebaseAuthException catch (e) {
-      return _traduzirErro(e.code);
+    } on AuthException catch (e) {
+      return e.message;
     } catch (e) {
       return "Erro desconhecido: $e";
     }
   }
 
-  // ======================================================
-  // 2. SALVAR DADOS NO FIRESTORE (ATUALIZADO COM TELEFONE)
-  // ======================================================
-  Future<String?> salvarDadosNoFirestore({
-    required String uid,
-    required String nome,
-    required String email,
-    required bool isAdmin,
-    required String telefone, // <--- NOVO CAMPO OBRIGATÓRIO
-  }) async {
-    try {
-      // Cria o objeto Usuario com todos os dados
-      Usuario novoUsuario = Usuario(
-        id: uid,
-        nome: nome,
-        email: email,
-        isAdmin: isAdmin,
-        telefone: telefone, // Passa o telefone para o modelo
-      );
-
-      // Salva na coleção 'usuarios' usando o método toMap() do modelo
-      // Isso garante que os campos no banco fiquem iguais aos do código
-      await _firestore.collection('usuarios').doc(uid).set(novoUsuario.toMap());
-
-      return null; // Sucesso
-    } on FirebaseException catch (e) {
-      return e.message ?? 'Erro ao acessar o banco de dados.';
-    } catch (e) {
-      return 'Erro inesperado ao salvar dados: $e';
-    }
-  }
-
-  // ======================================================
-  // 3. RECUPERAÇÃO DE SENHA
-  // ======================================================
+  // RECUPERAR SENHA (SUPABASE)
   Future<String?> recuperarSenha({required String email}) async {
     try {
-      await _auth.sendPasswordResetEmail(email: email);
-      return null;
-    } on FirebaseAuthException catch (e) {
-      return _traduzirErro(e.code);
+      // O Supabase envia um link mágico para o e-mail
+      await _supabase.auth.resetPasswordForEmail(email);
+      return null; // Sucesso
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "Erro desconhecido ao enviar e-mail.";
     }
   }
 
-  // ======================================================
-  // 4. OUTROS MÉTODOS (Login, Logout, Admin, etc)
-  // ======================================================
-
-  Future<String?> reenviarVerificacaoEmail() async {
-    try {
-      User? user = _auth.currentUser;
-      if (user != null) {
-        await user.sendEmailVerification();
-        return null;
-      }
-      return "Nenhum usuário logado.";
-    } on FirebaseAuthException catch (e) {
-      return _traduzirErro(e.code);
-    }
-  }
-
+  // 2. LOGIN
   Future<String?> loginUsuario({
     required String email,
     required String password,
   }) async {
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      await _supabase.auth.signInWithPassword(email: email, password: password);
       return null;
-    } on FirebaseAuthException catch (e) {
-      return _traduzirErro(e.code);
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return "Erro ao logar: $e";
+    }
+  }
+
+  // 3. VERIFICAR SE É ADMIN
+  Future<bool> isUsuarioAdmin() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      final data = await _supabase
+          .from('usuarios')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+
+      return data['is_admin'] ?? false;
+    } catch (e) {
+      return false;
     }
   }
 
   Future<void> deslogar() async {
-    await _auth.signOut();
-  }
-
-  Future<bool> isUsuarioAdmin() async {
-    User? user = _auth.currentUser;
-    if (user == null) return false;
-
-    try {
-      DocumentSnapshot doc = await _firestore
-          .collection('usuarios')
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        return data['isAdmin'] ?? false;
-      }
-    } catch (e) {
-      return false;
-    }
-    return false;
-  }
-
-  String _traduzirErro(String code) {
-    switch (code) {
-      case 'email-already-in-use':
-        return 'E-mail já cadastrado.';
-      case 'invalid-email':
-        return 'E-mail inválido.';
-      case 'weak-password':
-        return 'A senha deve ter 6+ caracteres.';
-      case 'user-not-found':
-        return 'Usuário não encontrado.';
-      case 'wrong-password':
-        return 'Senha incorreta.';
-      case 'invalid-credential':
-        return 'Credenciais inválidas.';
-      default:
-        return 'Erro: $code';
-    }
+    await _supabase.auth.signOut();
   }
 }

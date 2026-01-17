@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Necessário para pegar o UID
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../servicos/autenticacao.dart';
 
@@ -33,62 +32,42 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
   final AuthService _authService = AuthService();
 
-  // =========================
-  // LÓGICA: CADASTRAR USUÁRIO
-  // =========================
+  // ==========================================
+  // LÓGICA CORRIGIDA: SUPABASE
+  // ==========================================
   Future<void> _cadastrar() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // 1. Cria a conta de autenticação (Firebase Auth)
+      // Chamamos o método único do AuthService que já faz tudo
       String? erro = await _authService.cadastrarUsuario(
         email: _emailController.text.trim(),
         password: _senhaController.text,
+        nome: _nomeController.text.trim(),
+        telefone: _telefoneController.text.trim(),
+        isAdmin: false, // IMPORTANTE: Aqui passamos FALSE (Usuário Comum)
       );
 
+      if (mounted) setState(() => _isLoading = false);
+
       if (erro == null) {
-        // Sucesso no Auth!
-        try {
-          User? user = FirebaseAuth.instance.currentUser;
+        // Sucesso!
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Conta criada com sucesso!"),
+              backgroundColor: Colors.green,
+            ),
+          );
 
-          if (user != null) {
-            // 2. SALVAR NO FIRESTORE AGORA
-            String? erroFirestore = await _authService.salvarDadosNoFirestore(
-              uid: user.uid,
-              nome: _nomeController.text.trim(),
-              email: _emailController.text.trim(),
-              telefone: _telefoneController.text.trim(),
-              isAdmin: false, // Usuário Comum
-            );
-
-            if (erroFirestore == null) {
-              if (mounted) {
-                // 3. IR DIRETO PARA HOME (Remove histórico anterior)
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/home', (route) => false);
-              }
-            } else {
-              throw erroFirestore;
-            }
-          }
-        } catch (e) {
-          if (mounted) {
-            setState(() => _isLoading = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Erro ao salvar dados: $e"),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          // Redireciona para a raiz. O RoteadorTelas vai detectar o login e mandar para a HomeUsuario
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         }
       } else {
-        // Erro Auth
+        // Erro
         if (mounted) {
-          setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(erro), backgroundColor: Colors.red),
+            SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
           );
         }
       }
@@ -97,7 +76,6 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ... Layout igual ao anterior, sem mudanças visuais
     const Color corPrimaria = Colors.blueAccent;
 
     return Scaffold(

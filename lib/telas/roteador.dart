@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // ⚠️ Import necessário
 import '../../servicos/autenticacao.dart';
 import 'home/homeUsuario.dart';
 import 'home/homeAdmin.dart';
@@ -10,8 +10,9 @@ class RoteadorTela extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+    // ⚠️ MUDANÇA 1: Stream do Supabase (AuthState), não User
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
         // 1. Carregando...
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -20,17 +21,27 @@ class RoteadorTela extends StatelessWidget {
           );
         }
 
-        // 2. Se tem usuário logado
-        if (snapshot.hasData && snapshot.data != null) {
-          // REMOVIDO: A checagem de emailVerified e o user.reload()
+        // ⚠️ MUDANÇA 2: Verificamos a "session" (sessão)
+        final session = snapshot.data?.session;
 
-          // Vai direto verificar se é Admin
+        // 2. Se tem sessão válida (Usuário logado)
+        if (session != null) {
+          // Vai verificar se é Admin
           return FutureBuilder<bool>(
             future: AuthService().isUsuarioAdmin(),
             builder: (context, snapshotAdmin) {
               if (snapshotAdmin.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 10),
+                        Text("Verificando permissões..."),
+                      ],
+                    ),
+                  ),
                 );
               }
 
@@ -44,7 +55,7 @@ class RoteadorTela extends StatelessWidget {
             },
           );
         } else {
-          // 3. Se não tem usuário, manda pro Login
+          // 3. Se a sessão é nula, manda pro Login
           return const LoginScreen();
         }
       },

@@ -1,40 +1,40 @@
 class Aparelho {
-  // Identificador do documento no Firebase
-  // Pode ser nulo ao criar um novo registro
   String? id;
-
-  // Marca do aparelho (ex: Brastemp, Electrolux)
   String marca;
-
-  // Cor do aparelho
   String cor;
-
-  // Quantidade de bocas do aparelho
   int quantidadeBocas;
+  String clienteId; // ⚠️ NOVO: Necessário para vincular ao cliente
 
   Aparelho({
     this.id,
     required this.marca,
     required this.cor,
     required this.quantidadeBocas,
+    required this.clienteId, // ⚠️ Obrigatório agora
   });
 
-  // Converte o objeto Aparelho em um Map
-  // Usado para salvar os dados no Firebase
+  // Converte para salvar no Supabase
   Map<String, dynamic> toMap() {
-    return {'marca': marca, 'cor': cor, 'quantidadeBocas': quantidadeBocas};
+    return {
+      // O Supabase não precisa que envie o ID na criação (ele gera sozinho)
+      'marca': marca,
+      'cor': cor,
+      // ⚠️ AQUI: Mapeando do Dart (quantidadeBocas) para o SQL (quantidade_bocas)
+      'quantidade_bocas': quantidadeBocas,
+      'cliente_id': clienteId,
+    };
   }
 
-  // Cria um objeto Aparelho a partir dos dados vindos do Firebase
-  // documentId representa o ID do documento no banco
-  factory Aparelho.fromMap(Map<String, dynamic> map, String documentId) {
+  // Cria objeto vindo do Supabase
+  factory Aparelho.fromMap(Map<String, dynamic> map) {
     return Aparelho(
-      id: documentId,
-      // Usa string vazia caso o valor não exista
+      // No Supabase, o 'id' já vem dentro do map, não precisa passar separado
+      id: map['id'],
       marca: map['marca'] ?? '',
       cor: map['cor'] ?? '',
-      // Garante que o valor seja inteiro e define um padrão (4) se for nulo
-      quantidadeBocas: map['quantidadeBocas']?.toInt() ?? 4,
+      // ⚠️ Lendo a coluna com underline do banco
+      quantidadeBocas: map['quantidade_bocas'] ?? 4,
+      clienteId: map['cliente_id'] ?? '',
     );
   }
 }
