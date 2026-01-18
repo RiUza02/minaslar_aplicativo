@@ -1,10 +1,22 @@
+/// Modelo que representa um usuário do sistema
 class Usuario {
+  /// ID do usuário no Supabase
+  /// (nulo durante a criação)
   String? id;
+
+  /// Nome completo do usuário
   String nome;
+
+  /// E-mail de acesso do usuário
   String email;
+
+  /// Telefone para contato
   String telefone;
+
+  /// Define se o usuário possui permissão de administrador
   bool isAdmin;
 
+  /// Construtor do modelo
   Usuario({
     this.id,
     required this.nome,
@@ -13,26 +25,35 @@ class Usuario {
     this.isAdmin = false,
   });
 
-  // Converte para salvar no Supabase
+  /// Converte o objeto Dart em um Map
+  /// para envio ao Supabase
   Map<String, dynamic> toMap() {
     return {
+      // O ID não é enviado,
+      // pois o Supabase gera automaticamente
       'nome': nome,
       'email': email,
       'telefone': telefone,
-      // ⚠️ MUDANÇA: O nome da coluna no banco é snake_case
+
+      // Conversão de camelCase (Dart)
+      // para snake_case (Banco de Dados)
       'is_admin': isAdmin,
     };
   }
 
-  // Cria objeto vindo do Supabase
-  // ⚠️ Removi o 'documentId', pois o ID já vem dentro do map
+  /// Cria um objeto Usuario a partir
+  /// de um Map retornado pelo Supabase
   factory Usuario.fromMap(Map<String, dynamic> map) {
     return Usuario(
-      id: map['id'], // O ID vem aqui dentro
+      // O ID já vem dentro do Map
+      id: map['id'],
+
+      // Dados principais
       nome: map['nome'] ?? '',
       email: map['email'] ?? '',
       telefone: map['telefone'] ?? '',
-      // ⚠️ MUDANÇA: Lendo a coluna correta do banco
+
+      // Leitura da coluna em snake_case
       isAdmin: map['is_admin'] ?? false,
     );
   }

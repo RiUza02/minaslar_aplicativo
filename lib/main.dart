@@ -3,12 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'servicos/autenticacao.dart';
 import 'telas/login.dart';
 import 'telas/cadastro.dart';
+import 'telas/home/homeUsuario.dart';
+import 'telas/home/homeAdmin.dart';
 
 void main() async {
+  // Garante que o Flutter esteja inicializado antes de usar plugins
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicialização do Supabase
   await Supabase.initialize(
-    // ⚠️ COLOQUE SUAS CHAVES AQUI
     url: 'https://uwkxgmmjubpincteqckc.supabase.co',
     anonKey: 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8',
   );
@@ -16,6 +19,7 @@ void main() async {
   runApp(const MyApp());
 }
 
+/// Widget raiz da aplicação
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -24,6 +28,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'MinasLar',
       debugShowCheckedModeBanner: false,
+
+      // Tema global do app
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: Colors.black,
@@ -43,38 +49,44 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(),
         ),
       ),
+
+      // Tela inicial controlada pelo roteador
       initialRoute: '/',
       routes: {'/': (context) => const RoteadorTelas()},
     );
   }
 }
 
-// ==========================================
-// ROTEADOR DE TELAS (CORRIGIDO PARA SUPABASE)
-// ==========================================
+/// Responsável por decidir qual tela será exibida
+/// com base no estado de autenticação do usuário
 class RoteadorTelas extends StatelessWidget {
   const RoteadorTelas({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // MUDANÇA CRÍTICA: Ouvindo Supabase em vez de Firebase
+    // Escuta mudanças no estado de autenticação do Supabase
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
+        // Enquanto o estado de autenticação é carregado
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Verifica se existe uma sessão válida (Usuário logado)
+        // Sessão atual (null se não estiver logado)
         final session = snapshot.data?.session;
 
+        // ==================================================
+        // USUÁRIO LOGADO
+        // ==================================================
         if (session != null) {
-          // Usuário está logado -> Verifica se é Admin
+          // Verifica se o usuário é administrador
           return FutureBuilder<bool>(
             future: AuthService().isUsuarioAdmin(),
             builder: (context, snapshotAdmin) {
+              // Enquanto valida permissões
               if (snapshotAdmin.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
@@ -92,91 +104,24 @@ class RoteadorTelas extends StatelessWidget {
 
               final bool isAdmin = snapshotAdmin.data ?? false;
 
-              if (isAdmin) {
-                return const HomeAdminScreen();
-              } else {
-                return const HomeUsuarioScreen();
-              }
+              // Direciona para a home correta
+              return isAdmin
+                  ? const HomeAdminScreen()
+                  : const HomeUsuarioScreen();
             },
           );
         }
 
-        // Se session for nula, usuário não está logado
+        // ==================================================
+        // USUÁRIO NÃO LOGADO
+        // ==================================================
         return const TelaApresentacao();
       },
     );
   }
 }
 
-// =========================
-// TELA 1: HOME USUÁRIO
-// =========================
-class HomeUsuarioScreen extends StatelessWidget {
-  const HomeUsuarioScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Área do Usuário"),
-        backgroundColor: Colors.blue[900],
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: () => AuthService().deslogar(),
-          ),
-        ],
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.person, size: 80, color: Colors.blue),
-            SizedBox(height: 20),
-            Text("Bem-vindo, Usuário!", style: TextStyle(fontSize: 20)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =========================
-// TELA 2: HOME ADMIN
-// =========================
-class HomeAdminScreen extends StatelessWidget {
-  const HomeAdminScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Painel Admin"),
-        backgroundColor: Colors.red[900],
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: () => AuthService().deslogar(),
-          ),
-        ],
-      ),
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.security, size: 80, color: Colors.red),
-            SizedBox(height: 20),
-            Text("Bem-vindo, Administrador!", style: TextStyle(fontSize: 20)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =========================
-// TELA DE APRESENTAÇÃO
-// =========================
+/// Tela inicial exibida para usuários não autenticados
 class TelaApresentacao extends StatelessWidget {
   const TelaApresentacao({super.key});
 
@@ -190,6 +135,8 @@ class TelaApresentacao extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
+
+              // Logo do aplicativo
               Image.asset(
                 'assets/logo.jpg',
                 width: 300,
@@ -197,7 +144,10 @@ class TelaApresentacao extends StatelessWidget {
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.home_work, size: 150, color: Colors.blue),
               ),
+
               const Spacer(),
+
+              // Botão de login
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -208,9 +158,7 @@ class TelaApresentacao extends StatelessWidget {
                   ),
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const LoginScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                     );
                   },
                   child: const Text(
@@ -219,7 +167,10 @@ class TelaApresentacao extends StatelessWidget {
                   ),
                 ),
               ),
+
               const SizedBox(height: 15),
+
+              // Botão de criação de conta
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -231,7 +182,7 @@ class TelaApresentacao extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => const EscolhaTipoCadastroScreen(),
+                        builder: (_) => const EscolhaTipoCadastroScreen(),
                       ),
                     );
                   },
@@ -241,6 +192,7 @@ class TelaApresentacao extends StatelessWidget {
                   ),
                 ),
               ),
+
               const SizedBox(height: 30),
             ],
           ),

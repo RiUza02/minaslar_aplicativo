@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'Cadastro_login/cadastroUsuario.dart';
 import 'Cadastro_login/cadastroAdmin.dart';
 
+/// Tela responsável por permitir a escolha
+/// do tipo de conta a ser criada
 class EscolhaTipoCadastroScreen extends StatelessWidget {
   const EscolhaTipoCadastroScreen({super.key});
 
@@ -15,6 +17,7 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
           children: [
             const Spacer(),
 
+            /// Título principal da tela
             const Text(
               'Escolha o tipo de conta',
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
@@ -22,9 +25,9 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            // =========================
-            // CONTA ADMINISTRADOR
-            // =========================
+            // ==================================================
+            // BOTÃO: CADASTRO DE CONTA ADMINISTRADOR
+            // ==================================================
             SizedBox(
               width: double.infinity,
               height: 60,
@@ -39,6 +42,7 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () {
+                  // Navega para a tela de cadastro de administrador
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -51,9 +55,9 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // =========================
-            // CONTA USUÁRIO COMUM
-            // =========================
+            // ==================================================
+            // BOTÃO: CADASTRO DE CONTA DE USUÁRIO COMUM
+            // ==================================================
             SizedBox(
               width: double.infinity,
               height: 60,
@@ -68,6 +72,7 @@ class EscolhaTipoCadastroScreen extends StatelessWidget {
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () {
+                  // Navega para a tela de cadastro de usuário comum
                   Navigator.push(
                     context,
                     MaterialPageRoute(

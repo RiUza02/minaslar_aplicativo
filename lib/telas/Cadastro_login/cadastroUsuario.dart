@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../servicos/autenticacao.dart';
+import 'VerificacaoEmail.dart';
 
+/// Tela responsável pelo cadastro de um novo usuário no sistema
 class CadastroUsuarioScreen extends StatefulWidget {
   const CadastroUsuarioScreen({super.key});
 
@@ -10,66 +12,89 @@ class CadastroUsuarioScreen extends StatefulWidget {
 }
 
 class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
+  /// Chave do formulário para validação dos campos
   final _formKey = GlobalKey<FormState>();
 
+  /// Controllers dos campos de entrada
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _telefoneController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmaSenhaController = TextEditingController();
 
+  /// Máscara para formatação do telefone
   final maskFormatter = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
+  /// Estados de controle da interface
   bool _isLoading = false;
   bool _obscureSenha = true;
   bool _obscureConfirma = true;
   bool _senhaValida = false;
   bool _telefoneValido = false;
 
+  /// Serviço de autenticação (Supabase)
   final AuthService _authService = AuthService();
 
-  // ==========================================
-  // LÓGICA CORRIGIDA: SUPABASE
-  // ==========================================
+  // ============================================================
+  // MÉTODO DE CADASTRO DO USUÁRIO
+  // ============================================================
   Future<void> _cadastrar() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    // Ativa o loading
+    setState(() => _isLoading = true);
 
-      // Chamamos o método único do AuthService que já faz tudo
-      String? erro = await _authService.cadastrarUsuario(
-        email: _emailController.text.trim(),
-        password: _senhaController.text,
-        nome: _nomeController.text.trim(),
-        telefone: _telefoneController.text.trim(),
-        isAdmin: false, // IMPORTANTE: Aqui passamos FALSE (Usuário Comum)
+    // Valida todos os campos do formulário
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    // Verifica se o e-mail já existe no banco
+    if (_emailController.text.isNotEmpty &&
+        _emailController.text.contains('@')) {
+      bool existe = await _authService.verificarSeEmailExiste(
+        _emailController.text.trim(),
       );
 
-      if (mounted) setState(() => _isLoading = false);
-
-      if (erro == null) {
-        // Sucesso!
+      if (existe) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Conta criada com sucesso!"),
-              backgroundColor: Colors.green,
-            ),
-          );
+          setState(() => _isLoading = false);
+          _formKey.currentState!.validate();
+        }
+        return;
+      }
+    }
 
-          // Redireciona para a raiz. O RoteadorTelas vai detectar o login e mandar para a HomeUsuario
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-        }
-      } else {
-        // Erro
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
-          );
-        }
+    // Realiza o cadastro no Supabase (Auth + tabela usuarios)
+    String? erro = await _authService.cadastrarUsuario(
+      email: _emailController.text.trim(),
+      password: _senhaController.text,
+      nome: _nomeController.text.trim(),
+      telefone: _telefoneController.text.trim(),
+      isAdmin: false,
+    );
+
+    if (mounted) setState(() => _isLoading = false);
+
+    // Se não houve erro, redireciona para a tela de verificação de e-mail
+    if (erro == null) {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                VerificacaoEmailScreen(email: _emailController.text.trim()),
+          ),
+        );
+      }
+    } else {
+      // Exibe mensagem de erro
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -103,6 +128,8 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           color: corPrimaria,
                         ),
                         const SizedBox(height: 20),
+
+                        /// Campo Nome
                         TextFormField(
                           controller: _nomeController,
                           decoration: const InputDecoration(
@@ -112,7 +139,10 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           validator: (v) =>
                               v!.isEmpty ? 'Informe o nome' : null,
                         ),
+
                         const SizedBox(height: 20),
+
+                        /// Campo E-mail
                         TextFormField(
                           controller: _emailController,
                           decoration: const InputDecoration(
@@ -123,7 +153,10 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           validator: (v) =>
                               !v!.contains('@') ? 'E-mail inválido' : null,
                         ),
+
                         const SizedBox(height: 20),
+
+                        /// Campo Telefone
                         TextFormField(
                           controller: _telefoneController,
                           inputFormatters: [maskFormatter],
@@ -133,22 +166,26 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             hintText: '(32) 12345-6789',
                           ),
                           keyboardType: TextInputType.phone,
-                          onChanged: (value) {
+                          onChanged: (_) {
                             setState(() {
                               _telefoneValido =
                                   maskFormatter.getUnmaskedText().length >= 11;
                             });
                           },
                           validator: (v) {
-                            if (v == null || v.isEmpty)
+                            if (v == null || v.isEmpty) {
                               return 'Informe o telefone';
+                            }
                             if (maskFormatter.getUnmaskedText().length < 11) {
                               return 'Telefone incompleto';
                             }
                             return null;
                           },
                         ),
+
                         const SizedBox(height: 20),
+
+                        /// Indicador visual de validação do telefone
                         Row(
                           children: [
                             Icon(
@@ -173,7 +210,10 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             ),
                           ],
                         ),
+
                         const SizedBox(height: 20),
+
+                        /// Campo Senha
                         TextFormField(
                           controller: _senhaController,
                           decoration: InputDecoration(
@@ -206,33 +246,32 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               ? 'A senha não atende aos requisitos mínimos'
                               : null,
                         ),
+
                         const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 5, bottom: 10),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _senhaValida
-                                    ? Icons.check_circle
-                                    : Icons.cancel,
+
+                        /// Indicador visual de validação da senha
+                        Row(
+                          children: [
+                            Icon(
+                              _senhaValida ? Icons.check_circle : Icons.cancel,
+                              color: _senhaValida ? Colors.green : Colors.red,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Mínimo de 6 caracteres',
+                              style: TextStyle(
                                 color: _senhaValida ? Colors.green : Colors.red,
-                                size: 16,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
                               ),
-                              const SizedBox(width: 5),
-                              Text(
-                                'Mínimo de 6 caracteres',
-                                style: TextStyle(
-                                  color: _senhaValida
-                                      ? Colors.green
-                                      : Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+
                         const SizedBox(height: 10),
+
+                        /// Campo Confirmar Senha
                         TextFormField(
                           controller: _confirmaSenhaController,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -265,8 +304,10 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             return null;
                           },
                         ),
+
                         const Spacer(),
-                        const SizedBox(height: 20),
+
+                        /// Botão de cadastro
                         SizedBox(
                           width: double.infinity,
                           child: _isLoading

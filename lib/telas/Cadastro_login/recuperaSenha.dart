@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../servicos/autenticacao.dart';
 
+/// Tela responsável pela recuperação de senha via e-mail
 class RecuperarSenhaScreen extends StatefulWidget {
   const RecuperarSenhaScreen({super.key});
 
@@ -9,45 +10,54 @@ class RecuperarSenhaScreen extends StatefulWidget {
 }
 
 class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
+  /// Controller do campo de e-mail
   final _emailController = TextEditingController();
+
+  /// Chave do formulário para validação
   final _formKey = GlobalKey<FormState>();
+
+  /// Serviço de autenticação (Supabase)
   final AuthService _authService = AuthService();
 
+  /// Controla o estado de carregamento da tela
   bool _isLoading = false;
 
+  // ============================================================
+  // ENVIA O E-MAIL DE RECUPERAÇÃO DE SENHA
+  // ============================================================
   Future<void> _enviarEmailRecuperacao() async {
+    // Valida o formulário antes de prosseguir
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
+      // Solicita ao Supabase o envio do e-mail de recuperação
       String? erro = await _authService.recuperarSenha(
         email: _emailController.text.trim(),
       );
 
       setState(() => _isLoading = false);
 
+      // Caso não haja erro, exibe mensagem de sucesso
       if (erro == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
                 'E-mail de recuperação enviado! Verifique sua caixa de entrada.',
-                // FONTE 20
                 style: TextStyle(fontSize: 15),
               ),
               backgroundColor: Colors.green,
             ),
           );
+          // Retorna para a tela anterior (login)
           Navigator.pop(context);
         }
       } else {
+        // Caso haja erro, exibe mensagem de falha
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                erro,
-                // FONTE 20
-                style: const TextStyle(fontSize: 15),
-              ),
+              content: Text(erro, style: const TextStyle(fontSize: 15)),
               backgroundColor: const Color.fromARGB(255, 255, 110, 110),
             ),
           );
@@ -56,10 +66,12 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
     }
   }
 
+  // ============================================================
+  // PADRONIZA A DECORAÇÃO DOS CAMPOS DE TEXTO
+  // ============================================================
   InputDecoration _buildInputDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      // FONTE 20 NO LABEL
       labelStyle: const TextStyle(color: Colors.white70, fontSize: 15),
       enabledBorder: const OutlineInputBorder(
         borderSide: BorderSide(color: Colors.white54),
@@ -96,35 +108,40 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
                       children: [
                         const SizedBox(height: 20),
 
+                        /// Ícone ilustrativo de recuperação de senha
                         const Icon(
                           Icons.lock_reset,
                           size: 100,
                           color: Colors.blue,
                         ),
+
                         const SizedBox(height: 30),
 
+                        /// Título da tela
                         const Text(
                           "Esqueceu sua senha?",
                           style: TextStyle(
-                            fontSize: 30, // FONTE 20 (Era 24)
+                            fontSize: 30,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
+
                         const SizedBox(height: 10),
 
+                        /// Texto explicativo do processo
                         const Text(
-                          "Não se preocupe, insira seu e-mail cadastrado abaixo um link para redefinir sua senha será enviado.",
+                          "Não se preocupe, insira seu e-mail cadastrado abaixo e um link para redefinir sua senha será enviado.",
                           textAlign: TextAlign.center,
-                          // FONTE 20 (Era 16)
                           style: TextStyle(fontSize: 15, color: Colors.white70),
                         ),
+
                         const SizedBox(height: 40),
 
+                        /// Campo de entrada do e-mail
                         TextFormField(
                           cursorColor: Colors.white,
                           controller: _emailController,
-                          // FONTE 20 NO TEXTO DIGITADO
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -142,6 +159,7 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
 
                         const Spacer(),
 
+                        /// Botão ou indicador de carregamento
                         _isLoading
                             ? const CircularProgressIndicator(
                                 color: Colors.blue,
@@ -157,7 +175,6 @@ class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
                                   onPressed: _enviarEmailRecuperacao,
                                   child: const Text(
                                     'ENVIAR LINK DE RECUPERAÇÃO',
-                                    // FONTE 20 NO BOTÃO
                                     style: TextStyle(fontSize: 15),
                                   ),
                                 ),

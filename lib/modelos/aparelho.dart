@@ -1,39 +1,64 @@
+/// Modelo que representa um aparelho cadastrado no sistema
 class Aparelho {
+  /// ID do registro no Supabase
+  /// (nulo ao criar, pois o banco gera automaticamente)
   String? id;
-  String marca;
-  String cor;
-  int quantidadeBocas;
-  String clienteId; // ⚠️ NOVO: Necessário para vincular ao cliente
 
+  /// Marca do aparelho
+  String marca;
+
+  /// Cor do aparelho
+  String cor;
+
+  /// Quantidade de bocas do aparelho
+  int quantidadeBocas;
+
+  /// ID do cliente ao qual o aparelho pertence
+  /// Necessário para vincular o aparelho a um usuário
+  String clienteId;
+
+  /// Construtor do modelo
   Aparelho({
     this.id,
     required this.marca,
     required this.cor,
     required this.quantidadeBocas,
-    required this.clienteId, // ⚠️ Obrigatório agora
+    required this.clienteId,
   });
 
-  // Converte para salvar no Supabase
+  /// Converte o objeto Dart em um Map
+  /// para ser enviado ao Supabase
   Map<String, dynamic> toMap() {
     return {
-      // O Supabase não precisa que envie o ID na criação (ele gera sozinho)
+      // O ID não é enviado na criação,
+      // pois o Supabase gera automaticamente
       'marca': marca,
       'cor': cor,
-      // ⚠️ AQUI: Mapeando do Dart (quantidadeBocas) para o SQL (quantidade_bocas)
+
+      // Conversão do padrão Dart (camelCase)
+      // para o padrão do banco (snake_case)
       'quantidade_bocas': quantidadeBocas,
+
+      // Relacionamento com o cliente
       'cliente_id': clienteId,
     };
   }
 
-  // Cria objeto vindo do Supabase
+  /// Cria um objeto Aparelho a partir
+  /// de um Map retornado pelo Supabase
   factory Aparelho.fromMap(Map<String, dynamic> map) {
     return Aparelho(
-      // No Supabase, o 'id' já vem dentro do map, não precisa passar separado
+      // O Supabase retorna o ID no próprio Map
       id: map['id'],
+
+      // Campos básicos
       marca: map['marca'] ?? '',
       cor: map['cor'] ?? '',
-      // ⚠️ Lendo a coluna com underline do banco
+
+      // Leitura da coluna em snake_case
       quantidadeBocas: map['quantidade_bocas'] ?? 4,
+
+      // ID do cliente vinculado
       clienteId: map['cliente_id'] ?? '',
     );
   }

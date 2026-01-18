@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../servicos/autenticacao.dart';
 import 'Cadastro_login/recuperaSenha.dart';
 import 'cadastro.dart';
+import 'roteador.dart';
 
+/// Tela responsável pelo login do usuário
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -11,59 +13,67 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // Controladores
+  /// Controladores dos campos de entrada
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
 
-  // Chave do formulário
+  /// Chave do formulário para validação
   final _formKey = GlobalKey<FormState>();
 
-  // Serviço de autenticação
+  /// Serviço de autenticação (Supabase)
   final AuthService _authService = AuthService();
 
-  // Estado de carregamento
+  /// Controla exibição do loading
   bool _isLoading = false;
 
-  /// Método de Login
+  /// Realiza o login do usuário
   Future<void> _fazerLogin() async {
+    // Valida todos os campos do formulário
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
+      // Tenta autenticar no Supabase
       String? erro = await _authService.loginUsuario(
         email: _emailController.text,
         password: _senhaController.text,
       );
 
+      // Garante que a tela ainda está montada
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
 
+      // Caso ocorra erro no login
       if (erro != null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                erro,
-                // FONTE 20 NO SNACKBAR
-                style: const TextStyle(color: Colors.white, fontSize: 15),
-              ),
-              backgroundColor: const Color.fromARGB(255, 255, 110, 110),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              erro,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
-          );
-        }
+            backgroundColor: const Color.fromARGB(255, 255, 110, 110),
+          ),
+        );
       } else {
-        Navigator.of(context).pop();
+        // ============================================================
+        // Login bem-sucedido
+        // Navega para o RoteadorTela removendo todas as telas anteriores
+        // Isso impede que o usuário volte para o login
+        // ============================================================
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const RoteadorTela()),
+          (route) => false,
+        );
       }
     }
   }
 
-  /// Método auxiliar para estilizar inputs
+  /// Padrão visual dos campos de texto
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      // FONTE 20 NO LABEL (Rótulo do campo)
       labelStyle: const TextStyle(color: Colors.white70, fontSize: 15),
-
       prefixIcon: Icon(icon, color: Colors.blue),
-
       enabledBorder: const OutlineInputBorder(
         borderSide: BorderSide(color: Colors.white54),
       ),
@@ -92,31 +102,31 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const Spacer(),
 
-                        // --- LOGO ---
+                        /// Ícone ilustrativo do login
                         const Icon(
                           Icons.lock_person,
                           size: 120,
                           color: Colors.blue,
                         ),
+
                         const SizedBox(height: 20),
 
+                        /// Título da tela
                         const Text(
                           "Login",
                           style: TextStyle(
-                            fontSize: 30, // FONTE 20 NO TÍTULO (Era 30)
+                            fontSize: 30,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
+
                         const SizedBox(height: 30),
 
-                        // --- CAMPOS ---
-
-                        // E-mail
+                        /// Campo de e-mail
                         TextFormField(
                           cursorColor: Colors.blue,
                           controller: _emailController,
-                          // FONTE 20 NO TEXTO DIGITADO
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -131,11 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 15),
 
-                        // Senha
+                        /// Campo de senha
                         TextFormField(
                           cursorColor: Colors.blue,
                           controller: _senhaController,
-                          // FONTE 20 NO TEXTO DIGITADO
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -151,7 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 20),
 
-                        // --- BOTÃO ---
+                        /// Botão de login ou indicador de carregamento
                         _isLoading
                             ? const CircularProgressIndicator(
                                 color: Colors.blue,
@@ -167,7 +176,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                   onPressed: _fazerLogin,
                                   child: const Text(
                                     'ENTRAR',
-                                    // FONTE 20 NO BOTÃO
                                     style: TextStyle(fontSize: 20),
                                   ),
                                 ),
@@ -175,20 +183,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const Spacer(),
 
-                        // --- RODAPÉ ---
                         const Divider(color: Colors.white24),
                         const SizedBox(height: 10),
 
+                        /// Área inferior com ações secundárias
                         IntrinsicHeight(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+                              /// Criar conta
                               Expanded(
                                 child: Column(
                                   children: [
                                     const Text(
                                       "Não tem conta?",
-                                      // FONTE 20
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 15,
@@ -196,6 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     TextButton(
                                       onPressed: () {
+                                        // Navega para a escolha do tipo de cadastro
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -206,7 +215,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       },
                                       child: const Text(
                                         "Criar Conta",
-                                        // FONTE 20
                                         style: TextStyle(
                                           color: Colors.blue,
                                           fontSize: 15,
@@ -223,12 +231,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 width: 20,
                               ),
 
+                              /// Recuperar senha
                               Expanded(
                                 child: Column(
                                   children: [
                                     const Text(
                                       "Esqueceu a senha?",
-                                      // FONTE 20
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 15,
@@ -236,6 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     TextButton(
                                       onPressed: () {
+                                        // Navega para a tela de recuperação de senha
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
@@ -246,7 +255,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       },
                                       child: const Text(
                                         "Recuperar",
-                                        // FONTE 20
                                         style: TextStyle(
                                           color: Colors.redAccent,
                                           fontSize: 15,
@@ -259,6 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ],
                           ),
                         ),
+
                         const SizedBox(height: 10),
                       ],
                     ),
