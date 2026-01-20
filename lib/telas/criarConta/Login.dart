@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import '../servicos/autenticacao.dart';
-import 'Cadastro_login/recuperaSenha.dart';
-import 'cadastro.dart';
-import 'roteador.dart';
+import '../../servicos/Autenticacao.dart';
+import 'RecuperaSenha.dart';
+import 'Cadastro.dart';
+import '../../servicos/roteador.dart';
 
 /// Tela responsável pelo login do usuário
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class Login extends StatefulWidget {
+  const Login({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<Login> createState() => _LoginState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginState extends State<Login> {
   /// Controladores dos campos de entrada
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
@@ -61,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Isso impede que o usuário volte para o login
         // ============================================================
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const RoteadorTela()),
+          MaterialPageRoute(builder: (context) => const Roteador()),
           (route) => false,
         );
       }
@@ -209,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) =>
-                                                const EscolhaTipoCadastroScreen(),
+                                                const Cadastro(),
                                           ),
                                         );
                                       },
@@ -249,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           context,
                                           MaterialPageRoute(
                                             builder: (context) =>
-                                                const RecuperarSenhaScreen(),
+                                                const RecuperarSenha(),
                                           ),
                                         );
                                       },

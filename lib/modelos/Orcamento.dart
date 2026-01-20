@@ -1,0 +1,76 @@
+/// Modelo que representa um orçamento no sistema
+class Orcamento {
+  /// ID do registro no Supabase (nulo durante a criação)
+  String? id;
+
+  /// ID do cliente relacionado ao orçamento (chave estrangeira)
+  String clienteId;
+
+  /// Título do serviço (Ex: "Formatação PC", "Troca de Tela")
+  String titulo;
+
+  /// Descrição detalhada do serviço realizado (Antigo oQueFoiFeito)
+  String descricao;
+
+  /// Data em que o serviço foi iniciado
+  DateTime dataPega;
+
+  /// Data prevista ou efetiva de entrega do serviço
+  DateTime? dataEntrega;
+
+  /// Valor do orçamento
+  double? valor;
+
+  /// Construtor do modelo
+  Orcamento({
+    this.id,
+    required this.clienteId,
+    required this.titulo, // Novo campo obrigatório
+    required this.descricao, // Renomeado de oQueFoiFeito
+    required this.dataPega,
+    this.dataEntrega,
+    this.valor,
+  });
+
+  /// Converte o objeto Dart em um Map para envio ao Supabase
+  Map<String, dynamic> toMap() {
+    return {
+      // O ID não é enviado pois o Supabase gera automaticamente
+      'cliente_id': clienteId,
+
+      // Novo campo Título
+      'titulo': titulo,
+
+      // Descrição do serviço
+      'descricao': descricao,
+
+      // Datas convertidas para ISO 8601
+      'data_pega': dataPega.toIso8601String(),
+      'data_entrega': dataEntrega?.toIso8601String(),
+
+      // Valor do orçamento
+      'valor': valor,
+    };
+  }
+
+  /// Cria um objeto Orcamento a partir de um Map retornado pelo Supabase
+  factory Orcamento.fromMap(Map<String, dynamic> map) {
+    return Orcamento(
+      id: map['id']?.toString(),
+      clienteId: map['cliente_id'] ?? '',
+
+      // Mapeamento do Título (com valor padrão caso venha nulo)
+      titulo: map['titulo'] ?? 'Sem Título',
+
+      // Mapeamento da Descrição
+      descricao: map['descricao'] ?? '',
+
+      dataPega: DateTime.parse(map['data_pega']),
+      dataEntrega: map['data_entrega'] != null
+          ? DateTime.parse(map['data_entrega'])
+          : null,
+
+      valor: map['valor'] != null ? (map['valor'] as num).toDouble() : null,
+    );
+  }
+}

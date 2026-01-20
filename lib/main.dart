@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'servicos/autenticacao.dart';
-import 'telas/login.dart';
-import 'telas/cadastro.dart';
-import 'telas/home/homeUsuario.dart';
-import 'telas/home/homeAdmin.dart';
+import 'servicos/Autenticacao.dart';
+import 'telas/criarConta/Login.dart';
+import 'telas/criarConta/Cadastro.dart';
+import 'telas/home/HomeUsuario.dart';
+import 'telas/home/HomeAdmin.dart';
 
 void main() async {
   // Garante que o Flutter esteja inicializado antes de usar plugins
@@ -105,9 +105,7 @@ class RoteadorTelas extends StatelessWidget {
               final bool isAdmin = snapshotAdmin.data ?? false;
 
               // Direciona para a home correta
-              return isAdmin
-                  ? const HomeAdminScreen()
-                  : const HomeUsuarioScreen();
+              return isAdmin ? const HomeAdmin() : const HomeUsuario();
             },
           );
         }
@@ -157,9 +155,9 @@ class TelaApresentacao extends StatelessWidget {
                     foregroundColor: Colors.blue,
                   ),
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
+                    Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => const Login()));
                   },
                   child: const Text(
                     'Fazer Login',
@@ -180,11 +178,9 @@ class TelaApresentacao extends StatelessWidget {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const EscolhaTipoCadastroScreen(),
-                      ),
-                    );
+                    Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => const Cadastro()));
                   },
                   child: const Text(
                     'Criar Conta',

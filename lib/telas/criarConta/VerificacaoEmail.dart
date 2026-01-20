@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../servicos/autenticacao.dart';
-import '../login.dart';
+import '../../servicos/Autenticacao.dart';
+import 'Login.dart';
 
 /// Tela exibida após o cadastro, solicitando a confirmação do e-mail
-class VerificacaoEmailScreen extends StatelessWidget {
+class VerificacaoEmail extends StatelessWidget {
   /// E-mail utilizado no cadastro
   final String email;
 
-  const VerificacaoEmailScreen({super.key, required this.email});
+  const VerificacaoEmail({super.key, required this.email});
 
   // ============================================================
   // REALIZA LOGOUT E RETORNA PARA A TELA DE LOGIN
@@ -20,7 +20,7 @@ class VerificacaoEmailScreen extends StatelessWidget {
     if (context.mounted) {
       // Remove todas as rotas anteriores e abre a tela de login
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => const Login()),
         (route) => false,
       );
     }

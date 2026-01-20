@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'Cadastro_login/cadastroUsuario.dart';
-import 'Cadastro_login/cadastroAdmin.dart';
+import 'CadastroUsuario.dart';
+import 'CadastroAdmin.dart';
 
 /// Tela responsável por permitir a escolha
 /// do tipo de conta a ser criada
-class EscolhaTipoCadastroScreen extends StatelessWidget {
-  const EscolhaTipoCadastroScreen({super.key});
+class Cadastro extends StatelessWidget {
+  const Cadastro({super.key});
 
   @override
   Widget build(BuildContext context) {

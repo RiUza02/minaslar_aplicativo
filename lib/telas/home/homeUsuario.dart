@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../servicos/autenticacao.dart';
 
-class HomeUsuarioScreen extends StatefulWidget {
-  const HomeUsuarioScreen({super.key});
+class HomeUsuario extends StatefulWidget {
+  const HomeUsuario({super.key});
 
   @override
-  State<HomeUsuarioScreen> createState() => _HomeUsuarioScreenState();
+  State<HomeUsuario> createState() => _HomeUsuarioState();
 }
 
-class _HomeUsuarioScreenState extends State<HomeUsuarioScreen> {
+class _HomeUsuarioState extends State<HomeUsuario> {
   // REMOVIDO: O método initState com a verificação de segurança.
   // Não precisamos mais checar nada ao abrir a tela.
 

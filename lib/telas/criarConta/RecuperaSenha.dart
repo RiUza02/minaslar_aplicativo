@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../servicos/autenticacao.dart';
+import '../../servicos/Autenticacao.dart';
 
 /// Tela responsável pela recuperação de senha via e-mail
-class RecuperarSenhaScreen extends StatefulWidget {
-  const RecuperarSenhaScreen({super.key});
+class RecuperarSenha extends StatefulWidget {
+  const RecuperarSenha({super.key});
 
   @override
-  State<RecuperarSenhaScreen> createState() => _RecuperarSenhaScreenState();
+  State<RecuperarSenha> createState() => _RecuperarSenhaState();
 }
 
-class _RecuperarSenhaScreenState extends State<RecuperarSenhaScreen> {
+class _RecuperarSenhaState extends State<RecuperarSenha> {
   /// Controller do campo de e-mail
   final _emailController = TextEditingController();
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../../servicos/autenticacao.dart';
+import '../../servicos/Autenticacao.dart';
 import 'VerificacaoEmail.dart';
 
 /// Tela responsável pelo cadastro de um novo usuário no sistema
@@ -85,7 +85,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (context) =>
-                VerificacaoEmailScreen(email: _emailController.text.trim()),
+                VerificacaoEmail(email: _emailController.text.trim()),
           ),
         );
       }

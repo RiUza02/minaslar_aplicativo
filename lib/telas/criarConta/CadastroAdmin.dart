@@ -91,7 +91,7 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) =>
-              VerificacaoEmailScreen(email: _emailController.text.trim()),
+              VerificacaoEmail(email: _emailController.text.trim()),
         ),
       );
     } else if (mounted) {

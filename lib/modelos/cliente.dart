@@ -24,6 +24,9 @@ class Cliente {
   /// Indica se o cliente possui histórico problemático
   bool clienteProblematico;
 
+  /// Observações adicionais sobre o cliente
+  String? observacao;
+
   /// Construtor do modelo
   Cliente({
     this.id,
@@ -33,6 +36,7 @@ class Cliente {
     this.cpf,
     this.cnpj,
     this.clienteProblematico = false,
+    this.observacao,
   });
 
   /// Converte o objeto Dart em um Map
@@ -46,6 +50,7 @@ class Cliente {
       'telefone': telefone,
       'cpf': cpf,
       'cnpj': cnpj,
+      'observacao': observacao,
 
       // Conversão de camelCase (Dart)
       // para snake_case (Banco de Dados)
@@ -58,7 +63,7 @@ class Cliente {
   factory Cliente.fromMap(Map<String, dynamic> map) {
     return Cliente(
       // O ID já vem dentro do Map
-      id: map['id'],
+      id: map['id']?.toString(),
 
       // Dados básicos
       nome: map['nome'] ?? '',
@@ -71,6 +76,7 @@ class Cliente {
 
       // Leitura da coluna em snake_case
       clienteProblematico: map['cliente_problematico'] ?? false,
+      observacao: map['observacao'],
     );
   }
 }

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../servicos/autenticacao.dart';
-import 'home/homeUsuario.dart';
-import 'home/homeAdmin.dart';
-import 'login.dart';
+import '../telas/home/HomeUsuario.dart';
+import '../telas/home/HomeAdmin.dart';
+import '../telas/criarConta/Login.dart';
 
 /// Tela responsável por decidir qual página o usuário verá:
 /// - Login (se não estiver autenticado)
 /// - Home de Admin
 /// - Home de Usuário comum
-class RoteadorTela extends StatelessWidget {
-  const RoteadorTela({super.key});
+class Roteador extends StatelessWidget {
+  const Roteador({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -54,11 +54,11 @@ class RoteadorTela extends StatelessWidget {
 
               // Se for admin, vai para a HomeAdmin
               if (snapshotAdmin.data == true) {
-                return const HomeAdminScreen();
+                return const HomeAdmin();
               }
 
               // Caso contrário, vai para a Home do usuário comum
-              return const HomeUsuarioScreen();
+              return const HomeUsuario();
             },
           );
         }
@@ -66,7 +66,7 @@ class RoteadorTela extends StatelessWidget {
         // ======================================================
         // USUÁRIO NÃO LOGADO
         // ======================================================
-        return const LoginScreen();
+        return const Login();
       },
     );
   }
