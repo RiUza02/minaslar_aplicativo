@@ -16,7 +16,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   bool _isLoading = false;
 
   // ======================================================
-  // DEFINIÇÃO DAS CORES (Igual ao EditarCliente)
+  // DEFINIÇÃO DAS CORES
   // ======================================================
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
@@ -26,7 +26,10 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
 
   // Controladores
   final _nomeController = TextEditingController();
-  final _enderecoController = TextEditingController();
+  // ATUALIZADO: Trocado Endereço por Rua e Bairro
+  final _ruaController = TextEditingController();
+  final _bairroController = TextEditingController();
+
   final _telefoneController = TextEditingController();
   final _cpfController = TextEditingController();
   final _cnpjController = TextEditingController();
@@ -52,6 +55,19 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     filter: {"#": RegExp(r'[0-9]')},
   );
 
+  // Importante: Dispose para evitar vazamento de memória
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _ruaController.dispose();
+    _bairroController.dispose();
+    _telefoneController.dispose();
+    _cpfController.dispose();
+    _cnpjController.dispose();
+    _observacaoController.dispose();
+    super.dispose();
+  }
+
   Future<void> _salvarCliente() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -68,9 +84,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         cnpjFinal = _cnpjController.text.trim();
       }
 
+      // ATUALIZADO: Passando Rua e Bairro
       final novoCliente = Cliente(
         nome: _nomeController.text.trim(),
-        endereco: _enderecoController.text.trim(),
+        rua: _ruaController.text.trim(), // Novo
+        bairro: _bairroController.text.trim(), // Novo
         telefone: _telefoneController.text.trim(),
         cpf: cpfFinal,
         cnpj: cnpjFinal,
@@ -141,10 +159,22 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           v!.length < 15 ? 'Telefone incompleto' : null,
                     ),
                     const SizedBox(height: 16),
+
+                    // --- ATUALIZADO: CAMPO RUA ---
                     _buildTextField(
-                      controller: _enderecoController,
-                      label: "Endereço Completo",
-                      icon: Icons.location_on,
+                      controller: _ruaController,
+                      label: "Rua",
+                      icon: Icons.add_road,
+                      validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // --- ATUALIZADO: CAMPO BAIRRO ---
+                    _buildTextField(
+                      controller: _bairroController,
+                      label: "Bairro",
+                      icon: Icons.location_city,
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                   ],
@@ -157,7 +187,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
               _buildCard(
                 Column(
                   children: [
-                    // Toggle Customizado para parecer com o tema
+                    // Toggle Customizado
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.black26,
@@ -289,7 +319,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   }
 
   // ======================================================
-  // WIDGETS AUXILIARES (Mesmo padrão do EditarCliente)
+  // WIDGETS AUXILIARES
   // ======================================================
 
   Widget _buildCard(Widget child) {

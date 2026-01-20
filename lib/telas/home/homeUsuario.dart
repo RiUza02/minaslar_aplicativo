@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../servicos/autenticacao.dart';
 
+/// Tela inicial da área do usuário logado
 class HomeUsuario extends StatefulWidget {
   const HomeUsuario({super.key});
 
@@ -9,9 +10,6 @@ class HomeUsuario extends StatefulWidget {
 }
 
 class _HomeUsuarioState extends State<HomeUsuario> {
-  // REMOVIDO: O método initState com a verificação de segurança.
-  // Não precisamos mais checar nada ao abrir a tela.
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -20,7 +18,10 @@ class _HomeUsuarioState extends State<HomeUsuario> {
         actions: [
           IconButton(
             icon: const Icon(Icons.exit_to_app),
-            onPressed: () => AuthService().deslogar(),
+            onPressed: () {
+              // Realiza o logout através do serviço de autenticação
+              AuthService().deslogar();
+            },
           ),
         ],
       ),

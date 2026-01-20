@@ -6,6 +6,7 @@ import 'adicionarOrcamento.dart';
 import 'EditarCliente.dart';
 import 'EditarOrcamento.dart';
 
+/// Tela responsável por exibir os detalhes de um cliente e seu histórico de orçamentos.
 class DetalhesCliente extends StatefulWidget {
   final Cliente cliente;
 
@@ -16,13 +17,16 @@ class DetalhesCliente extends StatefulWidget {
 }
 
 class _DetalhesClienteState extends State<DetalhesCliente> {
-  // Variável para controlar os dados do cliente (que podem ser atualizados)
+  /// Variável para controlar os dados do cliente (que podem ser atualizados)
   late Cliente _clienteExibido;
 
-  // Cores (Movidas para o State para acesso fácil)
+  // ===========================================================================
+  // PALETA DE CORES
+  // ===========================================================================
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
-  final Color corComplementar = Colors.green[400]!;
+  final Color corComplementar = Colors.green[400]!; // Verde padrão
+  final Color corAlerta = Colors.redAccent; // Nova cor de alerta
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoClaro = Colors.white;
@@ -35,26 +39,25 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   }
 
   // ===========================================================================
-  // LÓGICA DE ATUALIZAÇÃO (PULL TO REFRESH)
+  // LÓGICA DE NEGÓCIO
   // ===========================================================================
+
+  /// Recarrega os dados do cliente do banco (Pull to Refresh)
   Future<void> _atualizarTela() async {
     try {
-      // 1. Recarrega os dados do Cliente do Supabase
+      // Busca os dados atualizados no Supabase
       final data = await Supabase.instance.client
           .from('clientes')
           .select()
           .eq('id', _clienteExibido.id as Object)
           .single();
 
-      // 2. Atualiza o estado da tela
       if (mounted) {
         setState(() {
           _clienteExibido = Cliente.fromMap(data);
         });
       }
-
-      // Nota: A lista de orçamentos é um Stream, então ela se mantém atualizada sozinha,
-      // mas o delay abaixo dá a sensação tátil de carregamento para o usuário.
+      // Pequeno delay para suavizar a animação de refresh
       await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
       if (mounted) {
@@ -65,9 +68,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     }
   }
 
-  // ===========================================================================
-  // LÓGICA DE EXCLUSÃO
-  // ===========================================================================
+  /// Exibe diálogo de confirmação e exclui um orçamento específico
   Future<void> _confirmarExclusao(
     BuildContext context,
     Map<String, dynamic> orcamento,
@@ -99,6 +100,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
 
     if (confirmar == true) {
       try {
+        // Remove do banco de dados
         await Supabase.instance.client
             .from('orcamentos')
             .delete()
@@ -122,8 +124,17 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     }
   }
 
+  // ===========================================================================
+  // INTERFACE (UI)
+  // ===========================================================================
+
   @override
   Widget build(BuildContext context) {
+    // Define a cor de status baseada se o cliente é problemático ou não
+    final bool isProblematico = _clienteExibido.clienteProblematico;
+    final Color corStatusAtual = isProblematico ? corAlerta : corComplementar;
+
+    // Stream para ouvir mudanças nos orçamentos em tempo real
     final orcamentosStream = Supabase.instance.client
         .from('orcamentos')
         .stream(primaryKey: ['id'])
@@ -152,6 +163,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.post_add, size: 28),
         onPressed: () {
+          // Navega para adicionar novo orçamento
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -163,7 +175,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
       ),
       body: Column(
         children: [
+          // ============================================================
           // CARD SUPERIOR COM DADOS DO CLIENTE
+          // ============================================================
           Container(
             width: double.infinity,
             margin: const EdgeInsets.all(16),
@@ -172,7 +186,8 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
               color: corCard,
               borderRadius: BorderRadius.circular(16),
               border: Border(
-                left: BorderSide(color: corComplementar, width: 6),
+                // A borda lateral muda para vermelho se for problemático
+                left: BorderSide(color: corStatusAtual, width: 6),
               ),
               boxShadow: [
                 BoxShadow(
@@ -189,10 +204,11 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                   children: [
                     CircleAvatar(
                       radius: 22,
-                      backgroundColor: corComplementar.withOpacity(0.15),
+                      // Fundo do ícone muda sutilmente
+                      backgroundColor: corStatusAtual.withOpacity(0.15),
                       child: Icon(
                         Icons.person,
-                        color: corComplementar,
+                        color: corStatusAtual,
                         size: 24,
                       ),
                     ),
@@ -250,6 +266,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                       icon: Icon(Icons.edit, color: corTextoCinza),
                       tooltip: 'Editar Cliente',
                       onPressed: () async {
+                        // Abre tela de edição e atualiza se houve mudança
                         final bool? atualizou = await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -257,10 +274,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                 EditarCliente(cliente: _clienteExibido),
                           ),
                         );
-                        // Se editou, atualiza os dados na tela
-                        if (atualizou == true) {
-                          _atualizarTela();
-                        }
+                        if (atualizou == true) _atualizarTela();
                       },
                     ),
                   ],
@@ -276,7 +290,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 ),
                 _linhaDado(
                   Icons.location_on_outlined,
-                  _clienteExibido.endereco,
+                  _clienteExibido.bairro,
                   corTextoClaro,
                   corSecundaria,
                 ),
@@ -331,7 +345,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
           ),
 
+          // ============================================================
           // TÍTULO DA LISTA
+          // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
             child: Row(
@@ -351,7 +367,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
           ),
 
-          // LISTAGEM DE ORÇAMENTOS (COM REFRESH INDICATOR)
+          // ============================================================
+          // LISTAGEM DE ORÇAMENTOS
+          // ============================================================
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: orcamentosStream,
@@ -364,15 +382,12 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
 
                 final listaOrcamentos = snapshot.data!;
 
-                // RefreshIndicator envolve o conteúdo da lista
-                // RefreshIndicator envolve o conteúdo da lista
                 return RefreshIndicator(
                   color: corPrincipal,
                   backgroundColor: corCard,
                   onRefresh: _atualizarTela,
                   child: listaOrcamentos.isEmpty
                       ? ListView(
-                          // Physics necessário para permitir o refresh mesmo vazia
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: [
                             SizedBox(
@@ -406,20 +421,39 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                           itemCount: listaOrcamentos.length,
                           itemBuilder: (context, index) {
                             final orcamento = listaOrcamentos[index];
-
-                            // --- DADOS DO ITEM ---
-                            final titulo =
-                                orcamento['titulo'] ?? 'Serviço'; // Novo campo
+                            final titulo = orcamento['titulo'] ?? 'Serviço';
                             final descricao =
                                 orcamento['descricao'] ?? 'Sem descrição';
                             final valor = orcamento['valor'];
                             final dataPegaString = orcamento['data_pega'];
-
                             final dataPega = dataPegaString != null
                                 ? DateTime.parse(dataPegaString)
                                 : DateTime.now();
 
+                            // Lógica de Data de Entrega (Novo requisito)
+                            final dataEntregaString = orcamento['data_entrega'];
+                            final dataEntregaFormatada =
+                                dataEntregaString != null
+                                ? DateFormat(
+                                    'dd/MM',
+                                  ).format(DateTime.parse(dataEntregaString))
+                                : '--/--';
+
                             final bool isUltimo = index == 0;
+
+                            // Se for o item mais recente e o cliente for problemático, usa vermelho.
+                            // Se for recente e normal, usa verde. Se for antigo, usa cinza.
+                            final Color corDestaqueItem = isUltimo
+                                ? (isProblematico
+                                      ? Colors.redAccent
+                                      : Colors.greenAccent)
+                                : Colors.grey;
+
+                            final Color corFundoIcone = isUltimo
+                                ? (isProblematico
+                                      ? Colors.red.withOpacity(0.2)
+                                      : Colors.green.withOpacity(0.2))
+                                : Colors.black26;
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -428,7 +462,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                 borderRadius: BorderRadius.circular(12),
                                 border: isUltimo
                                     ? Border.all(
-                                        color: Colors.green.withOpacity(0.5),
+                                        color: corDestaqueItem.withOpacity(0.5),
                                       )
                                     : null,
                               ),
@@ -440,16 +474,13 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                   bottom: 8,
                                 ),
                                 isThreeLine: true,
-                                // ÍCONE LATERAL ESQUERDO
                                 leading: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(10),
                                       decoration: BoxDecoration(
-                                        color: isUltimo
-                                            ? Colors.green.withOpacity(0.2)
-                                            : Colors.black26,
+                                        color: corFundoIcone,
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
@@ -457,14 +488,12 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                             ? Icons.new_releases
                                             : Icons.build_circle_outlined,
                                         color: isUltimo
-                                            ? Colors.greenAccent
+                                            ? corDestaqueItem
                                             : corTextoCinza,
                                       ),
                                     ),
                                   ],
                                 ),
-
-                                // TÍTULO DO CARD (Novo campo Título)
                                 title: Padding(
                                   padding: const EdgeInsets.only(bottom: 4.0),
                                   child: Text(
@@ -473,33 +502,42 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
                                       color: isUltimo
-                                          ? Colors.greenAccent
+                                          ? corDestaqueItem
                                           : corTextoClaro,
                                     ),
                                   ),
                                 ),
-
-                                // CONTEÚDO (Descrição + Data + Valor)
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Descrição
-                                    Text(
-                                      descricao,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.grey[500],
-                                        fontSize: 13,
-                                        fontStyle: FontStyle.italic,
+                                    // CONTAINER NOVO PARA A DESCRIÇÃO
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(8.0),
+                                      decoration: BoxDecoration(
+                                        color: Colors
+                                            .black26, // "Caixa" mais escura
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        descricao,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontSize: 13,
+                                          fontStyle: FontStyle.normal,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(height: 12),
 
-                                    // Linha Data e Valor
-                                    Row(
+                                    // Linha de Detalhes (Datas e Valor)
+                                    Wrap(
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
                                       children: [
-                                        // Data
+                                        // Data de Entrada
                                         Icon(
                                           Icons.calendar_today,
                                           size: 14,
@@ -513,8 +551,23 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                             fontSize: 13,
                                           ),
                                         ),
+                                        const SizedBox(width: 12),
 
-                                        const SizedBox(width: 16),
+                                        // Data de Entrega
+                                        Icon(
+                                          Icons.local_shipping_outlined,
+                                          size: 14,
+                                          color: corTextoCinza,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          dataEntregaFormatada,
+                                          style: TextStyle(
+                                            color: corTextoCinza,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 50),
 
                                         // Valor
                                         Icon(
@@ -525,12 +578,14 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                               : corTextoCinza,
                                         ),
                                         const SizedBox(width: 4),
+                                        // Usamos RichText ou Row para garantir que o símbolo fique na mesma linha
                                         Text(
                                           valor != null
-                                              ? NumberFormat.currency(
+                                              ? "R\$ ${NumberFormat.currency(
                                                   locale: 'pt_BR',
-                                                  symbol: 'R\$',
-                                                ).format(valor)
+                                                  symbol: '', // Removemos o símbolo automático
+                                                  decimalDigits: 2,
+                                                ).format(valor).trim()}"
                                               : 'A combinar',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
@@ -544,16 +599,11 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                     ),
                                   ],
                                 ),
-
-                                // BOTÕES DE AÇÃO (LADO A LADO PARA NÃO QUEBRAR O LAYOUT)
                                 trailing: Row(
-                                  mainAxisSize: MainAxisSize
-                                      .min, // Ocupa apenas o espaço necessário
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Botão Editar
                                     IconButton(
-                                      visualDensity: VisualDensity
-                                          .compact, // Remove espaços extras
+                                      visualDensity: VisualDensity.compact,
                                       icon: const Icon(
                                         Icons.edit,
                                         color: Colors.blueGrey,
@@ -569,14 +619,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                                 ),
                                           ),
                                         );
-                                        // Se retornou true, atualiza a lista
-                                        if (result == true) {
-                                          _atualizarTela();
-                                        }
+                                        if (result == true) _atualizarTela();
                                       },
                                     ),
-
-                                    // Botão Excluir
                                     IconButton(
                                       visualDensity: VisualDensity.compact,
                                       icon: const Icon(
@@ -604,6 +649,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     );
   }
 
+  /// Widget auxiliar para criar linhas de informações com ícone
   Widget _linhaDado(
     IconData icon,
     String texto,

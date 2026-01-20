@@ -7,8 +7,11 @@ class Cliente {
   /// Nome completo do cliente
   String nome;
 
-  /// Endereço do cliente
-  String endereco;
+  /// Rua do cliente
+  String rua;
+
+  /// Bairro do cliente
+  String bairro;
 
   /// Telefone para contato
   String telefone;
@@ -31,7 +34,8 @@ class Cliente {
   Cliente({
     this.id,
     required this.nome,
-    required this.endereco,
+    required this.rua, // Novo campo
+    required this.bairro, // Novo campo
     required this.telefone,
     this.cpf,
     this.cnpj,
@@ -46,7 +50,8 @@ class Cliente {
       // O ID não é enviado,
       // pois o Supabase gera automaticamente
       'nome': nome,
-      'endereco': endereco,
+      'rua': rua, // Mapeado para coluna 'rua'
+      'bairro': bairro, // Mapeado para coluna 'bairro'
       'telefone': telefone,
       'cpf': cpf,
       'cnpj': cnpj,
@@ -67,7 +72,8 @@ class Cliente {
 
       // Dados básicos
       nome: map['nome'] ?? '',
-      endereco: map['endereco'] ?? '',
+      rua: map['rua'] ?? '',
+      bairro: map['bairro'] ?? '',
       telefone: map['telefone'] ?? '',
 
       // Documentos (podem ser nulos)

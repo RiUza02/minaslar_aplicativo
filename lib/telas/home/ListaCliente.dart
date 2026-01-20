@@ -6,8 +6,10 @@ import '../cliente/AdicionarCliente.dart';
 import '../cliente/adicionarOrcamento.dart';
 import '../cliente/DetalhesCliente.dart';
 
-enum TipoOrdenacao { alfabetica, ultimoServico }
+/// Define os critérios de ordenação da lista de clientes
+enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
 
+/// Tela responsável pela listagem e gerenciamento de clientes
 class ListaClientes extends StatefulWidget {
   const ListaClientes({super.key});
 
@@ -16,22 +18,30 @@ class ListaClientes extends StatefulWidget {
 }
 
 class _ListaClientesState extends State<ListaClientes> {
-  // --- PALETA DE CORES (MODO ESCURO) ---
+  /// Definição da paleta de cores (Modo Escuro)
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
   final Color corComplementar = Colors.green[400]!;
+  final Color corAlerta = Colors.redAccent;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
 
+  /// Controlador do campo de texto de busca
   final TextEditingController _searchController = TextEditingController();
+
+  /// Termo atual utilizado para filtrar a lista
   String _termoBuscaNome = '';
 
+  /// Lista local de clientes recuperados do banco
   List<Map<String, dynamic>> _listaClientes = [];
+
+  /// Controla a exibição do indicador de carregamento
   bool _estaCarregando = true;
 
-  // Padrão: Último Serviço (o que você pediu)
+  /// Define a ordenação padrão inicial (Último Serviço)
   TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
 
+  /// Estilos de texto reutilizáveis
   late final TextStyle _estiloNome;
   late final TextStyle _estiloDados;
 
@@ -44,29 +54,35 @@ class _ListaClientesState extends State<ListaClientes> {
       color: corSecundaria,
     );
     _estiloDados = TextStyle(fontSize: 16, color: Colors.grey[400]);
+
+    // Inicia o carregamento dos dados ao montar a tela
     _carregarClientes();
   }
 
-  // --- NOVA LÓGICA DE CARREGAMENTO E ORDENAÇÃO ---
+  /// Busca os clientes no Supabase e atualiza a lista
   Future<void> _carregarClientes([bool isRefresh = false]) async {
     if (!mounted) return;
+
+    // Se não for um refresh manual, exibe o loading
     if (!isRefresh) setState(() => _estaCarregando = true);
 
     try {
-      // 1. Buscamos o cliente E os orçamentos (apenas a data) aninhados
+      // Realiza a consulta no banco trazendo orçamentos para calcular a data
       final response = await Supabase.instance.client
           .from('clientes')
           .select('*, orcamentos(data_pega)');
-      // O Supabase entende a relação e traz uma lista de orçamentos dentro de cada cliente
 
       List<Map<String, dynamic>> dados = List<Map<String, dynamic>>.from(
         response,
       );
 
-      // 2. Aplicamos a ordenação no Dart (Localmente)
+      // Ordena os dados conforme a configuração atual
       _aplicarOrdenacao(dados);
 
       if (mounted) {
+        // ============================================================
+        // Atualiza a lista na tela e remove o loading
+        // ============================================================
         setState(() {
           _listaClientes = dados;
           _estaCarregando = false;
@@ -75,6 +91,7 @@ class _ListaClientesState extends State<ListaClientes> {
     } catch (e) {
       if (mounted) {
         setState(() => _estaCarregando = false);
+        // Exibe feedback de erro ao usuário
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("Erro ao carregar: $e")));
@@ -82,35 +99,40 @@ class _ListaClientesState extends State<ListaClientes> {
     }
   }
 
-  // Função auxiliar para ordenar a lista em memória
+  /// Aplica a lógica de ordenação na lista fornecida
   void _aplicarOrdenacao(List<Map<String, dynamic>> lista) {
     if (_ordenacaoAtual == TipoOrdenacao.alfabetica) {
-      // Ordena por Nome A-Z
+      // Ordenação por Nome (A-Z)
       lista.sort((a, b) {
         final nomeA = (a['nome'] as String).toLowerCase();
         final nomeB = (b['nome'] as String).toLowerCase();
         return nomeA.compareTo(nomeB);
       });
+    } else if (_ordenacaoAtual == TipoOrdenacao.bairro) {
+      // Ordenação por Bairro (A-Z)
+      lista.sort((a, b) {
+        final bairroA = (a['bairro'] ?? '').toString().toLowerCase();
+        final bairroB = (b['bairro'] ?? '').toString().toLowerCase();
+        return bairroA.compareTo(bairroB);
+      });
     } else {
-      // Ordena por Data do Último Serviço (Do mais recente para o mais antigo)
+      // Ordenação por Último Serviço (Mais recente primeiro)
       lista.sort((a, b) {
         final dataA = _obterUltimaData(a['orcamentos']);
         final dataB = _obterUltimaData(b['orcamentos']);
-        // compareTo invertido (b compareTo a) para ficar decrescente (mais recente primeiro)
         return dataB.compareTo(dataA);
       });
     }
   }
 
-  // Descobre a data mais recente dentro da lista de orçamentos do cliente
+  /// Auxiliar para extrair a data mais recente de uma lista de orçamentos
   DateTime _obterUltimaData(dynamic orcamentos) {
     if (orcamentos == null || (orcamentos as List).isEmpty) {
-      // Se não tem serviço, retorna uma data muito antiga (ano 1900) para ficar no final da lista
       return DateTime(1900);
     }
-
-    // Varre a lista de orçamentos e pega a maior data
     DateTime maiorData = DateTime(1900);
+
+    // Itera sobre os orçamentos para encontrar a maior data
     for (var orc in orcamentos) {
       if (orc['data_pega'] != null) {
         DateTime dataAtual = DateTime.parse(orc['data_pega']);
@@ -122,12 +144,11 @@ class _ListaClientesState extends State<ListaClientes> {
     return maiorData;
   }
 
-  // Função chamada ao clicar no menu de ordenar
+  /// Altera o critério de ordenação e reordena a lista atual
   void _mudarOrdenacao(TipoOrdenacao novaOrdem) {
     if (_ordenacaoAtual != novaOrdem) {
       setState(() {
         _ordenacaoAtual = novaOrdem;
-        // Não precisa ir no banco de novo, só reordena a lista que já temos!
         _aplicarOrdenacao(_listaClientes);
       });
     }
@@ -139,10 +160,8 @@ class _ListaClientesState extends State<ListaClientes> {
     super.dispose();
   }
 
-  // ... (Função _confirmarExclusao permanece igual) ...
+  /// Exibe um diálogo de confirmação antes de excluir um cliente
   Future<void> _confirmarExclusao(Cliente cliente) async {
-    // (Mantenha seu código de exclusão aqui, idêntico ao anterior)
-    // Apenas lembre de chamar _carregarClientes() ao final do sucesso.
     return showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -167,15 +186,18 @@ class _ListaClientesState extends State<ListaClientes> {
                 style: TextStyle(color: Colors.redAccent),
               ),
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.pop(context); // Fecha o diálogo
                 try {
+                  // Deleta o registro no banco
                   await Supabase.instance.client
                       .from('clientes')
                       .delete()
                       .eq('id', cliente.id as Object);
+
+                  // Recarrega a lista se a tela ainda estiver montada
                   if (mounted) _carregarClientes();
                 } catch (e) {
-                  // trata erro
+                  // Pode adicionar tratamento de erro aqui
                 }
               },
             ),
@@ -185,7 +207,7 @@ class _ListaClientesState extends State<ListaClientes> {
     );
   }
 
-  // --- LÓGICA DE BUSCA ---
+  /// Atualiza o termo de busca conforme o usuário digita
   void _onSearchChanged(String value) {
     setState(() {
       _termoBuscaNome = value.toLowerCase();
@@ -194,6 +216,7 @@ class _ListaClientesState extends State<ListaClientes> {
 
   @override
   Widget build(BuildContext context) {
+    // Filtra a lista localmente com base na busca
     final listaFiltrada = _termoBuscaNome.isEmpty
         ? _listaClientes
         : _listaClientes.where((c) {
@@ -222,12 +245,14 @@ class _ListaClientesState extends State<ListaClientes> {
             style: const TextStyle(color: Colors.black, fontSize: 16),
             keyboardType: TextInputType.name,
             decoration: InputDecoration(
-              hintText: "Pesquisar...",
+              hintText: "Busca por nome...",
+              hintStyle: const TextStyle(color: Colors.grey),
               prefixIcon: Icon(Icons.search, color: corPrincipal),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, color: Colors.grey),
                       onPressed: () {
+                        // Limpa a busca e restaura a lista
                         _searchController.clear();
                         _onSearchChanged('');
                       },
@@ -241,8 +266,8 @@ class _ListaClientesState extends State<ListaClientes> {
             ),
           ),
         ),
-        // --- BOTÃO DE ORDENAR ---
         actions: [
+          /// Menu de ordenação
           PopupMenuButton<TipoOrdenacao>(
             icon: const Icon(Icons.sort, color: Colors.white, size: 28),
             tooltip: 'Ordenar',
@@ -255,7 +280,17 @@ class _ListaClientesState extends State<ListaClientes> {
                   children: [
                     Icon(Icons.sort_by_alpha, color: Colors.white),
                     SizedBox(width: 10),
-                    Text("A-Z", style: TextStyle(color: Colors.white)),
+                    Text("Nome (A-Z)", style: TextStyle(color: Colors.white)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: TipoOrdenacao.bairro,
+                child: Row(
+                  children: [
+                    Icon(Icons.location_city, color: Colors.white),
+                    SizedBox(width: 10),
+                    Text("Bairro (A-Z)", style: TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -277,20 +312,17 @@ class _ListaClientesState extends State<ListaClientes> {
           const SizedBox(width: 8),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.person_add, size: 28),
-        label: const Text(
-          "NOVO",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
         onPressed: () {
+          // Navega para tela de adicionar cliente e recarrega ao voltar
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AdicionarCliente()),
           ).then((_) => _carregarClientes());
         },
+        child: const Icon(Icons.person_add, size: 28),
       ),
       body: _estaCarregando
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
@@ -321,18 +353,22 @@ class _ListaClientesState extends State<ListaClientes> {
                       padding: const EdgeInsets.all(16),
                       itemCount: listaFiltrada.length,
                       itemBuilder: (context, index) {
+                        // ====================================================
+                        // Construção do Card do Cliente
+                        // ====================================================
                         final dados = listaFiltrada[index];
                         final cliente = Cliente.fromMap(dados);
-
-                        // Pegamos a data JÁ CALCULADA e disponível na memória
                         final ultimaData = _obterUltimaData(
                           dados['orcamentos'],
                         );
-                        // Verifica se é data válida (diferente de 1900) para exibição
                         final temServico = ultimaData.year > 1900;
                         final dataFormatada = temServico
                             ? DateFormat('dd/MM/yyyy').format(ultimaData)
                             : "--/--/----";
+
+                        final Color corStatus = cliente.clienteProblematico
+                            ? corAlerta
+                            : corComplementar;
 
                         return Card(
                           elevation: 4,
@@ -346,7 +382,7 @@ class _ListaClientesState extends State<ListaClientes> {
                               borderRadius: BorderRadius.circular(12),
                               gradient: LinearGradient(
                                 stops: const [0.02, 0.02],
-                                colors: [corComplementar, corCard],
+                                colors: [corStatus, corCard],
                               ),
                             ),
                             child: Padding(
@@ -359,7 +395,6 @@ class _ListaClientesState extends State<ListaClientes> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Linha Nome + Excluir
                                   Row(
                                     children: [
                                       Expanded(
@@ -370,10 +405,15 @@ class _ListaClientesState extends State<ListaClientes> {
                                         ),
                                       ),
                                       if (cliente.clienteProblematico)
-                                        const Icon(
-                                          Icons.warning_amber_rounded,
-                                          color: Colors.green,
-                                          size: 26,
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 8.0,
+                                          ),
+                                          child: Icon(
+                                            Icons.warning_amber_rounded,
+                                            color: corAlerta,
+                                            size: 26,
+                                          ),
                                         ),
                                       IconButton(
                                         icon: Icon(
@@ -389,7 +429,7 @@ class _ListaClientesState extends State<ListaClientes> {
                                   Divider(color: Colors.grey[800], height: 10),
                                   const SizedBox(height: 8),
 
-                                  // Telefone
+                                  /// Exibição do Telefone
                                   Row(
                                     children: [
                                       Icon(
@@ -404,9 +444,33 @@ class _ListaClientesState extends State<ListaClientes> {
                                       ),
                                     ],
                                   ),
+
                                   const SizedBox(height: 8),
 
-                                  // --- DATA DO ÚLTIMO SERVIÇO (Agora instantâneo!) ---
+                                  /// Exibição do Bairro
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.location_city,
+                                        size: 20,
+                                        color: corSecundaria,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          cliente.bairro.isEmpty
+                                              ? "Bairro não informado"
+                                              : cliente.bairro,
+                                          style: _estiloDados,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 8),
+
+                                  /// Exibição do Último Serviço
                                   Row(
                                     children: [
                                       Icon(
@@ -428,10 +492,9 @@ class _ListaClientesState extends State<ListaClientes> {
                                       ),
                                     ],
                                   ),
-
                                   const SizedBox(height: 12),
 
-                                  // Botões
+                                  /// Botões de Ação (Orçamento e Detalhes)
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [

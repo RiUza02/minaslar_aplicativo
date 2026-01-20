@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../modelos/Cliente.dart';
 
+/// Tela responsável pela criação de um novo orçamento para um cliente específico.
 class AdicionarOrcamento extends StatefulWidget {
   final Cliente cliente;
 
@@ -19,8 +20,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   // CORES (Padronizadas com EditarOrcamento)
   // ===========================================================================
   final Color corPrincipal = Colors.red[900]!;
-  final Color corSecundaria =
-      Colors.blue[300]!; // Mantido caso use em outro lugar
+  final Color corSecundaria = Colors.blue[300]!;
   final Color corComplementar = Colors.amber;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
@@ -53,9 +53,10 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   }
 
   // ===========================================================================
-  // LÓGICA
+  // LÓGICA DE NEGÓCIO
   // ===========================================================================
 
+  /// Abre o seletor de data para Entrada ou Entrega
   Future<void> _selecionarData({required bool isEntrega}) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -89,6 +90,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     }
   }
 
+  /// Valida e insere o novo orçamento no Supabase
   Future<void> _salvarOrcamento() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -133,8 +135,24 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   }
 
   // ===========================================================================
-  // WIDGETS AUXILIARES (Mesmos do EditarOrcamento)
+  // WIDGETS AUXILIARES
   // ===========================================================================
+
+  /// Cria um bloco visual (Card) para agrupar campos
+  Widget _buildBlock({required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: corCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
 
   Widget _tituloCampo(String texto) {
     return Padding(
@@ -155,7 +173,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: corCard,
+          color: Colors.black26, // Mais escuro para contraste no card
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white10),
         ),
@@ -181,7 +199,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
       hintStyle: const TextStyle(color: Colors.white24),
       prefixIcon: Icon(icon, color: corTextoCinza),
       filled: true,
-      fillColor: corCard,
+      fillColor: Colors.black26, // Mais escuro para contraste no card
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -209,11 +227,11 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         centerTitle: true,
-        elevation: 0, // Removido shape arredondado para igualar ao Editar
+        elevation: 0,
       ),
       // Botão Salvar fixo embaixo
       bottomNavigationBar: Container(
-        color: corCard, // Alterado para corCard para igualar ao Editar
+        color: corCard,
         padding: const EdgeInsets.all(16),
         child: SizedBox(
           height: 55,
@@ -254,7 +272,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Card do Cliente (Mantido pois é útil no cadastro, mas com estilo clean)
+              // Card Informativo do Cliente (Mantido fora dos blocos de input)
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -283,7 +301,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                           Text(
                             "CLIENTE SELECIONADO",
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               color: corTextoCinza,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.2,
@@ -293,7 +311,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                           Text(
                             widget.cliente.nome,
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: corTextoClaro,
                             ),
@@ -306,86 +324,104 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
               ),
               const SizedBox(height: 24),
 
-              // --- Campo Título ---
-              _tituloCampo("Título do Serviço"),
-              TextFormField(
-                controller: _tituloController,
-                style: TextStyle(color: corTextoClaro),
-                decoration: _inputDecoration('Ex: Formatação', Icons.title),
-                validator: (v) => v!.isEmpty ? 'Informe um título' : null,
-              ),
-              const SizedBox(height: 20),
-
-              // --- Campo Descrição ---
-              _tituloCampo("Descrição Detalhada"),
-              TextFormField(
-                controller: _descricaoController,
-                maxLines: 3,
-                style: TextStyle(color: corTextoClaro),
-                decoration: _inputDecoration(
-                  'Descreva o serviço...',
-                  Icons.description_outlined,
-                ),
-                validator: (v) => v!.isEmpty ? 'Descreva o serviço' : null,
-              ),
-              const SizedBox(height: 20),
-
-              // --- Campo Valor ---
-              _tituloCampo("Valor (R\$)"),
-              TextFormField(
-                controller: _valorController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                style: TextStyle(color: corTextoClaro),
-                decoration: _inputDecoration(
-                  '0.00',
-                  Icons.monetization_on_outlined,
-                ),
-                validator: (v) => v!.isEmpty ? 'Informe o valor' : null,
-              ),
-              const SizedBox(height: 20),
-
-              // --- Data de Entrada ---
-              _tituloCampo("Data de Entrada"),
-              _botaoData(
-                icon: Icons.calendar_today,
-                texto: DateFormat('dd/MM/yyyy').format(_dataPega),
-                onTap: () => _selecionarData(isEntrega: false),
-              ),
-              const SizedBox(height: 20),
-
-              // --- Data de Entrega ---
-              _tituloCampo("Data de Entrega / Previsão"),
-              _botaoData(
-                icon: Icons.event_available,
-                texto: _dataEntrega != null
-                    ? DateFormat('dd/MM/yyyy').format(_dataEntrega!)
-                    : "Definir data de entrega...",
-                corTexto: _dataEntrega != null ? corTextoClaro : Colors.white54,
-                onTap: () => _selecionarData(isEntrega: true),
+              // ============================================================
+              // BLOCO 1: DADOS DO SERVIÇO (Título e Descrição)
+              // ============================================================
+              _buildBlock(
+                children: [
+                  _tituloCampo("Título do Serviço"),
+                  TextFormField(
+                    controller: _tituloController,
+                    style: TextStyle(color: corTextoClaro),
+                    decoration: _inputDecoration('Ex: Limpeza', Icons.title),
+                    validator: (v) => v!.isEmpty ? 'Informe um título' : null,
+                  ),
+                  const SizedBox(height: 20),
+                  _tituloCampo("Descrição"),
+                  TextFormField(
+                    controller: _descricaoController,
+                    maxLines: 3,
+                    style: TextStyle(color: corTextoClaro),
+                    decoration: _inputDecoration(
+                      'Descreva o serviço...',
+                      Icons.description_outlined,
+                    ),
+                    validator: (v) => v!.isEmpty ? 'Descreva o serviço' : null,
+                  ),
+                ],
               ),
 
-              // Botão para limpar a data de entrega
-              if (_dataEntrega != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: () => setState(() => _dataEntrega = null),
-                      icon: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.redAccent,
-                      ),
-                      label: const Text(
-                        "Remover Data de Entrega",
-                        style: TextStyle(color: Colors.redAccent),
+              const SizedBox(height: 16),
+
+              // ============================================================
+              // BLOCO 2: FINANCEIRO (Valor)
+              // ============================================================
+              _buildBlock(
+                children: [
+                  _tituloCampo("Valor (R\$)"),
+                  TextFormField(
+                    controller: _valorController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    style: TextStyle(color: corTextoClaro),
+                    decoration: _inputDecoration(
+                      '12.34',
+                      Icons.monetization_on_outlined,
+                    ),
+                    validator: (v) => v!.isEmpty ? 'Informe o valor' : null,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // ============================================================
+              // BLOCO 3: PRAZOS (Datas)
+              // ============================================================
+              _buildBlock(
+                children: [
+                  _tituloCampo("Data de Entrada"),
+                  _botaoData(
+                    icon: Icons.calendar_today,
+                    texto: DateFormat('dd/MM/yyyy').format(_dataPega),
+                    onTap: () => _selecionarData(isEntrega: false),
+                  ),
+                  const SizedBox(height: 20),
+                  _tituloCampo("Data de Entrega / Previsão"),
+                  _botaoData(
+                    icon: Icons.event_available,
+                    texto: _dataEntrega != null
+                        ? DateFormat('dd/MM/yyyy').format(_dataEntrega!)
+                        : "Definir data de entrega...",
+                    corTexto: _dataEntrega != null
+                        ? corTextoClaro
+                        : Colors.white54,
+                    onTap: () => _selecionarData(isEntrega: true),
+                  ),
+
+                  // Botão para limpar a data de entrega
+                  if (_dataEntrega != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => setState(() => _dataEntrega = null),
+                          icon: const Icon(
+                            Icons.close,
+                            size: 16,
+                            color: Colors.redAccent,
+                          ),
+                          label: const Text(
+                            "Remover Data de Entrega",
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
+                ],
+              ),
 
               const SizedBox(height: 20),
             ],
