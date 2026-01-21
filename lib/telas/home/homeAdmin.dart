@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../servicos/autenticacao.dart';
-import 'ListaCliente.dart';
+import 'ListaClienteAdmin.dart';
 import '../calendario/AgendaCalendario.dart';
 
 class HomeAdmin extends StatefulWidget {

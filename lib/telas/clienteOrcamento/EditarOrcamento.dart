@@ -32,6 +32,9 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
   /// Data de previsão de entrega (Opcional)
   DateTime? _dataEntrega;
 
+  /// Controla o turno selecionado
+  late String _horarioSelecionado;
+
   /// Controla o estado de carregamento durante o salvamento
   bool _isLoading = false;
 
@@ -74,6 +77,9 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     _dataEntrega = dataEntregaString != null
         ? DateTime.parse(dataEntregaString)
         : null;
+
+    // Carrega o Horário (se existir no banco, senão padrão 'Manhã')
+    _horarioSelecionado = widget.orcamento['horario_do_dia'] ?? 'Manhã';
   }
 
   @override
@@ -111,6 +117,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
             'valor': valorConvertido,
             'data_pega': _dataServico.toIso8601String(),
             'data_entrega': _dataEntrega?.toIso8601String(), // Permite null
+            'horario_do_dia': _horarioSelecionado, // <--- NOVO CAMPO
           })
           .eq('id', widget.orcamento['id']);
 
@@ -298,10 +305,30 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
               const SizedBox(height: 16),
 
               // ============================================================
-              // BLOCO 3: PRAZOS (Datas)
+              // BLOCO 3: PRAZOS E HORÁRIO
               // ============================================================
               _buildBlock(
                 children: [
+                  // --- SELEÇÃO DE HORÁRIO ---
+                  _tituloCampo("Preferência de Horário"),
+                  Row(
+                    children: [
+                      _botaoSelecaoHorario(
+                        valor: 'Manhã',
+                        icon: Icons.wb_sunny_outlined,
+                      ),
+                      const SizedBox(width: 12),
+                      _botaoSelecaoHorario(
+                        valor: 'Tarde',
+                        icon: Icons.wb_twilight,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+                  const Divider(color: Colors.white10),
+                  const SizedBox(height: 20),
+
                   _tituloCampo("Data de Entrada (Serviço)"),
                   _botaoData(
                     icon: Icons.calendar_today,
@@ -309,6 +336,8 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                     onTap: () => _selecionarData(isEntrega: false),
                   ),
                   const SizedBox(height: 20),
+
+                  // --- DATA ENTREGA ---
                   _tituloCampo("Data de Entrega / Previsão"),
                   _botaoData(
                     icon: Icons.event_available,
@@ -344,6 +373,53 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                 ],
               ),
               const SizedBox(height: 30),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // WIDGETS AUXILIARES
+  // ===========================================================================
+
+  /// Widget auxiliar para selecionar Manhã/Tarde (Toggle)
+  Widget _botaoSelecaoHorario({required String valor, required IconData icon}) {
+    final bool isSelected = _horarioSelecionado == valor;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _horarioSelecionado = valor;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? corPrincipal : Colors.black26,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(color: Colors.redAccent, width: 2)
+                : Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : corTextoCinza,
+                size: 24,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                valor,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : corTextoCinza,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
             ],
           ),
         ),

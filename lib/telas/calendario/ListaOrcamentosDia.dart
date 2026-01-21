@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../clienteOrcamento/DetalhesOrcamento.dart';
+import '../clienteOrcamento/AdicionarOrcamento.dart';
+import '../../modelos/Cliente.dart';
+import '../../servicos/ListagemClientes.dart';
 
-/// Exibe a lista detalhada de orçamentos para uma data específica.
 class ListaOrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
 
@@ -13,9 +16,7 @@ class ListaOrcamentosDia extends StatefulWidget {
 }
 
 class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
-  // ===========================================================================
-  // PALETA DE CORES
-  // ===========================================================================
+  // Cores
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corPrincipal = Colors.red[900]!;
@@ -25,12 +26,17 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   @override
   void initState() {
     super.initState();
-    _futureOrcamentos = _buscarOrcamentosDoDia();
+    _atualizarLista();
   }
 
-  /// Busca orçamentos filtrando pelo dia e trazendo dados do cliente (JOIN)
+  void _atualizarLista() {
+    setState(() {
+      _futureOrcamentos = _buscarOrcamentosDoDia();
+    });
+  }
+
   Future<List<Map<String, dynamic>>> _buscarOrcamentosDoDia() async {
-    // Define o intervalo de tempo do dia selecionado (00:00:00 até 23:59:59)
+    // Define o intervalo do dia (00:00 até 23:59)
     final startOfDay = DateTime(
       widget.dataSelecionada.year,
       widget.dataSelecionada.month,
@@ -40,24 +46,48 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         .add(const Duration(days: 1))
         .subtract(const Duration(seconds: 1));
 
-    // Formatação para ISO string que o Supabase entende
-    final startStr = startOfDay.toIso8601String();
-    final endStr = endOfDay.toIso8601String();
-
-    // Query: Selecione tudo de orçamentos, e traga nome, telefone e bairro de clientes
+    // CORREÇÃO: Usando 'data_pega' em vez de 'data_servico'
     final response = await Supabase.instance.client
         .from('orcamentos')
         .select('*, clientes(nome, telefone, bairro)')
-        .gte('data_servico', startStr) // Maior ou igual ao início do dia
-        .lte('data_servico', endStr) // Menor ou igual ao fim do dia
-        .order('data_servico', ascending: true);
+        .gte('data_pega', startOfDay.toIso8601String())
+        .lte('data_pega', endOfDay.toIso8601String())
+        .order('data_pega', ascending: true);
 
     return List<Map<String, dynamic>>.from(response);
   }
 
+  // Função para navegar para a tela de criação
+  void _abrirNovoOrcamento() async {
+    // 1. Escolher Cliente
+    final Cliente? clienteEscolhido = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ListaClientes(isSelecao: true),
+      ),
+    );
+
+    if (clienteEscolhido == null) return;
+    if (!mounted) return;
+
+    // 2. Criar Orçamento (Passando o cliente e a data)
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdicionarOrcamento(
+          cliente: clienteEscolhido,
+          dataSelecionada: widget.dataSelecionada,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      _atualizarLista();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Formata a data para exibir no título (Ex: 25 de Outubro)
     final dataFormatada = DateFormat(
       "d 'de' MMMM",
       'pt_BR',
@@ -70,6 +100,13 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _abrirNovoOrcamento,
+        backgroundColor: corPrincipal,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text("Novo Agendamento"),
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _futureOrcamentos,
         builder: (context, snapshot) {
@@ -78,11 +115,10 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
               child: CircularProgressIndicator(color: corPrincipal),
             );
           }
-
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                "Erro ao carregar: ${snapshot.error}",
+                "Erro: ${snapshot.error}",
                 style: const TextStyle(color: Colors.white),
               ),
             );
@@ -90,26 +126,18 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
 
           final orcamentos = snapshot.data ?? [];
 
-          if (orcamentos.isEmpty) {
-            return _buildEmptyState();
-          }
+          if (orcamentos.isEmpty) return _buildEmptyState();
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: orcamentos.length,
-            itemBuilder: (context, index) {
-              final item = orcamentos[index];
-              return _buildOrcamentoCard(item);
-            },
+            itemBuilder: (context, index) =>
+                _buildOrcamentoCard(orcamentos[index]),
           );
         },
       ),
     );
   }
-
-  // ===========================================================================
-  // WIDGETS AUXILIARES
-  // ===========================================================================
 
   Widget _buildEmptyState() {
     return const Center(
@@ -128,89 +156,102 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   }
 
   Widget _buildOrcamentoCard(Map<String, dynamic> orcamento) {
-    // Extração segura dos dados do cliente (pode ser null se o cliente foi deletado)
+    // Dados do Cliente (segurança contra null)
     final cliente = orcamento['clientes'] ?? {};
-    final nomeCliente = cliente['nome'] ?? 'Cliente Desconhecido';
-    final telefone = cliente['telefone'] ?? 'Sem telefone';
-    final bairro = cliente['bairro'] ?? 'Sem bairro';
+    final nome = cliente['nome'] ?? 'Cliente Desconhecido';
+    final bairro = cliente['bairro'] ?? 'Bairro n/a';
 
-    // Formatação da hora do serviço
-    final dataServico = DateTime.parse(orcamento['data_servico']);
-    final horaFormatada = DateFormat('HH:mm').format(dataServico);
+    // Dados do Orçamento
+    // CORREÇÃO: Usando 'data_pega'
+    DateTime.parse(orcamento['data_pega']);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: corCard,
+    // Lógica visual Manhã/Tarde
+    final horarioTexto = orcamento['horario_do_dia'] ?? 'Manhã';
+    final isTarde = horarioTexto.toString() == 'Tarde';
+    final iconHorario = isTarde ? Icons.wb_twilight : Icons.wb_sunny_outlined;
+    final colorHorario = isTarde ? Colors.orangeAccent : Colors.yellowAccent;
+
+    return Card(
+      color: corCard,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        side: BorderSide(color: Colors.white.withOpacity(0.1)),
       ),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        // Ícone indicando horário (Visualmente mais rico que apenas texto)
         leading: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.blue[900]!.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
+            color: Colors.black38,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: colorHorario.withOpacity(0.3)),
           ),
-          child: Text(
-            horaFormatada,
-            style: const TextStyle(
-              color: Colors.blueAccent,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
+          child: Icon(iconHorario, color: colorHorario, size: 24),
         ),
         title: Text(
-          nomeCliente,
+          nome,
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 16,
           ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildIconText(Icons.phone, telefone),
-              const SizedBox(height: 4),
-              _buildIconText(Icons.location_city, bairro),
-              const SizedBox(height: 8),
-              // Exibe o título do orçamento (serviço a ser feito)
-              Text(
-                orcamento['titulo'] ?? 'Serviço sem título',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontStyle: FontStyle.italic,
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              orcamento['titulo'] ?? 'Sem título',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Icon(Icons.location_on, size: 12, color: Colors.grey[500]),
+                const SizedBox(width: 4),
+                Text(
+                  bairro,
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
                 ),
+              ],
+            ),
+          ],
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              horarioTexto.toUpperCase(),
+              style: TextStyle(
+                color: colorHorario,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white24,
+              size: 14,
+            ),
+          ],
         ),
         onTap: () {
-          // Ação ao tocar no card (pode ser expandida futuramente)
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  DetalhesOrcamento(orcamentoInicial: orcamento),
+            ),
+          ).then((_) {
+            // Atualiza a lista quando voltar (caso tenha editado ou excluído)
+            _atualizarLista();
+          });
         },
       ),
-    );
-  }
-
-  Widget _buildIconText(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: Colors.grey),
-        const SizedBox(width: 6),
-        Text(text, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-      ],
     );
   }
 }

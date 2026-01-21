@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import '../../modelos/Cliente.dart';
-import '../telasAdmin/adicionarOrcamento.dart';
-import '../telasAdmin/DetalhesCliente.dart';
-import '../telasAdmin/AdicionarCliente.dart';
+import '../modelos/Cliente.dart';
+import '../telas/clienteOrcamento/adicionarOrcamento.dart';
+import '../telas/clienteOrcamento/DetalhesCliente.dart';
+import '../telas/clienteOrcamento/AdicionarCliente.dart';
 
 /// Define os critérios de ordenação da lista de clientes
 enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
 
 /// Tela responsável pela listagem e gerenciamento de clientes
 class ListaClientes extends StatefulWidget {
-  const ListaClientes({super.key});
+  // Adicionado parâmetro para controlar o modo de seleção
+  final bool isSelecao;
+
+  const ListaClientes({
+    super.key,
+    this.isSelecao = false, // Padrão é falso (modo normal)
+  });
 
   @override
   State<ListaClientes> createState() => _ListaClientesState();
@@ -80,9 +86,6 @@ class _ListaClientesState extends State<ListaClientes> {
       _aplicarOrdenacao(dados);
 
       if (mounted) {
-        // ============================================================
-        // Atualiza a lista na tela e remove o loading
-        // ============================================================
         setState(() {
           _listaClientes = dados;
           _estaCarregando = false;
@@ -233,6 +236,13 @@ class _ListaClientesState extends State<ListaClientes> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
+        // Adiciona botão de voltar manual se for seleção, para clareza
+        leading: widget.isSelecao
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context, null),
+              )
+            : null,
         title: Container(
           height: 45,
           decoration: BoxDecoration(
@@ -245,14 +255,16 @@ class _ListaClientesState extends State<ListaClientes> {
             style: const TextStyle(color: Colors.black, fontSize: 16),
             keyboardType: TextInputType.name,
             decoration: InputDecoration(
-              hintText: "Busca por nome...",
+              // Muda o texto dependendo do modo
+              hintText: widget.isSelecao
+                  ? "Selecionar cliente..."
+                  : "Busca por nome...",
               hintStyle: const TextStyle(color: Colors.grey),
               prefixIcon: Icon(Icons.search, color: corPrincipal),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, color: Colors.grey),
                       onPressed: () {
-                        // Limpa a busca e restaura a lista
                         _searchController.clear();
                         _onSearchChanged('');
                       },
@@ -316,7 +328,6 @@ class _ListaClientesState extends State<ListaClientes> {
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         onPressed: () {
-          // Navega para tela de adicionar cliente e recarrega ao voltar
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AdicionarCliente()),
@@ -353,9 +364,6 @@ class _ListaClientesState extends State<ListaClientes> {
                       padding: const EdgeInsets.all(16),
                       itemCount: listaFiltrada.length,
                       itemBuilder: (context, index) {
-                        // ====================================================
-                        // Construção do Card do Cliente
-                        // ====================================================
                         final dados = listaFiltrada[index];
                         final cliente = Cliente.fromMap(dados);
                         final ultimaData = _obterUltimaData(
@@ -377,175 +385,218 @@ class _ListaClientesState extends State<ListaClientes> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           color: Colors.transparent,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              gradient: LinearGradient(
-                                stops: const [0.02, 0.02],
-                                colors: [corStatus, corCard],
+                          child: InkWell(
+                            // ==========================================
+                            // Lógica de Clique e Seleção
+                            // ==========================================
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              if (widget.isSelecao) {
+                                // SELEÇÃO: Retorna o cliente
+                                Navigator.pop(context, cliente);
+                              } else {
+                                // NORMAL: Abre detalhes
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        DetalhesCliente(cliente: cliente),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                gradient: LinearGradient(
+                                  stops: const [0.02, 0.02],
+                                  colors: [corStatus, corCard],
+                                ),
                               ),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                20,
-                                12,
-                                12,
-                                16,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          cliente.nome,
-                                          style: _estiloNome,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (cliente.clienteProblematico)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 8.0,
-                                          ),
-                                          child: Icon(
-                                            Icons.warning_amber_rounded,
-                                            color: corAlerta,
-                                            size: 26,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  12,
+                                  12,
+                                  16,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            cliente.nome,
+                                            style: _estiloNome,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.delete_outline,
-                                          color: Colors.red[300],
-                                          size: 26,
-                                        ),
-                                        onPressed: () =>
-                                            _confirmarExclusao(cliente),
-                                      ),
-                                    ],
-                                  ),
-                                  Divider(color: Colors.grey[800], height: 10),
-                                  const SizedBox(height: 8),
-
-                                  /// Exibição do Telefone
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.phone_in_talk,
-                                        size: 20,
-                                        color: corSecundaria,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        cliente.telefone,
-                                        style: _estiloDados,
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 8),
-
-                                  /// Exibição do Bairro
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.location_city,
-                                        size: 20,
-                                        color: corSecundaria,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          cliente.bairro.isEmpty
-                                              ? "Bairro não informado"
-                                              : cliente.bairro,
-                                          style: _estiloDados,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 8),
-
-                                  /// Exibição do Último Serviço
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.history,
-                                        size: 20,
-                                        color: corSecundaria,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text("Último: ", style: _estiloDados),
-                                      Text(
-                                        dataFormatada,
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: temServico
-                                              ? Colors.white
-                                              : Colors.grey[600],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-
-                                  /// Botões de Ação (Orçamento e Detalhes)
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      OutlinedButton.icon(
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: corSecundaria,
-                                          side: BorderSide(
-                                            color: corSecundaria,
+                                        if (cliente.clienteProblematico)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              right: 8.0,
+                                            ),
+                                            child: Icon(
+                                              Icons.warning_amber_rounded,
+                                              color: corAlerta,
+                                              size: 26,
+                                            ),
                                           ),
-                                        ),
-                                        icon: const Icon(
-                                          Icons.post_add,
+                                        // Só exibe botão de excluir se NÃO estiver selecionando
+                                        if (!widget.isSelecao)
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.red[300],
+                                              size: 26,
+                                            ),
+                                            onPressed: () =>
+                                                _confirmarExclusao(cliente),
+                                          ),
+                                      ],
+                                    ),
+                                    Divider(
+                                      color: Colors.grey[800],
+                                      height: 10,
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    /// Exibição do Telefone
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.phone_in_talk,
                                           size: 20,
+                                          color: corSecundaria,
                                         ),
-                                        label: const Text("ORÇAMENTO"),
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  AdicionarOrcamento(
-                                                    cliente: cliente,
-                                                  ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          cliente.telefone,
+                                          style: _estiloDados,
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    /// Exibição do Bairro
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.location_city,
+                                          size: 20,
+                                          color: corSecundaria,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            cliente.bairro.isEmpty
+                                                ? "Bairro não informado"
+                                                : cliente.bairro,
+                                            style: _estiloDados,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    const SizedBox(height: 8),
+
+                                    /// Exibição do Último Serviço
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.history,
+                                          size: 20,
+                                          color: corSecundaria,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text("Último: ", style: _estiloDados),
+                                        Text(
+                                          dataFormatada,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: temServico
+                                                ? Colors.white
+                                                : Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    // ==========================================
+                                    // Botões vs Texto de Seleção
+                                    // ==========================================
+                                    if (widget.isSelecao)
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Text(
+                                          "Toque para selecionar",
+                                          style: TextStyle(
+                                            color: corSecundaria.withAlpha(150),
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          OutlinedButton.icon(
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: corSecundaria,
+                                              side: BorderSide(
+                                                color: corSecundaria,
+                                              ),
                                             ),
-                                          );
-                                        },
-                                      ),
-                                      const SizedBox(width: 10),
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: corPrincipal,
-                                        ),
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  DetalhesCliente(
-                                                    cliente: cliente,
-                                                  ),
+                                            icon: const Icon(
+                                              Icons.post_add,
+                                              size: 20,
                                             ),
-                                          );
-                                        },
-                                        child: const Text(
-                                          "DETALHES",
-                                          style: TextStyle(color: Colors.white),
-                                        ),
+                                            label: const Text("ORÇAMENTO"),
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      AdicionarOrcamento(
+                                                        cliente: cliente,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(width: 10),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: corPrincipal,
+                                            ),
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      DetalhesCliente(
+                                                        cliente: cliente,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                            child: const Text(
+                                              "DETALHES",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),

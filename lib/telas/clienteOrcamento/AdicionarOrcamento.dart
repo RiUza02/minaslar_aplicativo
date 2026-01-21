@@ -6,8 +6,13 @@ import '../../modelos/Cliente.dart';
 /// Tela responsável pela criação de um novo orçamento para um cliente específico.
 class AdicionarOrcamento extends StatefulWidget {
   final Cliente cliente;
+  final DateTime? dataSelecionada;
 
-  const AdicionarOrcamento({super.key, required this.cliente});
+  const AdicionarOrcamento({
+    super.key,
+    required this.cliente,
+    this.dataSelecionada,
+  }); // Adicionado aqui
 
   @override
   State<AdicionarOrcamento> createState() => _AdicionarOrcamentoState();
@@ -17,7 +22,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   final _formKey = GlobalKey<FormState>();
 
   // ===========================================================================
-  // CORES (Padronizadas com EditarOrcamento)
+  // CORES
   // ===========================================================================
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
@@ -36,12 +41,16 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
   late DateTime _dataPega;
   DateTime? _dataEntrega;
+
+  // Novo estado para o horário
+  String _horarioSelecionado = 'Manhã';
+
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _dataPega = DateTime.now();
+    _dataPega = widget.dataSelecionada ?? DateTime.now();
   }
 
   @override
@@ -105,6 +114,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
             : null,
         'data_pega': _dataPega.toIso8601String(),
         'data_entrega': _dataEntrega?.toIso8601String(),
+
+        // --- NOVO CAMPO SALVO NO SUPABASE ---
+        'horario_do_dia': _horarioSelecionado,
       };
 
       await Supabase.instance.client
@@ -138,7 +150,6 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   // WIDGETS AUXILIARES
   // ===========================================================================
 
-  /// Cria um bloco visual (Card) para agrupar campos
   Widget _buildBlock({required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -161,6 +172,49 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     );
   }
 
+  // Widget auxiliar para criar os botões de seleção de horário
+  Widget _botaoSelecaoHorario({required String valor, required IconData icon}) {
+    final bool isSelected = _horarioSelecionado == valor;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _horarioSelecionado = valor;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? corPrincipal : Colors.black26,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? Border.all(color: Colors.redAccent, width: 2)
+                : Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : corTextoCinza,
+                size: 24,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                valor,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : corTextoCinza,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _botaoData({
     required IconData icon,
     required String texto,
@@ -173,7 +227,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.black26, // Mais escuro para contraste no card
+          color: Colors.black26,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white10),
         ),
@@ -199,7 +253,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
       hintStyle: const TextStyle(color: Colors.white24),
       prefixIcon: Icon(icon, color: corTextoCinza),
       filled: true,
-      fillColor: Colors.black26, // Mais escuro para contraste no card
+      fillColor: Colors.black26,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
@@ -229,7 +283,6 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
         centerTitle: true,
         elevation: 0,
       ),
-      // Botão Salvar fixo embaixo
       bottomNavigationBar: Container(
         color: corCard,
         padding: const EdgeInsets.all(16),
@@ -272,7 +325,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Card Informativo do Cliente (Mantido fora dos blocos de input)
+              // Cliente Card
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -324,9 +377,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
               ),
               const SizedBox(height: 24),
 
-              // ============================================================
-              // BLOCO 1: DADOS DO SERVIÇO (Título e Descrição)
-              // ============================================================
+              // BLOCO 1: Título e Descrição
               _buildBlock(
                 children: [
                   _tituloCampo("Título do Serviço"),
@@ -353,9 +404,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
               const SizedBox(height: 16),
 
-              // ============================================================
-              // BLOCO 2: FINANCEIRO (Valor)
-              // ============================================================
+              // BLOCO 2: Financeiro
               _buildBlock(
                 children: [
                   _tituloCampo("Valor (R\$)"),
@@ -376,18 +425,39 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
               const SizedBox(height: 16),
 
-              // ============================================================
-              // BLOCO 3: PRAZOS (Datas)
-              // ============================================================
+              // BLOCO 3: PRAZOS (Com os novos botões)
               _buildBlock(
                 children: [
+                  // --- NOVOS CAMPOS: MANHÃ / TARDE ---
+                  _tituloCampo("Preferência de Horário"),
+                  Row(
+                    children: [
+                      _botaoSelecaoHorario(
+                        valor: 'Manhã',
+                        icon: Icons.wb_sunny_outlined,
+                      ),
+                      const SizedBox(width: 12),
+                      _botaoSelecaoHorario(
+                        valor: 'Tarde',
+                        icon: Icons.wb_twilight,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+                  const Divider(color: Colors.white10),
+                  const SizedBox(height: 20),
+
                   _tituloCampo("Data de Entrada"),
                   _botaoData(
                     icon: Icons.calendar_today,
                     texto: DateFormat('dd/MM/yyyy').format(_dataPega),
                     onTap: () => _selecionarData(isEntrega: false),
                   ),
+
                   const SizedBox(height: 20),
+
+                  // --- FIM DOS NOVOS CAMPOS ---
                   _tituloCampo("Data de Entrega / Previsão"),
                   _botaoData(
                     icon: Icons.event_available,
@@ -400,7 +470,6 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                     onTap: () => _selecionarData(isEntrega: true),
                   ),
 
-                  // Botão para limpar a data de entrega
                   if (_dataEntrega != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),

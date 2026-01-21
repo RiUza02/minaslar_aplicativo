@@ -21,15 +21,19 @@ class Orcamento {
   /// Valor do orçamento
   double? valor;
 
+  /// Turno do agendamento ('Manhã' ou 'Tarde')
+  String horarioDoDia;
+
   /// Construtor do modelo
   Orcamento({
     this.id,
     required this.clienteId,
-    required this.titulo, // Novo campo obrigatório
-    required this.descricao, // Renomeado de oQueFoiFeito
+    required this.titulo,
+    required this.descricao,
     required this.dataPega,
     this.dataEntrega,
     this.valor,
+    required this.horarioDoDia,
   });
 
   /// Converte o objeto Dart em um Map para envio ao Supabase
@@ -37,19 +41,14 @@ class Orcamento {
     return {
       // O ID não é enviado pois o Supabase gera automaticamente
       'cliente_id': clienteId,
-
-      // Novo campo Título
       'titulo': titulo,
-
-      // Descrição do serviço
       'descricao': descricao,
-
-      // Datas convertidas para ISO 8601
       'data_pega': dataPega.toIso8601String(),
       'data_entrega': dataEntrega?.toIso8601String(),
-
-      // Valor do orçamento
       'valor': valor,
+
+      // Novo campo mapeado para o banco (snake_case)
+      'horario_do_dia': horarioDoDia,
     };
   }
 
@@ -58,19 +57,19 @@ class Orcamento {
     return Orcamento(
       id: map['id']?.toString(),
       clienteId: map['cliente_id'] ?? '',
-
-      // Mapeamento do Título (com valor padrão caso venha nulo)
       titulo: map['titulo'] ?? 'Sem Título',
-
-      // Mapeamento da Descrição
       descricao: map['descricao'] ?? '',
 
       dataPega: DateTime.parse(map['data_pega']),
+
       dataEntrega: map['data_entrega'] != null
           ? DateTime.parse(map['data_entrega'])
           : null,
 
       valor: map['valor'] != null ? (map['valor'] as num).toDouble() : null,
+
+      // Recupera do banco. Se for nulo (registros antigos), define como 'Manhã'
+      horarioDoDia: map['horario_do_dia'] ?? 'Manhã',
     );
   }
 }
