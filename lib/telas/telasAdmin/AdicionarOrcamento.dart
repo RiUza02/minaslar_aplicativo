@@ -286,7 +286,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: corComplementar.withOpacity(0.15),
+                      backgroundColor: corComplementar.withValues(alpha: 0.15),
                       child: Icon(
                         Icons.person,
                         color: corComplementar,

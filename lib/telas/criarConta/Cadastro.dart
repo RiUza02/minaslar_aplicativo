@@ -45,9 +45,7 @@ class Cadastro extends StatelessWidget {
                   // Navega para a tela de cadastro de administrador
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CadastroAdminScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CadastroAdmin()),
                   );
                 },
               ),
@@ -75,9 +73,7 @@ class Cadastro extends StatelessWidget {
                   // Navega para a tela de cadastro de usuário comum
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => const CadastroUsuarioScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CadastroUsuario()),
                   );
                 },
               ),

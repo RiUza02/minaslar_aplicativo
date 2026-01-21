@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../servicos/Autenticacao.dart';
-import 'Login.dart';
+import 'Autenticacao.dart';
+import '../telas/criarConta/Login.dart';
 
 /// Tela exibida após o cadastro, solicitando a confirmação do e-mail
 class VerificacaoEmail extends StatelessWidget {

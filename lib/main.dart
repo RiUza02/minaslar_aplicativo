@@ -1,3 +1,4 @@
+import 'dart:async'; // Import necessário para StreamSubscription
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'servicos/Autenticacao.dart';
@@ -5,28 +6,72 @@ import 'telas/criarConta/Login.dart';
 import 'telas/criarConta/Cadastro.dart';
 import 'telas/home/HomeUsuario.dart';
 import 'telas/home/HomeAdmin.dart';
+import 'servicos/RedefinirSenha.dart';
+
+// 1. Chave Global de Navegação (Permite navegar sem context)
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // Garante que o Flutter esteja inicializado antes de usar plugins
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicialização do Supabase
+  // 2. Inicialização com PKCE (Obrigatório para Deep Links mobile funcionarem bem)
   await Supabase.initialize(
     url: 'https://uwkxgmmjubpincteqckc.supabase.co',
     anonKey: 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8',
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
   );
 
   runApp(const MyApp());
 }
 
-/// Widget raiz da aplicação
-class MyApp extends StatelessWidget {
+/// Transformei em Stateful para poder usar o initState e ouvir o Deep Link
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  // Variável para controlar a assinatura do ouvinte e cancelar se o app fechar
+  late final StreamSubscription<AuthState> _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _setupAuthListener();
+  }
+
+  /// Configura o "Porteiro" que vigia se chegou um link de recuperação de senha
+  void _setupAuthListener() {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
+      final AuthChangeEvent event = data.event;
+
+      // Se o evento for RECUPERAÇÃO DE SENHA
+      if (event == AuthChangeEvent.passwordRecovery) {
+        // Usa a chave global para empurrar a tela de Nova Senha
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (context) => const RedefinirSenhaScreen()),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription.cancel(); // Boa prática: parar de ouvir ao fechar o app
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MinasLar',
+      navigatorKey: navigatorKey, // <--- Conecta a chave global aqui
       debugShowCheckedModeBanner: false,
 
       // Tema global do app
@@ -58,35 +103,29 @@ class MyApp extends StatelessWidget {
 }
 
 /// Responsável por decidir qual tela será exibida
-/// com base no estado de autenticação do usuário
 class RoteadorTelas extends StatelessWidget {
   const RoteadorTelas({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Escuta mudanças no estado de autenticação do Supabase
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        // Enquanto o estado de autenticação é carregado
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Sessão atual (null se não estiver logado)
         final session = snapshot.data?.session;
 
         // ==================================================
         // USUÁRIO LOGADO
         // ==================================================
         if (session != null) {
-          // Verifica se o usuário é administrador
           return FutureBuilder<bool>(
             future: AuthService().isUsuarioAdmin(),
             builder: (context, snapshotAdmin) {
-              // Enquanto valida permissões
               if (snapshotAdmin.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(
@@ -103,8 +142,6 @@ class RoteadorTelas extends StatelessWidget {
               }
 
               final bool isAdmin = snapshotAdmin.data ?? false;
-
-              // Direciona para a home correta
               return isAdmin ? const HomeAdmin() : const HomeUsuario();
             },
           );
@@ -133,7 +170,6 @@ class TelaApresentacao extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-
               // Logo do aplicativo
               Image.asset(
                 'assets/logo.jpg',
@@ -142,10 +178,7 @@ class TelaApresentacao extends StatelessWidget {
                 errorBuilder: (context, error, stackTrace) =>
                     const Icon(Icons.home_work, size: 150, color: Colors.blue),
               ),
-
               const Spacer(),
-
-              // Botão de login
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -165,10 +198,7 @@ class TelaApresentacao extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 15),
-
-              // Botão de criação de conta
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -188,7 +218,6 @@ class TelaApresentacao extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
             ],
           ),

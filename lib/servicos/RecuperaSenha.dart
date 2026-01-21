@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../servicos/Autenticacao.dart';
+import 'Autenticacao.dart';
 
 /// Tela responsável pela recuperação de senha via e-mail
 class RecuperarSenha extends StatefulWidget {

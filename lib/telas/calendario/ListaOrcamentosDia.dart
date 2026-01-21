@@ -112,10 +112,10 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   // ===========================================================================
 
   Widget _buildEmptyState() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
+        children: [
           Icon(Icons.event_busy, size: 64, color: Colors.white24),
           SizedBox(height: 16),
           Text(
@@ -146,7 +146,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         border: Border.all(color: Colors.white10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -157,7 +157,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.blue[900]!.withOpacity(0.3),
+            color: Colors.blue[900]!.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
@@ -198,7 +198,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           ),
         ),
         onTap: () {
-          // TODO: Implementar navegação para EditarOrcamento se desejar
+          // Ação ao tocar no card (pode ser expandida futuramente)
         },
       ),
     );

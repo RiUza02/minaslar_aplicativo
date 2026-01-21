@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Necessário para TextInputFormatter
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart'; // Import do pacote
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../modelos/Cliente.dart';
 
 /// Tela responsável pela edição dos dados de um cliente existente
@@ -161,9 +161,9 @@ class _EditarClienteState extends State<EditarCliente> {
   @override
   Widget build(BuildContext context) {
     // Definição de cores locais
-    final Color corFundo = Colors.black;
-    final Color corCard = const Color(0xFF1E1E1E);
-    final Color corTextoClaro = Colors.white;
+    const Color corFundo = Colors.black;
+    const Color corCard = Color(0xFF1E1E1E);
+    const Color corTextoClaro = Colors.white;
     final Color corPrincipal = Colors.red[900]!;
 
     return Scaffold(

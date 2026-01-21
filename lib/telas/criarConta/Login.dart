@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
-import 'RecuperaSenha.dart';
+import '../../servicos/RecuperaSenha.dart';
 import 'Cadastro.dart';
 import '../../servicos/roteador.dart';
 

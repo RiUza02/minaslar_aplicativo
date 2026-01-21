@@ -6,7 +6,6 @@ import 'adicionarOrcamento.dart';
 import 'EditarCliente.dart';
 import 'EditarOrcamento.dart';
 
-/// Tela responsável por exibir os detalhes de um cliente e seu histórico de orçamentos.
 class DetalhesCliente extends StatefulWidget {
   final Cliente cliente;
 
@@ -17,7 +16,6 @@ class DetalhesCliente extends StatefulWidget {
 }
 
 class _DetalhesClienteState extends State<DetalhesCliente> {
-  /// Variável para controlar os dados do cliente (que podem ser atualizados)
   late Cliente _clienteExibido;
 
   // ===========================================================================
@@ -25,8 +23,8 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   // ===========================================================================
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
-  final Color corComplementar = Colors.green[400]!; // Verde padrão
-  final Color corAlerta = Colors.redAccent; // Nova cor de alerta
+  final Color corComplementar = Colors.green[400]!;
+  final Color corAlerta = Colors.redAccent;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoClaro = Colors.white;
@@ -42,10 +40,8 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   // LÓGICA DE NEGÓCIO
   // ===========================================================================
 
-  /// Recarrega os dados do cliente do banco (Pull to Refresh)
   Future<void> _atualizarTela() async {
     try {
-      // Busca os dados atualizados no Supabase
       final data = await Supabase.instance.client
           .from('clientes')
           .select()
@@ -57,7 +53,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
           _clienteExibido = Cliente.fromMap(data);
         });
       }
-      // Pequeno delay para suavizar a animação de refresh
       await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
       if (mounted) {
@@ -68,14 +63,25 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     }
   }
 
-  /// Exibe diálogo de confirmação e exclui um orçamento específico
+  /// Função para navegar para a tela de edição
+  void _editarOrcamento(Map<String, dynamic> orcamento) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        // NOTA: Ajuste o construtor abaixo conforme o seu arquivo EditarOrcamento.dart
+        // Estou assumindo que ele recebe o map 'orcamento' ou o 'id'.
+        builder: (context) => EditarOrcamento(orcamento: orcamento),
+      ),
+    );
+  }
+
   Future<void> _confirmarExclusao(
-    BuildContext context,
+    BuildContext ctx,
     Map<String, dynamic> orcamento,
   ) async {
     final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
+      context: ctx,
+      builder: (context) => AlertDialog(
         backgroundColor: corCard,
         title: const Text(
           'Excluir Orçamento',
@@ -87,20 +93,21 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Excluir', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
 
+    if (!mounted) return;
+
     if (confirmar == true) {
       try {
-        // Remove do banco de dados
         await Supabase.instance.client
             .from('orcamentos')
             .delete()
@@ -130,11 +137,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
 
   @override
   Widget build(BuildContext context) {
-    // Define a cor de status baseada se o cliente é problemático ou não
     final bool isProblematico = _clienteExibido.clienteProblematico;
     final Color corStatusAtual = isProblematico ? corAlerta : corComplementar;
 
-    // Stream para ouvir mudanças nos orçamentos em tempo real
     final orcamentosStream = Supabase.instance.client
         .from('orcamentos')
         .stream(primaryKey: ['id'])
@@ -163,7 +168,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.post_add, size: 28),
         onPressed: () {
-          // Navega para adicionar novo orçamento
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -175,9 +179,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
       ),
       body: Column(
         children: [
-          // ============================================================
-          // CARD SUPERIOR COM DADOS DO CLIENTE
-          // ============================================================
+          // CARD SUPERIOR
           Container(
             width: double.infinity,
             margin: const EdgeInsets.all(16),
@@ -185,13 +187,10 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             decoration: BoxDecoration(
               color: corCard,
               borderRadius: BorderRadius.circular(16),
-              border: Border(
-                // A borda lateral muda para vermelho se for problemático
-                left: BorderSide(color: corStatusAtual, width: 6),
-              ),
+              border: Border(left: BorderSide(color: corStatusAtual, width: 6)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   offset: const Offset(0, 4),
                   blurRadius: 10,
                 ),
@@ -204,8 +203,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                   children: [
                     CircleAvatar(
                       radius: 22,
-                      // Fundo do ícone muda sutilmente
-                      backgroundColor: corStatusAtual.withOpacity(0.15),
+                      backgroundColor: corStatusAtual.withValues(alpha: 0.15),
                       child: Icon(
                         Icons.person,
                         color: corStatusAtual,
@@ -234,7 +232,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.red.withOpacity(0.2),
+                                  color: Colors.red.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(color: Colors.redAccent),
                                 ),
@@ -266,7 +264,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                       icon: Icon(Icons.edit, color: corTextoCinza),
                       tooltip: 'Editar Cliente',
                       onPressed: () async {
-                        // Abre tela de edição e atualiza se houve mudança
                         final bool? atualizou = await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -345,9 +342,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
           ),
 
-          // ============================================================
           // TÍTULO DA LISTA
-          // ============================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
             child: Row(
@@ -367,9 +362,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
           ),
 
-          // ============================================================
           // LISTAGEM DE ORÇAMENTOS
-          // ============================================================
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: orcamentosStream,
@@ -430,7 +423,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                 ? DateTime.parse(dataPegaString)
                                 : DateTime.now();
 
-                            // Lógica de Data de Entrega (Novo requisito)
                             final dataEntregaString = orcamento['data_entrega'];
                             final dataEntregaFormatada =
                                 dataEntregaString != null
@@ -440,9 +432,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                 : '--/--';
 
                             final bool isUltimo = index == 0;
-
-                            // Se for o item mais recente e o cliente for problemático, usa vermelho.
-                            // Se for recente e normal, usa verde. Se for antigo, usa cinza.
                             final Color corDestaqueItem = isUltimo
                                 ? (isProblematico
                                       ? Colors.redAccent
@@ -451,8 +440,8 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
 
                             final Color corFundoIcone = isUltimo
                                 ? (isProblematico
-                                      ? Colors.red.withOpacity(0.2)
-                                      : Colors.green.withOpacity(0.2))
+                                      ? Colors.red.withValues(alpha: 0.2)
+                                      : Colors.green.withValues(alpha: 0.2))
                                 : Colors.black26;
 
                             return Container(
@@ -462,7 +451,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                 borderRadius: BorderRadius.circular(12),
                                 border: isUltimo
                                     ? Border.all(
-                                        color: corDestaqueItem.withOpacity(0.5),
+                                        color: corDestaqueItem.withValues(
+                                          alpha: 0.5,
+                                        ),
                                       )
                                     : null,
                               ),
@@ -474,6 +465,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                   bottom: 8,
                                 ),
                                 isThreeLine: true,
+                                // Ícone Esquerdo
                                 leading: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -494,29 +486,100 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                     ),
                                   ],
                                 ),
-                                title: Padding(
-                                  padding: const EdgeInsets.only(bottom: 4.0),
-                                  child: Text(
-                                    titulo,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: isUltimo
-                                          ? corDestaqueItem
-                                          : corTextoClaro,
+                                // Título e Menu (EDITAR/EXCLUIR)
+                                title: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 4.0,
+                                        ),
+                                        child: Text(
+                                          titulo,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: isUltimo
+                                                ? corDestaqueItem
+                                                : corTextoClaro,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    // BOTAO DE MENU ADICIONADO AQUI
+                                    PopupMenuButton<String>(
+                                      icon: Icon(
+                                        Icons.more_vert,
+                                        color: corTextoCinza,
+                                      ),
+                                      color: corCard,
+                                      elevation: 4,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      onSelected: (String choice) {
+                                        if (choice == 'editar') {
+                                          _editarOrcamento(orcamento);
+                                        } else if (choice == 'excluir') {
+                                          _confirmarExclusao(
+                                            context,
+                                            orcamento,
+                                          );
+                                        }
+                                      },
+                                      itemBuilder: (BuildContext context) => [
+                                        const PopupMenuItem(
+                                          value: 'editar',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.edit,
+                                                color: Colors.blue,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Editar',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'excluir',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Excluir',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // CONTAINER NOVO PARA A DESCRIÇÃO
                                     Container(
                                       width: double.infinity,
                                       padding: const EdgeInsets.all(8.0),
                                       decoration: BoxDecoration(
-                                        color: Colors
-                                            .black26, // "Caixa" mais escura
+                                        color: Colors.black26,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
@@ -526,18 +589,14 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                         style: TextStyle(
                                           color: Colors.grey[400],
                                           fontSize: 13,
-                                          fontStyle: FontStyle.normal,
                                         ),
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-
-                                    // Linha de Detalhes (Datas e Valor)
                                     Wrap(
                                       crossAxisAlignment:
                                           WrapCrossAlignment.center,
                                       children: [
-                                        // Data de Entrada
                                         Icon(
                                           Icons.calendar_today,
                                           size: 14,
@@ -552,8 +611,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                           ),
                                         ),
                                         const SizedBox(width: 12),
-
-                                        // Data de Entrega
                                         Icon(
                                           Icons.local_shipping_outlined,
                                           size: 14,
@@ -568,8 +625,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                           ),
                                         ),
                                         const SizedBox(width: 50),
-
-                                        // Valor
                                         Icon(
                                           Icons.monetization_on_outlined,
                                           size: 14,
@@ -578,61 +633,19 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                               : corTextoCinza,
                                         ),
                                         const SizedBox(width: 4),
-                                        // Usamos RichText ou Row para garantir que o símbolo fique na mesma linha
                                         Text(
                                           valor != null
-                                              ? "R\$ ${NumberFormat.currency(
-                                                  locale: 'pt_BR',
-                                                  symbol: '', // Removemos o símbolo automático
-                                                  decimalDigits: 2,
-                                                ).format(valor).trim()}"
-                                              : 'A combinar',
+                                              ? "R\$ ${NumberFormat.currency(locale: 'pt_BR', symbol: '').format(valor)}"
+                                              : "A combinar",
                                           style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
                                             color: valor != null
-                                                ? Colors.white
-                                                : Colors.amber,
+                                                ? Colors.amber
+                                                : corTextoCinza,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
                                           ),
                                         ),
                                       ],
-                                    ),
-                                  ],
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      visualDensity: VisualDensity.compact,
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        color: Colors.blueGrey,
-                                        size: 22,
-                                      ),
-                                      onPressed: () async {
-                                        final result = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                EditarOrcamento(
-                                                  orcamento: orcamento,
-                                                ),
-                                          ),
-                                        );
-                                        if (result == true) _atualizarTela();
-                                      },
-                                    ),
-                                    IconButton(
-                                      visualDensity: VisualDensity.compact,
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        color: Colors.redAccent,
-                                        size: 22,
-                                      ),
-                                      onPressed: () => _confirmarExclusao(
-                                        context,
-                                        orcamento,
-                                      ),
                                     ),
                                   ],
                                 ),
@@ -649,22 +662,21 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     );
   }
 
-  /// Widget auxiliar para criar linhas de informações com ícone
   Widget _linhaDado(
     IconData icon,
-    String texto,
+    String? text,
     Color corTexto,
     Color corIcone,
   ) {
+    if (text == null || text.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: corIcone),
-          const SizedBox(width: 12),
+          Icon(icon, color: corIcone, size: 20),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text(texto, style: TextStyle(fontSize: 15, color: corTexto)),
+            child: Text(text, style: TextStyle(color: corTexto, fontSize: 14)),
           ),
         ],
       ),

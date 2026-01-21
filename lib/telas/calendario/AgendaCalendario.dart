@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/date_symbol_data_local.dart'; // NECESSÁRIO PARA O ERRO DE LOCALE
-import 'ListaOrcamentosDia.dart'; // Import da tela de detalhes
+import 'package:intl/date_symbol_data_local.dart';
+import 'ListaOrcamentosDia.dart';
 
 class AgendaCalendario extends StatefulWidget {
   const AgendaCalendario({super.key});

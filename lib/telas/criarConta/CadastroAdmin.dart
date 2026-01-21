@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../servicos/autenticacao.dart';
-import 'VerificacaoEmail.dart';
+import '../../servicos/VerificacaoEmail.dart';
 
 /// Tela responsável pelo cadastro de usuários administradores
-class CadastroAdminScreen extends StatefulWidget {
-  const CadastroAdminScreen({super.key});
+class CadastroAdmin extends StatefulWidget {
+  const CadastroAdmin({super.key});
 
   @override
-  State<CadastroAdminScreen> createState() => _CadastroAdminScreenState();
+  State<CadastroAdmin> createState() => _CadastroAdminState();
 }
 
-class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
+class _CadastroAdminState extends State<CadastroAdmin> {
   /// Chave do formulário para validações
   final _formKey = GlobalKey<FormState>();
 
@@ -260,11 +260,12 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                               size: 16,
                             ),
                             const SizedBox(width: 5),
-                            const Text(
+                            Text(
                               'Mínimo de 6 caracteres',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
+                                color: _senhaValida ? Colors.green : Colors.red,
                               ),
                             ),
                           ],
@@ -296,6 +297,9 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                               },
                             ),
                           ),
+                          onChanged: (value) {
+                            setState(() {});
+                          },
                           validator: (v) {
                             if (v!.isEmpty) return 'Confirme sua senha';
                             if (v != _senhaController.text) {
@@ -304,6 +308,35 @@ class _CadastroAdminScreenState extends State<CadastroAdminScreen> {
                             return null;
                           },
                         ),
+
+                        // Exibe o erro visualmente logo abaixo do campo
+                        if (_confirmaSenhaController.text.isNotEmpty &&
+                            _confirmaSenhaController.text !=
+                                _senhaController.text)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 6.0,
+                              left: 12.0,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red[700],
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  "As senhas não coincidem",
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                         const SizedBox(height: 20),
 

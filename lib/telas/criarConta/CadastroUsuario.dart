@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../servicos/Autenticacao.dart';
-import 'VerificacaoEmail.dart';
+import '../../servicos/VerificacaoEmail.dart';
 
 /// Tela responsável pelo cadastro de um novo usuário no sistema
-class CadastroUsuarioScreen extends StatefulWidget {
-  const CadastroUsuarioScreen({super.key});
+class CadastroUsuario extends StatefulWidget {
+  const CadastroUsuario({super.key});
 
   @override
-  State<CadastroUsuarioScreen> createState() => _CadastroUsuarioScreenState();
+  State<CadastroUsuario> createState() => _CadastroUsuarioState();
 }
 
-class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
+class _CadastroUsuarioState extends State<CadastroUsuario> {
   /// Chave do formulário para validação dos campos
   final _formKey = GlobalKey<FormState>();
 
@@ -183,7 +183,7 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 8),
 
                         /// Indicador visual de validação do telefone
                         Row(
@@ -242,9 +242,10 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                               _senhaValida = valor.length >= 6;
                             });
                           },
-                          validator: (v) => v!.length < 6
-                              ? 'A senha não atende aos requisitos mínimos'
-                              : null,
+                          // Validação visual já feita abaixo
+                          // validator: (v) => v!.length < 6
+                          //     ? 'A senha não atende aos requisitos mínimos'
+                          //     : null,
                         ),
 
                         const SizedBox(height: 8),
@@ -269,12 +270,12 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 20),
 
                         /// Campo Confirmar Senha
                         TextFormField(
                           controller: _confirmaSenhaController,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                          // autovalidateMode: AutovalidateMode.onUserInteraction, // Removido para controlar manualmente
                           decoration: InputDecoration(
                             labelText: 'Confirmar Senha',
                             prefixIcon: const Icon(
@@ -296,6 +297,10 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             ),
                           ),
                           obscureText: _obscureConfirma,
+                          onChanged: (value) {
+                            // Atualiza a tela a cada digito para verificar a igualdade
+                            setState(() {});
+                          },
                           validator: (v) {
                             if (v!.isEmpty) return 'Confirme sua senha';
                             if (v != _senhaController.text) {
@@ -304,6 +309,35 @@ class _CadastroUsuarioScreenState extends State<CadastroUsuarioScreen> {
                             return null;
                           },
                         ),
+
+                        // Exibe mensagem de erro em tempo real se senhas não baterem
+                        if (_confirmaSenhaController.text.isNotEmpty &&
+                            _confirmaSenhaController.text !=
+                                _senhaController.text)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 6.0,
+                              left: 12.0,
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red[700],
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  "As senhas não coincidem",
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
                         const Spacer(),
 
