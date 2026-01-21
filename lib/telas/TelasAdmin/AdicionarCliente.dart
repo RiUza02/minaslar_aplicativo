@@ -144,7 +144,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                   children: [
                     _buildTextField(
                       controller: _nomeController,
-                      label: "Nome Completo / Razão Social",
+                      label: "Nome Completo",
                       icon: Icons.person,
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
@@ -268,7 +268,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                         ),
                       ),
                       subtitle: const Text(
-                        "Marque se este cliente requer atenção especial",
+                        "Marque se houver historico de problemas",
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                       value: _isProblematico,

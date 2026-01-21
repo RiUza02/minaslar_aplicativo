@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../modelos/Cliente.dart';
-import '../clienteOrcamento/adicionarOrcamento.dart';
-import '../clienteOrcamento/DetalhesCliente.dart';
-import '../clienteOrcamento/AdicionarCliente.dart';
+import '../TelasAdmin/adicionarOrcamento.dart';
+import '../TelasAdmin/DetalhesCliente.dart';
+import '../TelasAdmin/AdicionarCliente.dart';
 
 /// Define os critérios de ordenação da lista de clientes
 enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
@@ -259,6 +259,10 @@ class _ListaClientesState extends State<ListaClientes> {
                     )
                   : null,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 20,
                 vertical: 10,

@@ -458,7 +458,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                   const SizedBox(height: 20),
 
                   // --- FIM DOS NOVOS CAMPOS ---
-                  _tituloCampo("Data de Entrega / Previsão"),
+                  _tituloCampo("Data de Entrega"),
                   _botaoData(
                     icon: Icons.event_available,
                     texto: _dataEntrega != null

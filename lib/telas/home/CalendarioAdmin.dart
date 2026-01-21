@@ -3,8 +3,8 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
-import 'ListaOrcamentosDia.dart';
-import '../clienteOrcamento/DetalhesOrcamento.dart';
+import '../TelasAdmin/ListaOrcamentosDia.dart';
+import '../TelasAdmin/DetalhesOrcamento.dart';
 
 class AgendaCalendario extends StatefulWidget {
   const AgendaCalendario({super.key});
@@ -38,6 +38,16 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
     });
   }
 
+  /// Função auxiliar para ordenar: Manhã vem antes de Tarde
+  int _compararHorarios(dynamic a, dynamic b) {
+    final horarioA = (a['horario_do_dia'] ?? '').toString().toLowerCase();
+    final horarioB = (b['horario_do_dia'] ?? '').toString().toLowerCase();
+
+    if (horarioA == 'manhã' && horarioB != 'manhã') return -1;
+    if (horarioB == 'manhã' && horarioA != 'manhã') return 1;
+    return 0;
+  }
+
   Future<void> _carregarEventosDoMes() async {
     try {
       final response = await Supabase.instance.client
@@ -62,10 +72,21 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
         }
       }
 
+      // ORDENAÇÃO DENTRO DE CADA DIA
+      eventos.forEach((key, lista) {
+        lista.sort(_compararHorarios);
+      });
+
       if (mounted) {
         setState(() {
           _eventosPorDia = eventos;
-          _eventosSelecionados = _getEventosDoDia(_selectedDay!);
+          // Se tiver um dia selecionado, atualiza a lista dele também
+          if (_selectedDay != null) {
+            _eventosSelecionados = _getEventosDoDia(_selectedDay!);
+          } else {
+            _selectedDay = DateTime.now();
+            _eventosSelecionados = _getEventosDoDia(_selectedDay!);
+          }
           _isLoading = false;
         });
       }
@@ -77,10 +98,11 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
 
   List<dynamic> _getEventosDoDia(DateTime dia) {
     final dataNormalizada = DateTime(dia.year, dia.month, dia.day);
-    return _eventosPorDia[dataNormalizada] ?? [];
+    var lista = _eventosPorDia[dataNormalizada] ?? [];
+    lista.sort(_compararHorarios);
+    return lista;
   }
 
-  // Navega para a Lista Geral do dia (Botão Grande)
   void _navegarParaListaDoDia() {
     if (_selectedDay != null) {
       Navigator.push(
@@ -119,9 +141,17 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
-          : SingleChildScrollView(
-              child: Column(
+          : RefreshIndicator(
+              color: corPrincipal,
+              backgroundColor: Colors.white,
+              onRefresh: _carregarEventosDoMes,
+              // MUDANÇA PRINCIPAL: Usamos ListView direto em vez de SingleChildScrollView + Column
+              child: ListView(
+                physics:
+                    const AlwaysScrollableScrollPhysics(), // Permite arrastar em qualquer lugar
+                padding: const EdgeInsets.only(bottom: 30),
                 children: [
+                  // 1. O Calendário é o primeiro item da lista
                   TableCalendar(
                     locale: 'pt_BR',
                     firstDay: DateTime.utc(2020, 1, 1),
@@ -205,9 +235,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                     onPageChanged: (focusedDay) => _focusedDay = focusedDay,
                     eventLoader: _getEventosDoDia,
                   ),
+
                   const SizedBox(height: 20),
 
-                  // BOTÃO: GERENCIAR DIA (Mantive indo para ListaOrcamentosDia)
+                  // 2. Botão Gerenciar
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: SizedBox(
@@ -233,7 +264,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
+                  // 3. Título da Lista
                   Padding(
                     padding: const EdgeInsets.only(left: 20, bottom: 10),
                     child: Align(
@@ -248,137 +282,128 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                       ),
                     ),
                   ),
-                  _eventosSelecionados.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(30.0),
-                          child: Text(
-                            "Nenhum serviço agendado.",
-                            style: TextStyle(color: Colors.grey[600]),
+
+                  // 4. A Lista em si (Usando spread operator ... para inserir na lista principal)
+                  if (_eventosSelecionados.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(30.0),
+                      child: Center(
+                        child: Text(
+                          "Nenhum serviço agendado.",
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ),
+                    )
+                  else
+                    ..._eventosSelecionados.map((item) {
+                      final titulo = item['titulo'] ?? 'Sem Título';
+                      String nomeCliente = 'Cliente não identificado';
+                      if (item['clientes'] != null) {
+                        nomeCliente = item['clientes']['nome'] ?? 'Sem Nome';
+                      }
+                      final horario = item['horario_do_dia'] ?? 'Manhã';
+                      final isTarde =
+                          horario.toString().toLowerCase() == 'tarde';
+                      final iconHorario = isTarde
+                          ? Icons.wb_twilight
+                          : Icons.wb_sunny_outlined;
+                      final colorHorario = isTarde
+                          ? Colors.orangeAccent
+                          : Colors.yellowAccent;
+
+                      return Card(
+                        color: const Color(0xFF1E1E1E),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Colors.white10),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
-                        )
-                      : ListView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: _eventosSelecionados.length,
-                          itemBuilder: (context, index) {
-                            final item = _eventosSelecionados[index];
-
-                            final titulo = item['titulo'] ?? 'Sem Título';
-                            String nomeCliente = 'Cliente não identificado';
-                            if (item['clientes'] != null) {
-                              nomeCliente =
-                                  item['clientes']['nome'] ?? 'Sem Nome';
-                            }
-
-                            final horario = item['horario_do_dia'] ?? 'Manhã';
-                            final isTarde = horario == 'Tarde';
-                            final iconHorario = isTarde
-                                ? Icons.wb_twilight
-                                : Icons.wb_sunny_outlined;
-                            final colorHorario = isTarde
-                                ? Colors.orangeAccent
-                                : Colors.yellowAccent;
-
-                            return Card(
-                              color: const Color(0xFF1E1E1E),
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 6,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                side: const BorderSide(color: Colors.white10),
-                              ),
-                              child: ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black38,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              iconHorario,
+                              color: colorHorario,
+                              size: 24,
+                            ),
+                          ),
+                          title: Text(
+                            titulo,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  size: 14,
+                                  color: corTextoCinza,
                                 ),
-                                leading: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black38,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Icon(
-                                    iconHorario,
-                                    color: colorHorario,
-                                    size: 24,
-                                  ),
-                                ),
-                                title: Text(
-                                  titulo,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.person,
-                                        size: 14,
-                                        color: corTextoCinza,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          nomeCliente,
-                                          style: TextStyle(
-                                            color: corTextoCinza,
-                                            fontSize: 14,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                trailing: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: colorHorario.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: colorHorario.withOpacity(0.5),
-                                    ),
-                                  ),
+                                const SizedBox(width: 4),
+                                Expanded(
                                   child: Text(
-                                    horario.toUpperCase(),
+                                    nomeCliente,
                                     style: TextStyle(
-                                      color: colorHorario,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
+                                      color: corTextoCinza,
+                                      fontSize: 14,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                // AQUI ESTÁ A ALTERAÇÃO PRINCIPAL:
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      // Assume que DetalhesOrcamento aceita um ID
-                                      // Ajuste 'orcamentoId' conforme o construtor da sua tela
-                                      builder: (context) => DetalhesOrcamento(
-                                        orcamentoInicial: item,
-                                      ),
-                                    ),
-                                  ).then((_) {
-                                    // Recarrega os eventos ao voltar, caso algo tenha mudado
-                                    _carregarEventosDoMes();
-                                  });
-                                },
+                              ],
+                            ),
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colorHorario.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: colorHorario.withOpacity(0.5),
                               ),
-                            );
+                            ),
+                            child: Text(
+                              horario.toUpperCase(),
+                              style: TextStyle(
+                                color: colorHorario,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    DetalhesOrcamento(orcamentoInicial: item),
+                              ),
+                            ).then((_) {
+                              _carregarEventosDoMes();
+                            });
                           },
                         ),
-                  const SizedBox(height: 30),
+                      );
+                    }),
                 ],
               ),
             ),

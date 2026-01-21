@@ -204,12 +204,11 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         onPressed: _navegarEditar,
-        icon: const Icon(Icons.edit),
-        label: const Text("Editar"),
+        child: const Icon(Icons.edit),
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
