@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Tela responsável pela edição de um orçamento existente.
-/// Recebe um Map com os dados do orçamento para pré-popular os campos.
+// ==================================================
+// TELA DE EDIÇÃO DE ORÇAMENTO
+// ==================================================
 class EditarOrcamento extends StatefulWidget {
+  /// Recebe um Map com os dados do orçamento a ser editado
   final Map<String, dynamic> orcamento;
 
   const EditarOrcamento({super.key, required this.orcamento});
@@ -14,101 +16,96 @@ class EditarOrcamento extends StatefulWidget {
 }
 
 class _EditarOrcamentoState extends State<EditarOrcamento> {
-  // ===========================================================================
+  // ==================================================
   // VARIÁVEIS DE ESTADO E CONTROLADORES
-  // ===========================================================================
+  // ==================================================
 
-  /// Chave global para validação do formulário
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
-  /// Controladores de texto para os campos do formulário
+  /// Controladores de texto para manipulação do formulário
   late TextEditingController _tituloController;
   late TextEditingController _descricaoController;
   late TextEditingController _valorController;
 
-  /// Data de entrada do serviço (Obrigatória, padrão: agora ou vinda do banco)
+  /// Variáveis de controle de datas e status
   late DateTime _dataServico;
-
-  /// Data de previsão de entrega (Opcional)
   DateTime? _dataEntrega;
-
-  /// Controla o turno selecionado
   late String _horarioSelecionado;
+  late bool _foiEntregue;
 
-  /// Controla o estado de carregamento durante o salvamento
-  bool _isLoading = false;
-
-  // ===========================================================================
-  // PALETA DE CORES
-  // ===========================================================================
+  // ==================================================
+  // DEFINIÇÃO DE CORES E TEMA LOCAL
+  // ==================================================
 
   final Color corPrincipal = Colors.red[900]!;
+  final Color corAlerta = Colors.redAccent;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
 
+  // ==================================================
+  // CICLO DE VIDA (INIT & DISPOSE)
+  // ==================================================
+
   @override
   void initState() {
     super.initState();
 
-    // Inicializa o Título com valor existente ou vazio
+    // Inicializa os controladores com os dados vindos da tela anterior
     _tituloController = TextEditingController(
       text: widget.orcamento['titulo'] ?? '',
     );
-
-    // Inicializa a Descrição
     _descricaoController = TextEditingController(
       text: widget.orcamento['descricao'] ?? '',
     );
 
-    // Inicializa o Valor convertendo para string
     final valor = widget.orcamento['valor'];
     _valorController = TextEditingController(text: valor?.toString() ?? '');
 
-    // Carrega a Data do Serviço (data_pega)
+    // Parse das datas armazenadas como String no banco
     final dataServicoString = widget.orcamento['data_pega'];
     _dataServico = dataServicoString != null
         ? DateTime.parse(dataServicoString)
         : DateTime.now();
 
-    // Carrega a Data de Entrega (se existir no banco)
     final dataEntregaString = widget.orcamento['data_entrega'];
     _dataEntrega = dataEntregaString != null
         ? DateTime.parse(dataEntregaString)
         : null;
 
-    // Carrega o Horário (se existir no banco, senão padrão 'Manhã')
+    // Inicializa status e horário
     _horarioSelecionado = widget.orcamento['horario_do_dia'] ?? 'Manhã';
+    _foiEntregue = widget.orcamento['entregue'] ?? false;
   }
 
   @override
   void dispose() {
-    // Libera os recursos dos controladores ao fechar a tela
+    // Libera recursos dos controladores ao fechar a tela
     _tituloController.dispose();
     _descricaoController.dispose();
     _valorController.dispose();
     super.dispose();
   }
 
-  // ===========================================================================
-  // LÓGICA DE NEGÓCIO
-  // ===========================================================================
+  // ==================================================
+  // LÓGICA DE NEGÓCIO (SUPABASE)
+  // ==================================================
 
-  /// Valida o formulário e envia os dados atualizados para o Supabase
   Future<void> _salvarEdicao() async {
-    // Verifica se os campos obrigatórios estão preenchidos
+    // 1. Validação do formulário
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Converte o valor monetário, aceitando vírgula como separador decimal
+      // 2. Conversão e tratamento do valor monetário (troca vírgula por ponto)
       final double? valorConvertido = double.tryParse(
         _valorController.text.replaceAll(',', '.'),
       );
 
-      // Atualiza o registro na tabela 'orcamentos'
+      // 3. Atualização no banco de dados
       await Supabase.instance.client
           .from('orcamentos')
           .update({
@@ -116,26 +113,25 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
             'descricao': _descricaoController.text.trim(),
             'valor': valorConvertido,
             'data_pega': _dataServico.toIso8601String(),
-            'data_entrega': _dataEntrega?.toIso8601String(), // Permite null
-            'horario_do_dia': _horarioSelecionado, // <--- NOVO CAMPO
+            'data_entrega': _dataEntrega?.toIso8601String(), // Pode ser null
+            'horario_do_dia': _horarioSelecionado,
+            'entregue': _foiEntregue,
           })
           .eq('id', widget.orcamento['id']);
 
       if (mounted) {
-        // Exibe feedback de sucesso
+        // 4. Feedback de sucesso e retorno
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Orçamento atualizado com sucesso!'),
             backgroundColor: Colors.green,
           ),
         );
-
-        // Fecha a tela retornando 'true' para indicar que houve atualização
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        // Exibe feedback de erro
+        // 5. Tratamento de erro
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao atualizar: $e'),
@@ -148,9 +144,8 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     }
   }
 
-  /// Abre o seletor de data para Entrada ou Entrega
+  /// Abre o seletor de data para entrada ou entrega
   Future<void> _selecionarData({required bool isEntrega}) async {
-    // Define a data inicial baseada em qual campo foi clicado
     final initialDate = isEntrega
         ? (_dataEntrega ?? DateTime.now())
         : _dataServico;
@@ -160,24 +155,17 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
       initialDate: initialDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      builder: (context, child) {
-        // Customiza o tema do DatePicker para dark mode
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
-              primary: corPrincipal,
-              onPrimary: Colors.white,
-              surface: corCard,
-              onSurface: Colors.white,
-            ),
-            dialogTheme: DialogThemeData(backgroundColor: corCard),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.dark(
+            primary: corPrincipal,
+            surface: corCard,
           ),
-          child: child!,
-        );
-      },
+        ),
+        child: child!,
+      ),
     );
 
-    // Atualiza o estado apenas se uma data for selecionada
     if (picked != null) {
       setState(() {
         if (isEntrega) {
@@ -189,9 +177,9 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     }
   }
 
-  // ===========================================================================
-  // INTERFACE (UI)
-  // ===========================================================================
+  // ==================================================
+  // INTERFACE VISUAL (UI)
+  // ==================================================
 
   @override
   Widget build(BuildContext context) {
@@ -205,9 +193,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         centerTitle: true,
-        elevation: 0,
       ),
-
       // Botão de salvar fixo na parte inferior
       bottomNavigationBar: Container(
         color: corCard,
@@ -220,50 +206,71 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              elevation: 4,
             ),
             onPressed: _isLoading ? null : _salvarEdicao,
             child: _isLoading
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
+                ? const CircularProgressIndicator(color: Colors.white)
                 : const Text(
                     "SALVAR ALTERAÇÕES",
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
                     ),
                   ),
           ),
         ),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ============================================================
-              // BLOCO 1: DADOS DO SERVIÇO (Título e Descrição)
-              // ============================================================
+              // --- BLOCO 1: STATUS DO SERVIÇO ---
+              _buildBlock(
+                children: [
+                  _tituloCampo("Status do Serviço"),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _foiEntregue
+                          ? "ENTREGUE / FINALIZADO"
+                          : "PENDENTE / EM ANDAMENTO",
+                      style: TextStyle(
+                        color: _foiEntregue
+                            ? Colors.green
+                            : Colors.orangeAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Marque quando o cliente retirar o serviço",
+                      style: TextStyle(color: corTextoCinza, fontSize: 12),
+                    ),
+                    secondary: Icon(
+                      _foiEntregue ? Icons.check_circle : Icons.pending_actions,
+                      color: _foiEntregue ? Colors.green : Colors.orangeAccent,
+                    ),
+                    value: _foiEntregue,
+                    activeThumbColor: Colors.green,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _foiEntregue = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // --- BLOCO 2: INFORMAÇÕES BÁSICAS ---
               _buildBlock(
                 children: [
                   _tituloCampo("Título do Serviço"),
                   TextFormField(
                     controller: _tituloController,
                     style: TextStyle(color: corTextoClaro),
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Informe um título'
-                        : null,
                     decoration: _inputDecoration("Ex: Formatação", Icons.title),
                   ),
                   const SizedBox(height: 20),
@@ -272,10 +279,8 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                     controller: _descricaoController,
                     maxLines: 3,
                     style: TextStyle(color: corTextoClaro),
-                    validator: (value) =>
-                        (value == null || value.isEmpty) ? 'Obrigatório' : null,
                     decoration: _inputDecoration(
-                      "Ex: Troca de tela",
+                      "Descrição...",
                       Icons.description_outlined,
                     ),
                   ),
@@ -283,9 +288,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
               ),
               const SizedBox(height: 16),
 
-              // ============================================================
-              // BLOCO 2: FINANCEIRO (Valor)
-              // ============================================================
+              // --- BLOCO 3: VALORES ---
               _buildBlock(
                 children: [
                   _tituloCampo("Valor (R\$)"),
@@ -304,12 +307,9 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
               ),
               const SizedBox(height: 16),
 
-              // ============================================================
-              // BLOCO 3: PRAZOS E HORÁRIO
-              // ============================================================
+              // --- BLOCO 4: DATAS E HORÁRIOS ---
               _buildBlock(
                 children: [
-                  // --- SELEÇÃO DE HORÁRIO ---
                   _tituloCampo("Preferência de Horário"),
                   Row(
                     children: [
@@ -324,12 +324,8 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 20),
-                  const Divider(color: Colors.white10),
-                  const SizedBox(height: 20),
-
-                  _tituloCampo("Data de Entrada (Serviço)"),
+                  _tituloCampo("Data de Entrada"),
                   _botaoData(
                     icon: Icons.calendar_today,
                     texto: DateFormat('dd/MM/yyyy').format(_dataServico),
@@ -337,39 +333,40 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                   ),
                   const SizedBox(height: 20),
 
-                  // --- DATA ENTREGA ---
                   _tituloCampo("Data de Entrega / Previsão"),
-                  _botaoData(
-                    icon: Icons.event_available,
-                    texto: _dataEntrega != null
-                        ? DateFormat('dd/MM/yyyy').format(_dataEntrega!)
-                        : "Definir data de entrega...",
-                    corTexto: _dataEntrega != null
-                        ? corTextoClaro
-                        : Colors.white54,
-                    onTap: () => _selecionarData(isEntrega: true),
-                  ),
-
-                  // Botão opcional para remover a data de entrega
-                  if (_dataEntrega != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => setState(() => _dataEntrega = null),
-                          icon: const Icon(
-                            Icons.close,
-                            size: 16,
-                            color: Colors.redAccent,
-                          ),
-                          label: const Text(
-                            "Remover Data de Entrega",
-                            style: TextStyle(color: Colors.redAccent),
-                          ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _botaoData(
+                          icon: Icons.event_available,
+                          texto: _dataEntrega != null
+                              ? DateFormat('dd/MM/yyyy').format(_dataEntrega!)
+                              : "Definir data...",
+                          onTap: () => _selecionarData(isEntrega: true),
                         ),
                       ),
-                    ),
+                      // Exibe botão de remover apenas se houver data selecionada
+                      if (_dataEntrega != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: IconButton(
+                            onPressed: () =>
+                                setState(() => _dataEntrega = null),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.redAccent,
+                            ),
+                            tooltip: "Remover data",
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black26,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 30),
@@ -380,54 +377,11 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     );
   }
 
-  // ===========================================================================
-  // WIDGETS AUXILIARES
-  // ===========================================================================
+  // ==================================================
+  // WIDGETS AUXILIARES E COMPONENTES
+  // ==================================================
 
-  /// Widget auxiliar para selecionar Manhã/Tarde (Toggle)
-  Widget _botaoSelecaoHorario({required String valor, required IconData icon}) {
-    final bool isSelected = _horarioSelecionado == valor;
-
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _horarioSelecionado = valor;
-          });
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: isSelected ? corPrincipal : Colors.black26,
-            borderRadius: BorderRadius.circular(12),
-            border: isSelected
-                ? Border.all(color: Colors.redAccent, width: 2)
-                : Border.all(color: Colors.white10),
-          ),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? Colors.white : corTextoCinza,
-                size: 24,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                valor,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : corTextoCinza,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Widget auxiliar para construir os blocos (cards) de conteúdo
+  /// Cria um container padronizado para agrupar campos
   Widget _buildBlock({required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -443,39 +397,62 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     );
   }
 
-  /// Widget auxiliar para exibir o rótulo acima dos campos
-  Widget _tituloCampo(String texto) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(texto, style: TextStyle(color: corTextoCinza, fontSize: 14)),
+  /// Títulos padronizados para os inputs
+  Widget _tituloCampo(String texto) => Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Text(texto, style: TextStyle(color: corTextoCinza, fontSize: 14)),
+  );
+
+  /// Botão customizado para seleção de turno (Manhã/Tarde)
+  Widget _botaoSelecaoHorario({required String valor, required IconData icon}) {
+    final bool isSelected = _horarioSelecionado == valor;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _horarioSelecionado = valor),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? corPrincipal : Colors.black26,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? Colors.redAccent : Colors.white10,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : corTextoCinza),
+              Text(
+                valor,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : corTextoCinza,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  /// Widget auxiliar para criar botões simulando campos de data
+  /// Botão visual que simula um input para abrir o DatePicker
   Widget _botaoData({
     required IconData icon,
     required String texto,
     required VoidCallback onTap,
-    Color? corTexto,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.black26, // Ligeiramente mais escuro dentro do card
+          color: Colors.black26,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10),
         ),
         child: Row(
           children: [
             Icon(icon, color: corTextoCinza, size: 20),
             const SizedBox(width: 12),
-            Text(
-              texto,
-              style: TextStyle(color: corTexto ?? corTextoClaro, fontSize: 16),
-            ),
+            Text(texto, style: TextStyle(color: corTextoClaro)),
             const Spacer(),
             const Icon(Icons.arrow_drop_down, color: Colors.white54),
           ],
@@ -484,23 +461,17 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     );
   }
 
-  /// Estilo padrão dos inputs do formulário
+  /// Estilização padrão dos inputs de texto
   InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white24),
       prefixIcon: Icon(icon, color: corTextoCinza),
       filled: true,
-      fillColor: Colors.black26, // Ajustado para contraste dentro do card
+      fillColor: Colors.black26,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: corPrincipal, width: 2),
-      ),
-      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
     );
   }
 }

@@ -4,9 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../modelos/Cliente.dart';
 
-/// Tela responsável pela edição dos dados de um cliente existente
+// ==================================================
+// TELA DE EDIÇÃO DE CLIENTE
+// ==================================================
 class EditarCliente extends StatefulWidget {
-  /// Objeto cliente contendo os dados a serem editados
   final Cliente cliente;
 
   const EditarCliente({super.key, required this.cliente});
@@ -16,17 +17,15 @@ class EditarCliente extends StatefulWidget {
 }
 
 class _EditarClienteState extends State<EditarCliente> {
-  // ===========================================================================
+  // ==================================================
   // VARIÁVEIS DE ESTADO E CONTROLADORES
-  // ===========================================================================
+  // ==================================================
 
-  /// Chave global para validação do formulário
   final _formKey = GlobalKey<FormState>();
-
-  /// Controla o estado de carregamento da operação de salvamento
   bool _isLoading = false;
+  late bool _isProblematico;
 
-  /// Controladores de texto para os campos
+  // Controladores de Texto
   late TextEditingController _nomeController;
   late TextEditingController _telefoneController;
   late TextEditingController _ruaController;
@@ -35,38 +34,36 @@ class _EditarClienteState extends State<EditarCliente> {
   late TextEditingController _cnpjController;
   late TextEditingController _obsController;
 
-  /// Estado do switch de cliente problemático
-  late bool _isProblematico;
-
-  // ===========================================================================
+  // ==================================================
   // MÁSCARAS DE FORMATAÇÃO
-  // ===========================================================================
+  // ==================================================
 
-  /// Máscara para telefone: (##) #####-####
   final maskTelefone = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
-  /// Máscara para CPF: ###.###.###-##
   final maskCPF = MaskTextInputFormatter(
     mask: '###.###.###-##',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
-  /// Máscara para CNPJ: ##.###.###/####-##
   final maskCNPJ = MaskTextInputFormatter(
     mask: '##.###.###/####-##',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
+  // ==================================================
+  // CICLO DE VIDA (INIT & DISPOSE)
+  // ==================================================
+
   @override
   void initState() {
     super.initState();
-    // Inicializa os campos com os dados vindos do objeto cliente
+    // Preenche os controladores com os dados existentes do cliente
     _nomeController = TextEditingController(text: widget.cliente.nome);
     _ruaController = TextEditingController(text: widget.cliente.rua);
     _bairroController = TextEditingController(text: widget.cliente.bairro);
@@ -75,7 +72,7 @@ class _EditarClienteState extends State<EditarCliente> {
     );
     _isProblematico = widget.cliente.clienteProblematico;
 
-    // Aplica as máscaras nos valores iniciais
+    // Aplica a formatação da máscara aos dados vindos do banco
     _telefoneController = TextEditingController(
       text: maskTelefone.maskText(widget.cliente.telefone),
     );
@@ -89,7 +86,7 @@ class _EditarClienteState extends State<EditarCliente> {
 
   @override
   void dispose() {
-    // Libera recursos dos controladores
+    // Limpeza de memória dos controladores
     _nomeController.dispose();
     _telefoneController.dispose();
     _ruaController.dispose();
@@ -100,19 +97,18 @@ class _EditarClienteState extends State<EditarCliente> {
     super.dispose();
   }
 
-  // ===========================================================================
-  // LÓGICA DE NEGÓCIO
-  // ===========================================================================
+  // ==================================================
+  // LÓGICA DE PERSISTÊNCIA (SUPABASE)
+  // ==================================================
 
-  /// Valida e salva as alterações do cliente no banco de dados
   Future<void> _salvarAlteracoes() async {
-    // Valida o formulário antes de prosseguir
+    // 1. Validação do formulário (Campos obrigatórios)
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Atualiza o registro na tabela 'clientes'
+      // 2. Envio dos dados atualizados para o Supabase
       await Supabase.instance.client
           .from('clientes')
           .update({
@@ -120,7 +116,7 @@ class _EditarClienteState extends State<EditarCliente> {
             'telefone': _telefoneController.text.trim(),
             'rua': _ruaController.text.trim(),
             'bairro': _bairroController.text.trim(),
-            // Envia null se os campos opcionais estiverem vazios
+            // Envia null caso os campos opcionais estejam vazios
             'cpf': _cpfController.text.isEmpty
                 ? null
                 : _cpfController.text.trim(),
@@ -133,7 +129,7 @@ class _EditarClienteState extends State<EditarCliente> {
           .eq('id', widget.cliente.id as Object);
 
       if (mounted) {
-        // Exibe feedback de sucesso e fecha a tela
+        // 3. Sucesso: Feedback visual e retorno para tela anterior
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cliente atualizado com sucesso!')),
         );
@@ -141,7 +137,7 @@ class _EditarClienteState extends State<EditarCliente> {
       }
     } catch (e) {
       if (mounted) {
-        // Exibe erro caso falhe
+        // 4. Erro: Exibe mensagem para o usuário
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao atualizar: $e'),
@@ -154,13 +150,13 @@ class _EditarClienteState extends State<EditarCliente> {
     }
   }
 
-  // ===========================================================================
-  // INTERFACE (UI)
-  // ===========================================================================
+  // ==================================================
+  // INTERFACE VISUAL (UI)
+  // ==================================================
 
   @override
   Widget build(BuildContext context) {
-    // Definição de cores locais
+    // Configuração de cores locais
     const Color corFundo = Colors.black;
     const Color corCard = Color(0xFF1E1E1E);
     const Color corTextoClaro = Colors.white;
@@ -180,7 +176,7 @@ class _EditarClienteState extends State<EditarCliente> {
           key: _formKey,
           child: Column(
             children: [
-              // Card com informações pessoais e de endereço
+              // --- SEÇÃO: DADOS PESSOAIS E CONTATO ---
               _buildCard(
                 corCard,
                 corTextoClaro,
@@ -193,7 +189,6 @@ class _EditarClienteState extends State<EditarCliente> {
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                     const SizedBox(height: 16),
-                    // Campo de telefone com máscara
                     _buildTextField(
                       controller: _telefoneController,
                       label: "Telefone",
@@ -203,7 +198,6 @@ class _EditarClienteState extends State<EditarCliente> {
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                     const SizedBox(height: 16),
-                    // Campo Rua
                     _buildTextField(
                       controller: _ruaController,
                       label: "Rua",
@@ -211,7 +205,6 @@ class _EditarClienteState extends State<EditarCliente> {
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                     const SizedBox(height: 16),
-                    // Campo Bairro
                     _buildTextField(
                       controller: _bairroController,
                       label: "Bairro",
@@ -223,7 +216,7 @@ class _EditarClienteState extends State<EditarCliente> {
               ),
               const SizedBox(height: 16),
 
-              // Card com documentos (CPF/CNPJ)
+              // --- SEÇÃO: DOCUMENTAÇÃO ---
               _buildCard(
                 corCard,
                 corTextoClaro,
@@ -247,10 +240,9 @@ class _EditarClienteState extends State<EditarCliente> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
 
-              // Card de Status e Observações
+              // --- SEÇÃO: STATUS E OBSERVAÇÕES ---
               _buildCard(
                 corCard,
                 corTextoClaro,
@@ -286,7 +278,7 @@ class _EditarClienteState extends State<EditarCliente> {
 
               const SizedBox(height: 30),
 
-              // Botão de salvar
+              // --- BOTÃO DE AÇÃO ---
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -317,7 +309,11 @@ class _EditarClienteState extends State<EditarCliente> {
     );
   }
 
-  /// Widget auxiliar para construção dos Cards de agrupamento
+  // ==================================================
+  // WIDGETS AUXILIARES E COMPONENTES
+  // ==================================================
+
+  // Widget para agrupar campos visualmente (Container estilizado)
   Widget _buildCard(Color color, Color textColor, Widget child) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -330,7 +326,7 @@ class _EditarClienteState extends State<EditarCliente> {
     );
   }
 
-  /// Widget auxiliar para construção dos campos de texto padronizados
+  // Widget para padronizar TextFields e reduzir repetição de código
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,

@@ -24,6 +24,9 @@ class Orcamento {
   /// Turno do agendamento ('Manhã' ou 'Tarde')
   String horarioDoDia;
 
+  /// Indica se o serviço foi concluído/entregue
+  bool entregue;
+
   /// Construtor do modelo
   Orcamento({
     this.id,
@@ -34,6 +37,7 @@ class Orcamento {
     this.dataEntrega,
     this.valor,
     required this.horarioDoDia,
+    this.entregue = false,
   });
 
   /// Converte o objeto Dart em um Map para envio ao Supabase
@@ -46,9 +50,8 @@ class Orcamento {
       'data_pega': dataPega.toIso8601String(),
       'data_entrega': dataEntrega?.toIso8601String(),
       'valor': valor,
-
-      // Novo campo mapeado para o banco (snake_case)
       'horario_do_dia': horarioDoDia,
+      'entregue': entregue,
     };
   }
 
@@ -70,6 +73,9 @@ class Orcamento {
 
       // Recupera do banco. Se for nulo (registros antigos), define como 'Manhã'
       horarioDoDia: map['horario_do_dia'] ?? 'Manhã',
+
+      // Recupera do banco. Se for nulo, assume false
+      entregue: map['entregue'] ?? false,
     );
   }
 }

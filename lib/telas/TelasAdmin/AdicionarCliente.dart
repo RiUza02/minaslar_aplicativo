@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import 'package:flutter/services.dart'; // Necessário para formatadores
+import 'package:flutter/services.dart';
 import '../../modelos/Cliente.dart';
 
 class AdicionarCliente extends StatefulWidget {
@@ -15,33 +15,34 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  // ======================================================
-  // DEFINIÇÃO DAS CORES
-  // ======================================================
+  // ==================================================
+  // CONFIGURAÇÕES E VARIÁVEIS DE ESTADO
+  // ==================================================
+
+  // Paleta de Cores
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoClaro = Colors.white;
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
 
-  // Controladores
+  // Controladores de Texto
   final _nomeController = TextEditingController();
-  // ATUALIZADO: Trocado Endereço por Rua e Bairro
   final _ruaController = TextEditingController();
   final _bairroController = TextEditingController();
-
   final _telefoneController = TextEditingController();
   final _cpfController = TextEditingController();
   final _cnpjController = TextEditingController();
   final _observacaoController = TextEditingController();
 
-  // Estados
-  bool _isPessoaFisica = true;
+  // Estados de Controle Lógico
+  bool _isPessoaFisica =
+      true; // Define qual input (CPF/CNPJ) será exibido/validado
   bool _isProblematico = false;
 
-  // ======================================================
-  // MÁSCARAS
-  // ======================================================
+  // ==================================================
+  // FORMATADORES E MÁSCARAS
+  // ==================================================
   final maskTelefone = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
@@ -55,9 +56,12 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     filter: {"#": RegExp(r'[0-9]')},
   );
 
-  // Importante: Dispose para evitar vazamento de memória
+  // ==================================================
+  // CICLO DE VIDA (DISPOSE)
+  // ==================================================
   @override
   void dispose() {
+    // Libera recursos dos controladores ao fechar a tela
     _nomeController.dispose();
     _ruaController.dispose();
     _bairroController.dispose();
@@ -68,12 +72,17 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     super.dispose();
   }
 
+  // ==================================================
+  // LÓGICA DE PERSISTÊNCIA (SUPABASE)
+  // ==================================================
   Future<void> _salvarCliente() async {
+    // 1. Validação do formulário
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      // 2. Tratamento condicional de CPF vs CNPJ
       String? cpfFinal;
       if (_isPessoaFisica && _cpfController.text.trim().isNotEmpty) {
         cpfFinal = _cpfController.text.trim();
@@ -84,11 +93,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         cnpjFinal = _cnpjController.text.trim();
       }
 
-      // ATUALIZADO: Passando Rua e Bairro
+      // 3. Montagem do Objeto Cliente
       final novoCliente = Cliente(
         nome: _nomeController.text.trim(),
-        rua: _ruaController.text.trim(), // Novo
-        bairro: _bairroController.text.trim(), // Novo
+        rua: _ruaController.text.trim(),
+        bairro: _bairroController.text.trim(),
         telefone: _telefoneController.text.trim(),
         cpf: cpfFinal,
         cnpj: cnpjFinal,
@@ -98,6 +107,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         clienteProblematico: _isProblematico,
       );
 
+      // 4. Inserção no Banco de Dados
       await Supabase.instance.client
           .from('clientes')
           .insert(novoCliente.toMap());
@@ -122,6 +132,9 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     }
   }
 
+  // ==================================================
+  // INTERFACE (BUILD)
+  // ==================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -138,7 +151,9 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
           key: _formKey,
           child: Column(
             children: [
-              // CARD 1: DADOS PESSOAIS
+              // ------------------------------------------
+              // SEÇÃO 1: DADOS CADASTRAIS BÁSICOS
+              // ------------------------------------------
               _buildCard(
                 Column(
                   children: [
@@ -159,18 +174,13 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           v!.length < 15 ? 'Telefone incompleto' : null,
                     ),
                     const SizedBox(height: 16),
-
-                    // --- ATUALIZADO: CAMPO RUA ---
                     _buildTextField(
                       controller: _ruaController,
                       label: "Rua",
                       icon: Icons.add_road,
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
-
                     const SizedBox(height: 16),
-
-                    // --- ATUALIZADO: CAMPO BAIRRO ---
                     _buildTextField(
                       controller: _bairroController,
                       label: "Bairro",
@@ -183,11 +193,13 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
 
               const SizedBox(height: 16),
 
-              // CARD 2: DOCUMENTAÇÃO (Com Toggle)
+              // ------------------------------------------
+              // SEÇÃO 2: DOCUMENTAÇÃO (TOGGLE CPF/CNPJ)
+              // ------------------------------------------
               _buildCard(
                 Column(
                   children: [
-                    // Toggle Customizado
+                    // Seletor Pessoa Física vs Jurídica
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.black26,
@@ -212,7 +224,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Alternância entre inputs
+                    // Alternância animada entre os campos de documento
                     AnimatedCrossFade(
                       firstChild: _buildTextField(
                         controller: _cpfController,
@@ -253,7 +265,9 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
 
               const SizedBox(height: 16),
 
-              // CARD 3: STATUS E OBSERVAÇÕES
+              // ------------------------------------------
+              // SEÇÃO 3: STATUS E OBSERVAÇÕES
+              // ------------------------------------------
               _buildCard(
                 Column(
                   children: [
@@ -287,7 +301,9 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
 
               const SizedBox(height: 30),
 
-              // BOTÃO SALVAR
+              // ------------------------------------------
+              // BOTÃO DE AÇÃO
+              // ------------------------------------------
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -318,10 +334,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     );
   }
 
-  // ======================================================
+  // ==================================================
   // WIDGETS AUXILIARES
-  // ======================================================
+  // ==================================================
 
+  /// Container estilizado padrão para agrupar campos do formulário
   Widget _buildCard(Widget child) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -334,6 +351,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     );
   }
 
+  /// Campo de texto genérico com estilização escura e validação
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -372,6 +390,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     );
   }
 
+  /// Botão de seleção customizado para alternar entre Física/Jurídica
   Widget _buildRadioButton(String title, bool valorEnum) {
     final isSelected = _isPessoaFisica == valorEnum;
     return InkWell(

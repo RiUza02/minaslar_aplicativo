@@ -6,6 +6,9 @@ import 'AdicionarOrcamento.dart';
 import '../../modelos/Cliente.dart';
 import '../../servicos/ListagemClientes.dart';
 
+// ==================================================
+// TELA DE AGENDA DO DIA
+// ==================================================
 class ListaOrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
 
@@ -16,15 +19,22 @@ class ListaOrcamentosDia extends StatefulWidget {
 }
 
 class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
-  // ===========================================================================
-  // PALETA DE CORES
-  // ===========================================================================
+  // ==================================================
+  // CONFIGURAÇÕES VISUAIS E ESTADO
+  // ==================================================
+
+  // Paleta de Cores
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blueAccent;
 
+  // Variável de controle da busca assíncrona
   late Future<List<Map<String, dynamic>>> _futureOrcamentos;
+
+  // ==================================================
+  // CICLO DE VIDA
+  // ==================================================
 
   @override
   void initState() {
@@ -32,13 +42,19 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     _atualizarLista();
   }
 
+  /// Reinicia a busca de dados para atualizar a interface
   void _atualizarLista() {
     setState(() {
       _futureOrcamentos = _buscarOrcamentosDoDia();
     });
   }
 
+  // ==================================================
+  // LÓGICA DE NEGÓCIO (SUPABASE)
+  // ==================================================
+
   Future<List<Map<String, dynamic>>> _buscarOrcamentosDoDia() async {
+    // Define o intervalo de tempo: 00:00:00 até 23:59:59 do dia selecionado
     final startOfDay = DateTime(
       widget.dataSelecionada.year,
       widget.dataSelecionada.month,
@@ -48,36 +64,37 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         .add(const Duration(days: 1))
         .subtract(const Duration(seconds: 1));
 
+    // Busca no banco filtrando pela data e trazendo dados do cliente relacionado
     final response = await Supabase.instance.client
         .from('orcamentos')
         .select('*, clientes(nome, telefone, bairro)')
         .gte('data_pega', startOfDay.toIso8601String())
         .lte('data_pega', endOfDay.toIso8601String())
-        .order(
-          'data_pega',
-          ascending: true,
-        ); // Ordena por data de criação primeiro
+        .order('data_pega', ascending: true);
 
-    // Converte para lista manipulável
     final lista = List<Map<String, dynamic>>.from(response);
 
-    // --- NOVA LÓGICA DE ORDENAÇÃO (Manhã antes de Tarde) ---
+    // Ordenação Personalizada: Prioriza "Manhã" sobre "Tarde"
     lista.sort((a, b) {
       final hA = (a['horario_do_dia'] ?? '').toString().toLowerCase();
       final hB = (b['horario_do_dia'] ?? '').toString().toLowerCase();
 
-      // Se A é manhã e B não é, A vem primeiro
       if (hA == 'manhã' && hB != 'manhã') return -1;
-      // Se B é manhã e A não é, B vem primeiro
       if (hB == 'manhã' && hA != 'manhã') return 1;
 
-      return 0; // Mantém a ordem original se forem iguais
+      return 0; // Mantém a ordem original (por id ou data de criação)
     });
 
     return lista;
   }
 
+  // ==================================================
+  // NAVEGAÇÃO E AÇÕES
+  // ==================================================
+
+  /// Fluxo: Selecionar Cliente -> Criar Orçamento -> Atualizar Lista
   void _abrirNovoOrcamento() async {
+    // 1. Abre tela de seleção de cliente
     final Cliente? clienteEscolhido = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -88,6 +105,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     if (clienteEscolhido == null) return;
     if (!mounted) return;
 
+    // 2. Abre tela de cadastro do orçamento
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -98,13 +116,19 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
       ),
     );
 
+    // 3. Se salvou com sucesso, recarrega a lista
     if (result == true) {
       _atualizarLista();
     }
   }
 
+  // ==================================================
+  // INTERFACE PRINCIPAL (BUILD)
+  // ==================================================
+
   @override
   Widget build(BuildContext context) {
+    // Formatação da data para o título (ex: 12 de Outubro)
     final dataFormatada = DateFormat(
       "d 'de' MMMM",
       'pt_BR',
@@ -131,11 +155,13 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _futureOrcamentos,
         builder: (context, snapshot) {
+          // Estado: Carregando
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
               child: CircularProgressIndicator(color: corPrincipal),
             );
           }
+          // Estado: Erro
           if (snapshot.hasError) {
             return Center(
               child: Text(
@@ -147,8 +173,10 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
 
           final orcamentos = snapshot.data ?? [];
 
+          // Estado: Lista Vazia
           if (orcamentos.isEmpty) return _buildEmptyState();
 
+          // Estado: Lista com Dados
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: orcamentos.length,
@@ -159,6 +187,10 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
       ),
     );
   }
+
+  // ==================================================
+  // COMPONENTES VISUAIS AUXILIARES
+  // ==================================================
 
   Widget _buildEmptyState() {
     return const Center(
@@ -177,18 +209,16 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   }
 
   Widget _buildOrcamentoCard(Map<String, dynamic> orcamento) {
-    // Extração de Dados
+    // Extração segura de dados (evita null errors)
     final cliente = orcamento['clientes'] ?? {};
     final nomeCliente = cliente['nome'] ?? 'Cliente Desconhecido';
     final telefone = cliente['telefone'] ?? 'Sem telefone';
     final bairro = cliente['bairro'] ?? 'Bairro n/a';
     final tituloServico = orcamento['titulo'] ?? 'Serviço sem título';
 
-    // Lógica de Horário e Cores
+    // Definição visual baseada no horário (Manhã vs Tarde)
     final horarioTexto = (orcamento['horario_do_dia'] ?? 'Manhã').toString();
     final isTarde = horarioTexto.toLowerCase() == 'tarde';
-
-    // DEFINIÇÃO DAS CORES: Amarelo para Manhã, Laranja para Tarde
     final colorBanner = isTarde ? Colors.orangeAccent : Colors.yellowAccent;
     final iconHorario = isTarde ? Icons.wb_twilight : Icons.wb_sunny;
 
@@ -198,7 +228,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withOpacity(0.05)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -213,13 +243,11 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         },
         child: Column(
           children: [
-            // =========================
-            // BANNER DE HORÁRIO (TOPO)
-            // =========================
+            // Banner Superior (Indica o turno)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-              color: colorBanner.withOpacity(0.15),
+              color: colorBanner.withValues(alpha: 0.15),
               child: Row(
                 children: [
                   Icon(iconHorario, size: 16, color: colorBanner),
@@ -236,22 +264,20 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                   const Spacer(),
                   Icon(
                     Icons.chevron_right,
-                    color: colorBanner.withOpacity(0.5),
+                    color: colorBanner.withValues(alpha: 0.5),
                     size: 18,
                   ),
                 ],
               ),
             ),
 
-            // =========================
-            // CONTEÚDO DO CARD
-            // =========================
+            // Conteúdo Principal do Card
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Ícone Lateral (Avatar)
+                  // Avatar com inicial do nome
                   CircleAvatar(
                     backgroundColor: Colors.white10,
                     radius: 24,
@@ -268,7 +294,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                   ),
                   const SizedBox(width: 16),
 
-                  // Informações Centrais
+                  // Detalhes do Cliente e Serviço
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,7 +312,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                         Text(
                           tituloServico,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 14,
                             fontStyle: FontStyle.italic,
                           ),
@@ -295,10 +321,9 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                         const Divider(color: Colors.white10, height: 1),
                         const SizedBox(height: 12),
 
-                        // Linha de Detalhes (Bairro e Telefone)
+                        // Dados de contato e localização
                         _buildInfoRow(Icons.location_on_outlined, bairro),
                         const SizedBox(height: 6),
-                        // CORRIGIDO: Ícone de telefone
                         _buildInfoRow(Icons.phone_outlined, telefone),
                       ],
                     ),
@@ -312,6 +337,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     );
   }
 
+  /// Helper para criar linhas padronizadas de ícone + texto
   Widget _buildInfoRow(IconData icon, String text) {
     return Row(
       children: [

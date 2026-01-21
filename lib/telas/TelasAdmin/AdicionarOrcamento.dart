@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../modelos/Cliente.dart';
 
-/// Tela responsável pela criação de um novo orçamento para um cliente específico.
+/// Tela responsável pelo cadastro de novos orçamentos vinculados a um cliente.
 class AdicionarOrcamento extends StatefulWidget {
   final Cliente cliente;
   final DateTime? dataSelecionada;
@@ -12,7 +12,7 @@ class AdicionarOrcamento extends StatefulWidget {
     super.key,
     required this.cliente,
     this.dataSelecionada,
-  }); // Adicionado aqui
+  });
 
   @override
   State<AdicionarOrcamento> createState() => _AdicionarOrcamentoState();
@@ -21,9 +21,9 @@ class AdicionarOrcamento extends StatefulWidget {
 class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   final _formKey = GlobalKey<FormState>();
 
-  // ===========================================================================
-  // CORES
-  // ===========================================================================
+  // ==================================================
+  // CONFIGURAÇÕES VISUAIS E CORES
+  // ==================================================
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
   final Color corComplementar = Colors.amber;
@@ -32,40 +32,46 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
 
-  // ===========================================================================
+  // ==================================================
   // CONTROLADORES E ESTADO
-  // ===========================================================================
+  // ==================================================
+  // Inputs de Texto
   final _tituloController = TextEditingController();
   final _descricaoController = TextEditingController();
   final _valorController = TextEditingController();
 
+  // Controle de Datas e Horários
   late DateTime _dataPega;
   DateTime? _dataEntrega;
-
-  // Novo estado para o horário
   String _horarioSelecionado = 'Manhã';
 
+  // Estado de Carregamento
   bool _isLoading = false;
 
+  // ==================================================
+  // CICLO DE VIDA
+  // ==================================================
   @override
   void initState() {
     super.initState();
+    // Inicializa com a data passada por parâmetro ou a data atual
     _dataPega = widget.dataSelecionada ?? DateTime.now();
   }
 
   @override
   void dispose() {
+    // Libera recursos dos controladores para evitar vazamento de memória
     _tituloController.dispose();
     _descricaoController.dispose();
     _valorController.dispose();
     super.dispose();
   }
 
-  // ===========================================================================
+  // ==================================================
   // LÓGICA DE NEGÓCIO
-  // ===========================================================================
+  // ==================================================
 
-  /// Abre o seletor de data para Entrada ou Entrega
+  /// Exibe o calendário para seleção de data de Entrada ou Entrega.
   Future<void> _selecionarData({required bool isEntrega}) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -73,6 +79,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
       builder: (context, child) {
+        // Personalização do tema do DatePicker
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.dark(
@@ -99,12 +106,13 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     }
   }
 
-  /// Valida e insere o novo orçamento no Supabase
+  /// Valida o formulário e persiste o orçamento no Supabase.
   Future<void> _salvarOrcamento() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
     try {
+      // Prepara o payload para inserção
       final Map<String, dynamic> dadosNovoOrcamento = {
         'cliente_id': widget.cliente.id,
         'titulo': _tituloController.text.trim(),
@@ -114,11 +122,10 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
             : null,
         'data_pega': _dataPega.toIso8601String(),
         'data_entrega': _dataEntrega?.toIso8601String(),
-
-        // --- NOVO CAMPO SALVO NO SUPABASE ---
         'horario_do_dia': _horarioSelecionado,
       };
 
+      // Insere no banco de dados
       await Supabase.instance.client
           .from('orcamentos')
           .insert(dadosNovoOrcamento);
@@ -130,7 +137,10 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
             backgroundColor: Colors.green[700],
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.pop(
+          context,
+          true,
+        ); // Retorna true para atualizar a lista anterior
       }
     } catch (e) {
       if (mounted) {
@@ -146,10 +156,11 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     }
   }
 
-  // ===========================================================================
+  // ==================================================
   // WIDGETS AUXILIARES
-  // ===========================================================================
+  // ==================================================
 
+  /// Cria um bloco visual padronizado (Card) para agrupar campos.
   Widget _buildBlock({required List<Widget> children}) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -165,6 +176,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     );
   }
 
+  /// Título padrão para os campos do formulário.
   Widget _tituloCampo(String texto) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -172,7 +184,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     );
   }
 
-  // Widget auxiliar para criar os botões de seleção de horário
+  /// Botão customizado para seleção de turno (Manhã/Tarde).
   Widget _botaoSelecaoHorario({required String valor, required IconData icon}) {
     final bool isSelected = _horarioSelecionado == valor;
 
@@ -215,6 +227,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     );
   }
 
+  /// Botão que exibe a data selecionada e aciona o DatePicker.
   Widget _botaoData({
     required IconData icon,
     required String texto,
@@ -247,6 +260,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     );
   }
 
+  /// Estilização padrão para TextFormFields.
   InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
       hintText: hint,
@@ -266,9 +280,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     );
   }
 
-  // ===========================================================================
-  // TELA PRINCIPAL
-  // ===========================================================================
+  // ==================================================
+  // INTERFACE PRINCIPAL (BUILD)
+  // ==================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -283,6 +297,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
         centerTitle: true,
         elevation: 0,
       ),
+      // Botão de Ação Flutuante ou Fixo na base
       bottomNavigationBar: Container(
         color: corCard,
         padding: const EdgeInsets.all(16),
@@ -325,7 +340,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Cliente Card
+              // --------------------------------------------------
+              // CABEÇALHO DO CLIENTE
+              // --------------------------------------------------
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -377,7 +394,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
               ),
               const SizedBox(height: 24),
 
-              // BLOCO 1: Título e Descrição
+              // --------------------------------------------------
+              // BLOCO 1: DETALHES DO SERVIÇO
+              // --------------------------------------------------
               _buildBlock(
                 children: [
                   _tituloCampo("Título do Serviço"),
@@ -404,7 +423,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
               const SizedBox(height: 16),
 
-              // BLOCO 2: Financeiro
+              // --------------------------------------------------
+              // BLOCO 2: FINANCEIRO
+              // --------------------------------------------------
               _buildBlock(
                 children: [
                   _tituloCampo("Valor (R\$)"),
@@ -425,10 +446,11 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
               const SizedBox(height: 16),
 
-              // BLOCO 3: PRAZOS (Com os novos botões)
+              // --------------------------------------------------
+              // BLOCO 3: PRAZOS E HORÁRIOS
+              // --------------------------------------------------
               _buildBlock(
                 children: [
-                  // --- NOVOS CAMPOS: MANHÃ / TARDE ---
                   _tituloCampo("Preferência de Horário"),
                   Row(
                     children: [
@@ -457,38 +479,39 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
                   const SizedBox(height: 20),
 
-                  // --- FIM DOS NOVOS CAMPOS ---
-                  _tituloCampo("Data de Entrega"),
-                  _botaoData(
-                    icon: Icons.event_available,
-                    texto: _dataEntrega != null
-                        ? DateFormat('dd/MM/yyyy').format(_dataEntrega!)
-                        : "Definir data de entrega...",
-                    corTexto: _dataEntrega != null
-                        ? corTextoClaro
-                        : Colors.white54,
-                    onTap: () => _selecionarData(isEntrega: true),
-                  ),
-
-                  if (_dataEntrega != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => setState(() => _dataEntrega = null),
-                          icon: const Icon(
-                            Icons.close,
-                            size: 16,
-                            color: Colors.redAccent,
-                          ),
-                          label: const Text(
-                            "Remover Data de Entrega",
-                            style: TextStyle(color: Colors.redAccent),
-                          ),
+                  _tituloCampo("Data de Entrega / Previsão"),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _botaoData(
+                          icon: Icons.event_available,
+                          texto: _dataEntrega != null
+                              ? DateFormat('dd/MM/yyyy').format(_dataEntrega!)
+                              : "Definir data...",
+                          onTap: () => _selecionarData(isEntrega: true),
                         ),
                       ),
-                    ),
+                      if (_dataEntrega != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: IconButton(
+                            onPressed: () =>
+                                setState(() => _dataEntrega = null),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.redAccent,
+                            ),
+                            tooltip: "Remover data",
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.black26,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
 

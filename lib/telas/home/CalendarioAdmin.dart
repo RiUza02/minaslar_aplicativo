@@ -14,15 +14,22 @@ class AgendaCalendario extends StatefulWidget {
 }
 
 class _AgendaCalendarioState extends State<AgendaCalendario> {
+  // ==================================================
+  // ESTADO E CONFIGURAÇÕES VISUAIS
+  // ==================================================
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
+  // Armazena os eventos agrupados pela data (Key: Data sem hora, Value: Lista de orçamentos)
   Map<DateTime, List<dynamic>> _eventosPorDia = {};
+
+  // Lista temporária usada para renderizar os cards abaixo do calendário
   List<dynamic> _eventosSelecionados = [];
 
   bool _isLoading = true;
 
+  // Paleta de cores local
   final Color corFundo = Colors.black;
   final Color corPrincipal = Colors.red[900]!;
   final Color corTextoClaro = Colors.white;
@@ -33,12 +40,17 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    // Inicializa a formatação de data para Português antes de carregar os dados
     initializeDateFormatting('pt_BR', null).then((_) {
       _carregarEventosDoMes();
     });
   }
 
-  /// Função auxiliar para ordenar: Manhã vem antes de Tarde
+  // ==================================================
+  // LÓGICA DE NEGÓCIO E DADOS
+  // ==================================================
+
+  /// Ordenação customizada: Garante que agendamentos de "Manhã" apareçam antes de "Tarde"
   int _compararHorarios(dynamic a, dynamic b) {
     final horarioA = (a['horario_do_dia'] ?? '').toString().toLowerCase();
     final horarioB = (b['horario_do_dia'] ?? '').toString().toLowerCase();
@@ -48,6 +60,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
     return 0;
   }
 
+  /// Busca os dados no Supabase e agrupa por data para o calendário
   Future<void> _carregarEventosDoMes() async {
     try {
       final response = await Supabase.instance.client
@@ -59,6 +72,9 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
       for (var item in response) {
         if (item['data_pega'] != null) {
           final dataOriginal = DateTime.parse(item['data_pega']);
+
+          // Normaliza a data (remove horas/minutos) para usar como chave do Map.
+          // Isso é crucial para o TableCalendar encontrar o evento no dia correto.
           final dataNormalizada = DateTime(
             dataOriginal.year,
             dataOriginal.month,
@@ -72,7 +88,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
         }
       }
 
-      // ORDENAÇÃO DENTRO DE CADA DIA
+      // Aplica a ordenação (Manhã -> Tarde) em todos os dias
       eventos.forEach((key, lista) {
         lista.sort(_compararHorarios);
       });
@@ -80,7 +96,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
       if (mounted) {
         setState(() {
           _eventosPorDia = eventos;
-          // Se tiver um dia selecionado, atualiza a lista dele também
+          // Se já houver dia selecionado, atualiza a lista dele também
           if (_selectedDay != null) {
             _eventosSelecionados = _getEventosDoDia(_selectedDay!);
           } else {
@@ -96,7 +112,9 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
     }
   }
 
+  /// Recupera a lista de eventos de um dia específico do Map
   List<dynamic> _getEventosDoDia(DateTime dia) {
+    // Normaliza a data solicitada para bater com a chave do Map
     final dataNormalizada = DateTime(dia.year, dia.month, dia.day);
     var lista = _eventosPorDia[dataNormalizada] ?? [];
     lista.sort(_compararHorarios);
@@ -111,7 +129,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
           builder: (context) =>
               ListaOrcamentosDia(dataSelecionada: _selectedDay!),
         ),
-      ).then((_) => _carregarEventosDoMes());
+      ).then((_) => _carregarEventosDoMes()); // Recarrega ao voltar
     }
   }
 
@@ -145,19 +163,21 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
               color: corPrincipal,
               backgroundColor: Colors.white,
               onRefresh: _carregarEventosDoMes,
-              // MUDANÇA PRINCIPAL: Usamos ListView direto em vez de SingleChildScrollView + Column
               child: ListView(
-                physics:
-                    const AlwaysScrollableScrollPhysics(), // Permite arrastar em qualquer lugar
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 30),
                 children: [
-                  // 1. O Calendário é o primeiro item da lista
+                  // ==================================================
+                  // COMPONENTE: CALENDÁRIO
+                  // ==================================================
                   TableCalendar(
                     locale: 'pt_BR',
                     firstDay: DateTime.utc(2020, 1, 1),
                     lastDay: DateTime.utc(2030, 12, 31),
                     focusedDay: _focusedDay,
                     calendarFormat: _calendarFormat,
+
+                    // Configurações do cabeçalho do calendário
                     headerStyle: HeaderStyle(
                       titleCentered: true,
                       formatButtonVisible: false,
@@ -175,12 +195,15 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                         color: Colors.white,
                       ),
                     ),
+
+                    // Estilização das células de dias
                     calendarStyle: CalendarStyle(
                       defaultTextStyle: TextStyle(color: corTextoClaro),
                       weekendTextStyle: const TextStyle(
                         color: Colors.redAccent,
                       ),
                       outsideTextStyle: const TextStyle(color: Colors.grey),
+                      // Marcador (bolinha) que indica eventos no dia
                       markerDecoration: const BoxDecoration(
                         color: Colors.blueAccent,
                         shape: BoxShape.circle,
@@ -201,6 +224,8 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                         fontSize: 16,
                       ),
                     ),
+
+                    // Customização para destacar o dia atual ('Hoje')
                     calendarBuilders: CalendarBuilders(
                       selectedBuilder: (context, date, focusedDay) {
                         if (isSameDay(date, DateTime.now())) {
@@ -222,23 +247,30 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                         return null;
                       },
                     ),
+
+                    // Lógica de Seleção
                     selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
                     onDaySelected: (selectedDay, focusedDay) {
                       setState(() {
                         _selectedDay = selectedDay;
                         _focusedDay = focusedDay;
+                        // Atualiza a lista inferior ao clicar no dia
                         _eventosSelecionados = _getEventosDoDia(selectedDay);
                       });
                     },
                     onFormatChanged: (format) =>
                         setState(() => _calendarFormat = format),
                     onPageChanged: (focusedDay) => _focusedDay = focusedDay,
+
+                    // Conecta o Map de eventos ao Calendário para exibir os marcadores
                     eventLoader: _getEventosDoDia,
                   ),
 
                   const SizedBox(height: 20),
 
-                  // 2. Botão Gerenciar
+                  // ==================================================
+                  // BOTÃO DE AÇÃO RÁPIDA
+                  // ==================================================
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: SizedBox(
@@ -267,7 +299,9 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
 
                   const SizedBox(height: 20),
 
-                  // 3. Título da Lista
+                  // ==================================================
+                  // LISTAGEM DOS EVENTOS DO DIA SELECIONADO
+                  // ==================================================
                   Padding(
                     padding: const EdgeInsets.only(left: 20, bottom: 10),
                     child: Align(
@@ -283,7 +317,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                     ),
                   ),
 
-                  // 4. A Lista em si (Usando spread operator ... para inserir na lista principal)
+                  // Verifica se a lista está vazia
                   if (_eventosSelecionados.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(30.0),
@@ -295,15 +329,19 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                       ),
                     )
                   else
+                    // Usa spread operator (...) para transformar a lista de dados em lista de Widgets
                     ..._eventosSelecionados.map((item) {
                       final titulo = item['titulo'] ?? 'Sem Título';
                       String nomeCliente = 'Cliente não identificado';
                       if (item['clientes'] != null) {
                         nomeCliente = item['clientes']['nome'] ?? 'Sem Nome';
                       }
+
                       final horario = item['horario_do_dia'] ?? 'Manhã';
                       final isTarde =
                           horario.toString().toLowerCase() == 'tarde';
+
+                      // Configuração visual baseada no turno
                       final iconHorario = isTarde
                           ? Icons.wb_twilight
                           : Icons.wb_sunny_outlined;
@@ -375,10 +413,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: colorHorario.withOpacity(0.2),
+                              color: colorHorario.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: colorHorario.withOpacity(0.5),
+                                color: colorHorario.withValues(alpha: 0.5),
                               ),
                             ),
                             child: Text(

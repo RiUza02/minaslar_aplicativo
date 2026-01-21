@@ -6,6 +6,9 @@ import 'adicionarOrcamento.dart';
 import 'EditarCliente.dart';
 import 'EditarOrcamento.dart';
 
+// ===========================================================================
+// TELA DE DETALHES DO CLIENTE
+// ===========================================================================
 class DetalhesCliente extends StatefulWidget {
   final Cliente cliente;
 
@@ -19,7 +22,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   late Cliente _clienteExibido;
 
   // ===========================================================================
-  // PALETA DE CORES
+  // PALETA DE CORES E ESTILOS
   // ===========================================================================
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
@@ -30,6 +33,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
 
+  // ===========================================================================
+  // CICLO DE VIDA
+  // ===========================================================================
   @override
   void initState() {
     super.initState();
@@ -37,9 +43,10 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   }
 
   // ===========================================================================
-  // LÓGICA DE NEGÓCIO
+  // LÓGICA DE NEGÓCIO E SUPABASE
   // ===========================================================================
 
+  /// Recarrega os dados do cliente atual diretamente do Supabase
   Future<void> _atualizarTela() async {
     try {
       final data = await Supabase.instance.client
@@ -53,6 +60,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
           _clienteExibido = Cliente.fromMap(data);
         });
       }
+      // Pequeno delay para suavizar a animação de refresh
       await Future.delayed(const Duration(milliseconds: 500));
     } catch (e) {
       if (mounted) {
@@ -63,22 +71,22 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     }
   }
 
-  /// Função para navegar para a tela de edição
+  /// Navega para a tela de edição de orçamento
   void _editarOrcamento(Map<String, dynamic> orcamento) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        // NOTA: Ajuste o construtor abaixo conforme o seu arquivo EditarOrcamento.dart
-        // Estou assumindo que ele recebe o map 'orcamento' ou o 'id'.
         builder: (context) => EditarOrcamento(orcamento: orcamento),
       ),
     );
   }
 
+  /// Exibe diálogo de confirmação e executa a exclusão no banco
   Future<void> _confirmarExclusao(
     BuildContext ctx,
     Map<String, dynamic> orcamento,
   ) async {
+    // 1. Exibe o Diálogo
     final confirmar = await showDialog<bool>(
       context: ctx,
       builder: (context) => AlertDialog(
@@ -104,42 +112,42 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
       ),
     );
 
-    if (!mounted) return;
+    if (!mounted || confirmar != true) return;
 
-    if (confirmar == true) {
-      try {
-        await Supabase.instance.client
-            .from('orcamentos')
-            .delete()
-            .eq('id', orcamento['id']);
+    // 2. Executa a exclusão no Supabase
+    try {
+      await Supabase.instance.client
+          .from('orcamentos')
+          .delete()
+          .eq('id', orcamento['id']);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Orçamento excluído com sucesso.'),
-              backgroundColor: Colors.grey,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Erro ao excluir: $e')));
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Orçamento excluído com sucesso.'),
+            backgroundColor: Colors.grey,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao excluir: $e')));
       }
     }
   }
 
   // ===========================================================================
-  // INTERFACE (UI)
+  // INTERFACE DO USUÁRIO (UI)
   // ===========================================================================
-
   @override
   Widget build(BuildContext context) {
+    // Definição de status visual (Cliente problemático ou Normal)
     final bool isProblematico = _clienteExibido.clienteProblematico;
     final Color corStatusAtual = isProblematico ? corAlerta : corComplementar;
 
+    // Stream em tempo real dos orçamentos deste cliente
     final orcamentosStream = Supabase.instance.client
         .from('orcamentos')
         .stream(primaryKey: ['id'])
@@ -148,6 +156,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
 
     return Scaffold(
       backgroundColor: corFundo,
+      // -- BARRA SUPERIOR --
       appBar: AppBar(
         title: const Text(
           "Detalhes do Cliente",
@@ -161,6 +170,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
       ),
+      // -- BOTÃO FLUTUANTE (ADICIONAR) --
       floatingActionButton: FloatingActionButton(
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
@@ -179,7 +189,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
       ),
       body: Column(
         children: [
-          // CARD SUPERIOR
+          // ==================================================
+          // CARD DE INFORMAÇÕES DO CLIENTE
+          // ==================================================
           Container(
             width: double.infinity,
             margin: const EdgeInsets.all(16),
@@ -199,6 +211,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cabeçalho do Card (Avatar, Nome, Status)
                 Row(
                   children: [
                     CircleAvatar(
@@ -223,6 +236,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                               color: corTextoClaro,
                             ),
                           ),
+                          // Badge de "Problemático" se necessário
                           if (_clienteExibido.clienteProblematico)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
@@ -260,6 +274,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                         ],
                       ),
                     ),
+                    // Botão de Editar Cliente
                     IconButton(
                       icon: Icon(Icons.edit, color: corTextoCinza),
                       tooltip: 'Editar Cliente',
@@ -279,6 +294,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 const SizedBox(height: 20),
                 const Divider(color: Colors.white12),
                 const SizedBox(height: 10),
+                // Dados de Contato e Endereço
                 _linhaDado(
                   Icons.phone_android,
                   _clienteExibido.telefone,
@@ -305,6 +321,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                     corTextoClaro,
                     corSecundaria,
                   ),
+                // Campo de Observações
                 if (_clienteExibido.observacao != null &&
                     _clienteExibido.observacao!.isNotEmpty) ...[
                   const SizedBox(height: 12),
@@ -342,7 +359,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
           ),
 
-          // TÍTULO DA LISTA
+          // Título da Lista
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
             child: Row(
@@ -362,11 +379,14 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
           ),
 
-          // LISTAGEM DE ORÇAMENTOS
+          // ==================================================
+          // LISTA DE ORÇAMENTOS (STREAM)
+          // ==================================================
           Expanded(
             child: StreamBuilder<List<Map<String, dynamic>>>(
               stream: orcamentosStream,
               builder: (context, snapshot) {
+                // Loading State
                 if (!snapshot.hasData) {
                   return const Center(
                     child: CircularProgressIndicator(color: Colors.red),
@@ -379,6 +399,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                   color: corPrincipal,
                   backgroundColor: corCard,
                   onRefresh: _atualizarTela,
+                  // Lista Vazia ou Lista Preenchida
                   child: listaOrcamentos.isEmpty
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
@@ -414,6 +435,8 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                           itemCount: listaOrcamentos.length,
                           itemBuilder: (context, index) {
                             final orcamento = listaOrcamentos[index];
+
+                            // Extração de dados do Mapa
                             final titulo = orcamento['titulo'] ?? 'Serviço';
                             final descricao =
                                 orcamento['descricao'] ?? 'Sem descrição';
@@ -431,6 +454,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                   ).format(DateTime.parse(dataEntregaString))
                                 : '--/--';
 
+                            // Destaque visual para o item mais recente
                             final bool isUltimo = index == 0;
                             final Color corDestaqueItem = isUltimo
                                 ? (isProblematico
@@ -444,6 +468,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                       : Colors.green.withValues(alpha: 0.2))
                                 : Colors.black26;
 
+                            // -- Item da Lista --
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
@@ -465,7 +490,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                   bottom: 8,
                                 ),
                                 isThreeLine: true,
-                                // Ícone Esquerdo
+                                // Ícone de status
                                 leading: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -486,7 +511,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                     ),
                                   ],
                                 ),
-                                // Título e Menu (EDITAR/EXCLUIR)
+                                // Título e Menu Dropdown
                                 title: Row(
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
@@ -508,7 +533,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                         ),
                                       ),
                                     ),
-                                    // BOTAO DE MENU ADICIONADO AQUI
+                                    // Menu de Opções (Editar/Excluir)
                                     PopupMenuButton<String>(
                                       icon: Icon(
                                         Icons.more_vert,
@@ -572,6 +597,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                     ),
                                   ],
                                 ),
+                                // Detalhes do Orçamento
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -597,6 +623,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                       crossAxisAlignment:
                                           WrapCrossAlignment.center,
                                       children: [
+                                        // Data Pega
                                         Icon(
                                           Icons.calendar_today,
                                           size: 14,
@@ -611,6 +638,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                           ),
                                         ),
                                         const SizedBox(width: 12),
+                                        // Data Entrega
                                         Icon(
                                           Icons.local_shipping_outlined,
                                           size: 14,
@@ -625,6 +653,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                           ),
                                         ),
                                         const SizedBox(width: 50),
+                                        // Valor
                                         Icon(
                                           Icons.monetization_on_outlined,
                                           size: 14,
@@ -662,6 +691,11 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     );
   }
 
+  // ===========================================================================
+  // WIDGETS AUXILIARES
+  // ===========================================================================
+
+  /// Widget auxiliar para renderizar uma linha de ícone + texto
   Widget _linhaDado(
     IconData icon,
     String? text,

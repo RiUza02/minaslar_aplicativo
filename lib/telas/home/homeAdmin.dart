@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../servicos/autenticacao.dart';
 import 'ListaClienteAdmin.dart';
 import 'CalendarioAdmin.dart';
+import 'ListaOrcamentos.dart';
 
 class HomeAdmin extends StatefulWidget {
   const HomeAdmin({super.key});
@@ -11,23 +12,22 @@ class HomeAdmin extends StatefulWidget {
 }
 
 class _HomeAdminState extends State<HomeAdmin> {
-  // ==========================================================
-  // CONTROLADORES DE ESTADO PARA NAVEGAÇÃO
-  // ==========================================================
+  // ==================================================
+  // ESTADO E CONTROLADORES DE NAVEGAÇÃO
+  // ==================================================
 
-  // Controlador para gerenciar o deslize das páginas
-  // initialPage: 1 define que o Painel (índice 1) é a tela inicial
+  // Inicia na página 1 (Painel) ao invés da 0 (Agenda)
   final PageController _pageController = PageController(initialPage: 1);
 
-  // Índice atual da navegação (0 = Agenda, 1 = Painel, 2 = Clientes)
+  // Controle do índice ativo na BottomNavigationBar
+  // 0: Agenda | 1: Painel | 2: Clientes | 3: Orçamentos
   int _selectedIndex = 1;
 
-  // Atualiza o índice e a página quando a aba inferior ou ícone é clicado
+  /// Atualiza o estado e anima a transição do PageView
   void _navegarParaPagina(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // Animação suave ao trocar de tela
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -35,7 +35,7 @@ class _HomeAdminState extends State<HomeAdmin> {
     );
   }
 
-  // Atualiza o índice da barra inferior quando a tela é deslizada (Swipe)
+  /// Sincroniza o ícone da barra inferior quando o usuário desliza a tela (swipe)
   void _onPageChanged(int index) {
     setState(() {
       _selectedIndex = index;
@@ -51,37 +51,41 @@ class _HomeAdminState extends State<HomeAdmin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ==========================================================
-      // ESTRUTURA DE PÁGINAS COM DESLIZE (SWIPE)
-      // ==========================================================
+      // ==================================================
+      // ESTRUTURA DE PÁGINAS (BODY)
+      // ==================================================
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
         children: [
-          // --- PÁGINA 0 (ESQUERDA): AGENDA / CALENDÁRIO ---
+          // Index 0: Visualização do Calendário
           const AgendaCalendario(),
 
-          // --- PÁGINA 1 (CENTRO): O PAINEL PRINCIPAL ---
+          // Index 1: Tela Inicial (Dashboard)
           _buildConteudoPainel(),
 
-          // --- PÁGINA 2 (DIREITA): LISTA DE CLIENTES ---
+          // Index 2: Gestão de Clientes
           const ListaClientes(),
+
+          // Index 3: Gestão de Orçamentos
+          const ListaOrcamentos(),
         ],
       ),
 
-      // ==========================================================
-      // BARRA DE NAVEGAÇÃO INFERIOR (HOTBAR)
-      // ==========================================================
+      // ==================================================
+      // BARRA DE NAVEGAÇÃO INFERIOR
+      // ==================================================
       bottomNavigationBar: Theme(
+        // Força a cor vermelha no canvas para cobrir toda a área da barra
         data: Theme.of(context).copyWith(canvasColor: Colors.red[900]),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _navegarParaPagina,
-
-          // --- CORES ---
           backgroundColor: Colors.red[900],
           selectedItemColor: Colors.white,
           unselectedItemColor: Colors.white60,
+
+          // 'fixed' impede que os ícones fiquem brancos/invisíveis quando há mais de 3 itens
           type: BottomNavigationBarType.fixed,
 
           items: const [
@@ -97,15 +101,19 @@ class _HomeAdminState extends State<HomeAdmin> {
               icon: Icon(Icons.people),
               label: 'Clientes',
             ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.monetization_on),
+              label: 'Orçamentos',
+            ),
           ],
         ),
       ),
     );
   }
 
-  // ==========================================================
-  // CONTEÚDO DO PAINEL (CONVERTIDO EM WIDGET)
-  // ==========================================================
+  // ==================================================
+  // WIDGETS AUXILIARES (DASHBOARD)
+  // ==================================================
   Widget _buildConteudoPainel() {
     return Scaffold(
       appBar: AppBar(
@@ -113,14 +121,8 @@ class _HomeAdminState extends State<HomeAdmin> {
         backgroundColor: Colors.red[900],
         foregroundColor: Colors.white,
         centerTitle: true,
-        // Ícone à esquerda para acessar a Agenda rapidamente
-        leading: IconButton(
-          icon: const Icon(Icons.calendar_month),
-          tooltip: "Ver Agenda",
-          onPressed: () =>
-              _navegarParaPagina(0), // Vai para o índice 0 (Agenda)
-        ),
         actions: [
+          // Botão de Logout
           IconButton(
             icon: const Icon(Icons.exit_to_app),
             onPressed: () {
@@ -129,25 +131,39 @@ class _HomeAdminState extends State<HomeAdmin> {
           ),
         ],
       ),
-      body: const Center(
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.security, size: 64, color: Colors.red),
-            SizedBox(height: 20),
-            Text(
+            const Icon(Icons.security, size: 64, color: Colors.red),
+            const SizedBox(height: 20),
+            const Text(
               "Bem-vindo, Administrador!",
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 20),
+
+            // Indicador visual de navegação (Setas)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.arrow_left, color: Colors.grey),
-                Text("Agenda", style: TextStyle(color: Colors.grey)),
-                SizedBox(width: 20),
-                Text("Clientes", style: TextStyle(color: Colors.grey)),
-                Icon(Icons.arrow_right, color: Colors.grey),
+                const Icon(Icons.arrow_left, color: Colors.grey),
+                const Text("Agenda", style: TextStyle(color: Colors.grey)),
+                const SizedBox(width: 20),
+
+                // Divisor vertical sutil
+                Container(
+                  width: 1,
+                  height: 20,
+                  color: Colors.grey.withValues(alpha: 0.5),
+                ),
+
+                const SizedBox(width: 20),
+                const Text(
+                  "Clientes > Orçamentos",
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const Icon(Icons.arrow_right, color: Colors.grey),
               ],
             ),
           ],
