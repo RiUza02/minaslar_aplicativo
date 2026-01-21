@@ -8,25 +8,27 @@ environment:
   sdk: ^3.10.1
 
 dependencies:
-  shared_preferences: ^2.2.2
   flutter:
     sdk: flutter
+  
+  # --- Dependências do Projeto ---
+  shared_preferences: ^2.2.2
+  table_calendar: ^3.0.9
   supabase_flutter: ^2.8.0
-  mask_text_input_formatter: ^2.4.0  # Adicione esta linha
+  mask_text_input_formatter: ^2.4.0
   cupertino_icons: ^1.0.8
-  intl: ^0.20.2
+  intl: ^0.18.0 # Deixei apenas uma vez. A 0.18.0 funciona bem com o table_calendar
 
 dev_dependencies:
   flutter_test:
-    sdk: flutter  # Corrigido (estava flutte)
-
-  # Adicionei a versão aqui
-  flutter_launcher_icons: ^0.13.1 
+    sdk: flutter
   
-  flutter_lints: ^6.0.0
+  # Ferramentas de desenvolvimento
+  flutter_launcher_icons: ^0.13.1 
+  flutter_lints: ^2.0.0 # Atenção: lints 6.0.0 pode pedir SDK mais novo. Se der erro, use 2.0 ou 3.0
 
 # =================================================
-# CONFIGURAÇÃO DOS ÍCONES (Fica fora das dependências)
+# CONFIGURAÇÃO DOS ÍCONES
 # =================================================
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -37,5 +39,6 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
 
+  # Configuração de Assets
   assets:
     - assets/

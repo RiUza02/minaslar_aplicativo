@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../servicos/autenticacao.dart';
 import 'ListaCliente.dart';
+import '../calendario/AgendaCalendario.dart';
 
 class HomeAdmin extends StatefulWidget {
   const HomeAdmin({super.key});
@@ -15,17 +16,18 @@ class _HomeAdminState extends State<HomeAdmin> {
   // ==========================================================
 
   // Controlador para gerenciar o deslize das páginas
-  final PageController _pageController = PageController();
+  // initialPage: 1 define que o Painel (índice 1) é a tela inicial
+  final PageController _pageController = PageController(initialPage: 1);
 
-  // Índice atual da navegação (0 = Painel, 1 = Novo Cliente)
-  int _selectedIndex = 0;
+  // Índice atual da navegação (0 = Agenda, 1 = Painel, 2 = Clientes)
+  int _selectedIndex = 1;
 
-  // Atualiza o índice e a página quando a aba inferior é clicada
-  void _onItemTapped(int index) {
+  // Atualiza o índice e a página quando a aba inferior ou ícone é clicado
+  void _navegarParaPagina(int index) {
     setState(() {
       _selectedIndex = index;
     });
-    // Animação suave ao trocar de aba clicando
+    // Animação suave ao trocar de tela
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -56,10 +58,13 @@ class _HomeAdminState extends State<HomeAdmin> {
         controller: _pageController,
         onPageChanged: _onPageChanged,
         children: [
-          // --- PÁGINA 1: O PAINEL ANTIGO ---
+          // --- PÁGINA 0 (ESQUERDA): AGENDA / CALENDÁRIO ---
+          const AgendaCalendario(),
+
+          // --- PÁGINA 1 (CENTRO): O PAINEL PRINCIPAL ---
           _buildConteudoPainel(),
 
-          // --- PÁGINA 2: TELA DE ADICIONAR CLIENTE ---
+          // --- PÁGINA 2 (DIREITA): LISTA DE CLIENTES ---
           const ListaClientes(),
         ],
       ),
@@ -68,27 +73,28 @@ class _HomeAdminState extends State<HomeAdmin> {
       // BARRA DE NAVEGAÇÃO INFERIOR (HOTBAR)
       // ==========================================================
       bottomNavigationBar: Theme(
-        // Envolvemos num Theme para garantir que o efeito de clique fique bonito no vermelho
         data: Theme.of(context).copyWith(canvasColor: Colors.red[900]),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
+          onTap: _navegarParaPagina,
 
-          // --- CORES ATUALIZADAS AQUI ---
-          backgroundColor: Colors.red[900], // Fundo Vermelho Escuro
-          selectedItemColor: Colors.white, // Ícone/Texto Ativo: Branco Puro
-          unselectedItemColor: Colors
-              .white60, // Ícone/Texto Inativo: Branco levemente transparente
-          type: BottomNavigationBarType
-              .fixed, // Garante a renderização correta da cor
-          // ------------------------------
+          // --- CORES ---
+          backgroundColor: Colors.red[900],
+          selectedItemColor: Colors.white,
+          unselectedItemColor: Colors.white60,
+          type: BottomNavigationBarType.fixed,
+
           items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_month),
+              label: 'Agenda',
+            ),
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard),
               label: 'Painel',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_add),
+              icon: Icon(Icons.people),
               label: 'Clientes',
             ),
           ],
@@ -98,7 +104,7 @@ class _HomeAdminState extends State<HomeAdmin> {
   }
 
   // ==========================================================
-  // CONTEÚDO ORIGINAL DA HOME (CONVERTIDO EM WIDGET)
+  // CONTEÚDO DO PAINEL (CONVERTIDO EM WIDGET)
   // ==========================================================
   Widget _buildConteudoPainel() {
     return Scaffold(
@@ -106,6 +112,14 @@ class _HomeAdminState extends State<HomeAdmin> {
         title: const Text("Painel Administrativo"),
         backgroundColor: Colors.red[900],
         foregroundColor: Colors.white,
+        centerTitle: true,
+        // Ícone à esquerda para acessar a Agenda rapidamente
+        leading: IconButton(
+          icon: const Icon(Icons.calendar_month),
+          tooltip: "Ver Agenda",
+          onPressed: () =>
+              _navegarParaPagina(0), // Vai para o índice 0 (Agenda)
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.exit_to_app),
@@ -126,9 +140,15 @@ class _HomeAdminState extends State<HomeAdmin> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 10),
-            Text(
-              "Deslize para > adicionar clientes",
-              style: TextStyle(color: Colors.grey),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.arrow_left, color: Colors.grey),
+                Text("Agenda", style: TextStyle(color: Colors.grey)),
+                SizedBox(width: 20),
+                Text("Clientes", style: TextStyle(color: Colors.grey)),
+                Icon(Icons.arrow_right, color: Colors.grey),
+              ],
             ),
           ],
         ),

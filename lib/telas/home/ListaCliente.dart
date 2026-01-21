@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../modelos/Cliente.dart';
-import '../cliente/AdicionarCliente.dart';
-import '../cliente/adicionarOrcamento.dart';
-import '../cliente/DetalhesCliente.dart';
+import '../clienteAdmin/adicionarOrcamento.dart';
+import '../clienteAdmin/DetalhesCliente.dart';
+import '../clienteAdmin/AdicionarCliente.dart';
 
 /// Define os critérios de ordenação da lista de clientes
 enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
