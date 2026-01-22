@@ -112,14 +112,24 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     setState(() => _isLoading = true);
 
     try {
+      // TRATAMENTO LÓGICO PARA CAMPOS OPCIONAIS
+      // Valor: Se vazio, envia null. Se preenchido, converte.
+      final String valorTexto = _valorController.text
+          .replaceAll(',', '.')
+          .trim();
+      final double? valorFinal = valorTexto.isEmpty
+          ? null
+          : double.tryParse(valorTexto);
+
+      // Descrição: Se vazia, envia string vazia ou null (depende da sua preferência, aqui envio o texto direto mesmo se vazio)
+      final String descricaoFinal = _descricaoController.text.trim();
+
       // Prepara o payload para inserção
       final Map<String, dynamic> dadosNovoOrcamento = {
         'cliente_id': widget.cliente.id,
         'titulo': _tituloController.text.trim(),
-        'descricao': _descricaoController.text.trim(),
-        'valor': _valorController.text.isNotEmpty
-            ? double.parse(_valorController.text.replaceAll(',', '.'))
-            : null,
+        'descricao': descricaoFinal, // Agora aceita vazio
+        'valor': valorFinal, // Agora aceita null
         'data_pega': _dataPega.toIso8601String(),
         'data_entrega': _dataEntrega?.toIso8601String(),
         'horario_do_dia': _horarioSelecionado,
@@ -407,7 +417,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                     validator: (v) => v!.isEmpty ? 'Informe um título' : null,
                   ),
                   const SizedBox(height: 20),
-                  _tituloCampo("Descrição"),
+
+                  // Campo Descrição (AGORA OPCIONAL - Validator removido)
+                  _tituloCampo("Descrição (Opcional)"),
                   TextFormField(
                     controller: _descricaoController,
                     maxLines: 3,
@@ -416,7 +428,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                       'Descreva o serviço...',
                       Icons.description_outlined,
                     ),
-                    validator: (v) => v!.isEmpty ? 'Descreva o serviço' : null,
+                    // Sem validator pois é opcional
                   ),
                 ],
               ),
@@ -428,7 +440,8 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
               // --------------------------------------------------
               _buildBlock(
                 children: [
-                  _tituloCampo("Valor (R\$)"),
+                  // Campo Valor (AGORA OPCIONAL - Validator removido)
+                  _tituloCampo("Valor (R\$) - Opcional"),
                   TextFormField(
                     controller: _valorController,
                     keyboardType: const TextInputType.numberWithOptions(
@@ -436,10 +449,10 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                     ),
                     style: TextStyle(color: corTextoClaro),
                     decoration: _inputDecoration(
-                      '12.34',
+                      '0,00',
                       Icons.monetization_on_outlined,
                     ),
-                    validator: (v) => v!.isEmpty ? 'Informe o valor' : null,
+                    // Sem validator pois é opcional
                   ),
                 ],
               ),

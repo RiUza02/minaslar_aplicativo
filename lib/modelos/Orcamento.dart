@@ -10,7 +10,7 @@ class Orcamento {
   String titulo;
 
   /// Descrição detalhada do serviço realizado (Antigo oQueFoiFeito)
-  String descricao;
+  String? descricao;
 
   /// Data em que o serviço foi iniciado
   DateTime dataPega;
@@ -32,7 +32,7 @@ class Orcamento {
     this.id,
     required this.clienteId,
     required this.titulo,
-    required this.descricao,
+    this.descricao,
     required this.dataPega,
     this.dataEntrega,
     this.valor,
