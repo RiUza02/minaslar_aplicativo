@@ -161,6 +161,68 @@ class _ListaClientesState extends State<ListaClientes> {
     setState(() => _termoBuscaNome = value.toLowerCase());
   }
 
+  /// Exibe um diálogo de confirmação antes de excluir um cliente.
+  Future<void> _confirmarExclusao(Cliente cliente) async {
+    final bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: corCard,
+          title: const Text(
+            'Confirmar Exclusão',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Tem certeza que deseja excluir o cliente "${cliente.nome}"? Esta ação não pode ser desfeita.',
+            style: TextStyle(color: Colors.grey[300]),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Excluir', style: TextStyle(color: corPrincipal)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar == true) {
+      // Se o usuário confirmou, executa a exclusão.
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      try {
+        await Supabase.instance.client
+            .from('clientes')
+            .delete()
+            .eq('id', cliente.id as Object);
+
+        if (!mounted) return;
+        _carregarClientes(); // Recarrega a lista
+
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text("Cliente excluído com sucesso!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("Erro ao excluir cliente: $e"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   // ==================================================
   // CONSTRUÇÃO DA INTERFACE (UI)
   // ==================================================
@@ -365,52 +427,8 @@ class _ListaClientesState extends State<ListaClientes> {
                                                 color: Colors.red[300],
                                                 size: 26,
                                               ),
-                                              onPressed: () async {
-                                                // 1. Captura o Messenger antes do 'await' (segurança de contexto)
-                                                final scaffoldMessenger =
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    );
-
-                                                // 2. Fecha a tela ou diálogo atual imediatamente
-                                                Navigator.pop(context);
-
-                                                try {
-                                                  // 3. Executa a exclusão no banco
-                                                  await Supabase.instance.client
-                                                      .from('clientes')
-                                                      .delete()
-                                                      .eq(
-                                                        'id',
-                                                        cliente.id as Object,
-                                                      );
-
-                                                  // 4. Se o widget ainda existir, atualiza a lista
-                                                  if (!mounted) return;
-                                                  _carregarClientes();
-
-                                                  scaffoldMessenger.showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text(
-                                                        "Cliente excluído com sucesso!",
-                                                      ),
-                                                      backgroundColor:
-                                                          Colors.green,
-                                                    ),
-                                                  );
-                                                } catch (e) {
-                                                  // Tratamento de erro com a referência segura do Messenger
-                                                  if (!mounted) return;
-                                                  scaffoldMessenger.showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        "Erro ao excluir cliente: $e",
-                                                      ),
-                                                      backgroundColor:
-                                                          Colors.redAccent,
-                                                    ),
-                                                  );
-                                                }
+                                              onPressed: () {
+                                                _confirmarExclusao(cliente);
                                               },
                                             ),
                                           ],

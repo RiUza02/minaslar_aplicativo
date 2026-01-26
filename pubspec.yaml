@@ -20,6 +20,8 @@ dependencies:
   intl: ^0.18.0 # Deixei apenas uma vez. A 0.18.0 funciona bem com o table_calendar
   fl_chart: ^0.66.2
   url_launcher: ^6.3.2
+  geolocator: ^13.0.0  # Para pegar a posição atual
+  geocoding: ^3.0.0    # Para transformar endereço em coordenadas
 dev_dependencies:
   flutter_test:
     sdk: flutter

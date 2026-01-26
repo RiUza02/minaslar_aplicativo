@@ -305,19 +305,8 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                   ),
                   const SizedBox(height: 12),
 
-                  // STATUS (Simplificado para o exemplo)
-                  Container(
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: corCard,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      isConcluido ? "CONCLUÍDO" : "PENDENTE",
-                      style: TextStyle(color: corTextoClaro),
-                    ),
-                  ),
+                  // STATUS
+                  _buildStatusCard(isConcluido),
                   const SizedBox(height: 20),
 
                   // DATAS
@@ -478,6 +467,41 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard(bool isConcluido) {
+    final Color statusColor = isConcluido
+        ? corComplementar
+        : Colors.orangeAccent;
+    final IconData statusIcon = isConcluido
+        ? Icons.check_circle_outline
+        : Icons.hourglass_top;
+    final String statusText = isConcluido ? "CONCLUÍDO" : "PENDENTE";
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(statusIcon, color: statusColor, size: 24),
+          const SizedBox(width: 12),
+          Text(
+            statusText,
+            style: TextStyle(
+              color: statusColor,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
             ),
           ),
         ],
