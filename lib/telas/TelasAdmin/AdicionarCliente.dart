@@ -98,7 +98,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         nome: _nomeController.text.trim(),
         rua: _ruaController.text.trim(),
         bairro: _bairroController.text.trim(),
-        telefone: _telefoneController.text.trim(),
+        telefone: maskTelefone.getUnmaskedText(),
         cpf: cpfFinal,
         cnpj: cnpjFinal,
         observacao: _observacaoController.text.trim().isEmpty

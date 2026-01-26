@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../modelos/Cliente.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../TelasAdmin/DetalhesCliente.dart';
 import '../TelasAdmin/AdicionarCliente.dart';
 
@@ -37,6 +38,12 @@ class _ListaClientesState extends State<ListaClientes> {
   List<Map<String, dynamic>> _listaClientes = [];
   bool _estaCarregando = true;
   TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
+
+  // Formatador para exibir o telefone
+  final maskTelefone = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: {"#": RegExp(r'[0-9]')},
+  );
 
   // Estilos de texto inicializados no initState
   late final TextStyle _estiloNome;
@@ -415,7 +422,9 @@ class _ListaClientesState extends State<ListaClientes> {
                                         const SizedBox(height: 8),
                                         _buildInfoRow(
                                           Icons.phone_in_talk,
-                                          cliente.telefone,
+                                          maskTelefone.maskText(
+                                            cliente.telefone,
+                                          ),
                                         ),
                                         const SizedBox(height: 8),
                                         _buildInfoRow(
