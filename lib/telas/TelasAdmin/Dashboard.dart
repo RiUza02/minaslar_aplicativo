@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../servicos/Autenticacao.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -136,13 +135,8 @@ class _DashboardState extends State<Dashboard> {
       appBar: AppBar(
         title: const Text("Dashboard"), // Título alterado para "Dashboard"
         backgroundColor: Colors.red[900], // Cor consistente com o tema
+        centerTitle: true,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: () => AuthService().deslogar(),
-          ),
-        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())

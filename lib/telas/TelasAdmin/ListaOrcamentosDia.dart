@@ -5,6 +5,7 @@ import 'DetalhesOrcamento.dart';
 import 'AdicionarOrcamento.dart';
 import '../../modelos/Cliente.dart';
 import '../../servicos/ListagemClientes.dart';
+import '../../servicos/autenticacao.dart';
 
 // ==================================================
 // TELA DE AGENDA DO DIA
@@ -148,22 +149,26 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   @override
   Widget build(BuildContext context) {
     // Formatação da data para o título (ex: 12 de Outubro)
-    final dataFormatada = DateFormat(
-      "d 'de' MMMM",
-      'pt_BR',
-    ).format(widget.dataSelecionada);
+    DateFormat("d 'de' MMMM", 'pt_BR').format(widget.dataSelecionada);
 
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
-        title: Text(
-          "Agenda: $dataFormatada",
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        title: const Text(
+          "Orçamentos do Dia",
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.exit_to_app),
+            onPressed: () => AuthService().deslogar(),
+            tooltip: 'Sair',
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _abrirNovoOrcamento,

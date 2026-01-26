@@ -271,6 +271,8 @@ class _ListaClientesState extends State<ListaClientes> {
                     )
                   : null,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 20,
                 vertical: 10,
