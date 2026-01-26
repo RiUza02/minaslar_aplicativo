@@ -4,8 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'servicos/Autenticacao.dart';
 import 'telas/criarConta/Login.dart';
 import 'telas/criarConta/Cadastro.dart';
-import 'telas/home/HomeUsuario.dart';
-import 'telas/home/HomeAdmin.dart';
+import 'package:intl/date_symbol_data_local.dart'; // Import para initializeDateFormatting
+import 'telas/homeUsuario/HomeUsuario.dart';
+import 'telas/homeAdmin/HomeAdmin.dart';
 import 'servicos/RedefinirSenha.dart';
 
 // Permite navegação global sem necessidade de 'BuildContext' (essencial para callbacks assíncronos)
@@ -18,10 +19,14 @@ void main() async {
   await Supabase.initialize(
     url: 'https://uwkxgmmjubpincteqckc.supabase.co',
     anonKey: 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8',
+    // Certifique-se de que esta é a sua anonKey real.
+    // Se for um placeholder, substitua-o pela chave pública do seu projeto Supabase.
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
     ),
   );
+  // Inicializa a formatação de data para pt_BR globalmente, uma única vez.
+  await initializeDateFormatting('pt_BR', null);
 
   runApp(const MyApp());
 }

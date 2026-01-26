@@ -47,6 +47,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
   // Estado de Carregamento
   bool _isLoading = false;
+  bool _ehRetorno = false;
 
   // ==================================================
   // CICLO DE VIDA
@@ -133,6 +134,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
         'data_pega': _dataPega.toIso8601String(),
         'data_entrega': _dataEntrega?.toIso8601String(),
         'horario_do_dia': _horarioSelecionado,
+        'eh_retorno': _ehRetorno,
       };
 
       // Insere no banco de dados
@@ -403,6 +405,35 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // --------------------------------------------------
+              // BLOCO EXTRA: MARCAR COMO RETORNO
+              // --------------------------------------------------
+              _buildBlock(
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      "Marcar como Retorno",
+                      style: TextStyle(
+                        color: corTextoClaro,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Use para serviços de garantia ou revisão.",
+                      style: TextStyle(color: corTextoCinza, fontSize: 12),
+                    ),
+                    value: _ehRetorno,
+                    onChanged: (value) {
+                      setState(() => _ehRetorno = value);
+                    },
+                    activeThumbColor: corComplementar, // Amber
+                    secondary: Icon(Icons.history, color: corComplementar),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
               // --------------------------------------------------
               // BLOCO 1: DETALHES DO SERVIÇO

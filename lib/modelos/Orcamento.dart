@@ -27,6 +27,9 @@ class Orcamento {
   /// Indica se o serviço foi concluído/entregue
   bool entregue;
 
+  /// Indica se o serviço é um retorno de garantia/revisão
+  bool ehRetorno;
+
   /// Construtor do modelo
   Orcamento({
     this.id,
@@ -38,6 +41,7 @@ class Orcamento {
     this.valor,
     required this.horarioDoDia,
     this.entregue = false,
+    this.ehRetorno = false,
   });
 
   /// Converte o objeto Dart em um Map para envio ao Supabase
@@ -52,6 +56,7 @@ class Orcamento {
       'valor': valor,
       'horario_do_dia': horarioDoDia,
       'entregue': entregue,
+      'eh_retorno': ehRetorno,
     };
   }
 
@@ -76,6 +81,9 @@ class Orcamento {
 
       // Recupera do banco. Se for nulo, assume false
       entregue: map['entregue'] ?? false,
+
+      // Recupera do banco. Se for nulo, assume false
+      ehRetorno: map['eh_retorno'] ?? false,
     );
   }
 }

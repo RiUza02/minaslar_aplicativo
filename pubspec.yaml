@@ -18,7 +18,7 @@ dependencies:
   mask_text_input_formatter: ^2.4.0
   cupertino_icons: ^1.0.8
   intl: ^0.18.0 # Deixei apenas uma vez. A 0.18.0 funciona bem com o table_calendar
-
+  fl_chart: ^0.66.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

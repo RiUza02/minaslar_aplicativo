@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../servicos/autenticacao.dart';
-import '../telas/home/HomeUsuario.dart';
-import '../telas/home/HomeAdmin.dart';
+import '../telas/homeUsuario/HomeUsuario.dart';
+import '../telas/homeAdmin/HomeAdmin.dart';
 import '../telas/criarConta/Login.dart';
 
 /// Tela responsável por decidir qual página o usuário verá:

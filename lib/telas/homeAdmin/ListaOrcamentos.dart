@@ -93,30 +93,41 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     switch (_ordenacaoAtual) {
       case TipoOrdenacaoOrcamento.atraso:
         lista.sort((a, b) {
-          // Define prioridade: 0 = Atrasado (Topo) | 1 = Sem Data | 2 = No Prazo
+          // Define a prioridade de exibição
           int getPrioridade(Map<String, dynamic> item) {
+            final bool isConcluido = item['entregue'] ?? false;
+            final bool ehRetorno = item['eh_retorno'] ?? false;
             final dataStr = item['data_entrega'];
-            if (dataStr == null) return 1;
 
-            final entrega = DateTime.parse(dataStr);
-            final agora = DateTime.now();
-            final hoje = DateTime(agora.year, agora.month, agora.day);
-            final dataEntrega = DateTime(
-              entrega.year,
-              entrega.month,
-              entrega.day,
-            );
+            if (isConcluido) return 5; // 5. Concluído
 
-            if (dataEntrega.isBefore(hoje)) return 0; // Urgente/Atrasado
-            return 2; // Regular
+            bool isAtrasado = false;
+            if (dataStr != null) {
+              final entrega = DateTime.parse(dataStr);
+              final agora = DateTime.now();
+              final hoje = DateTime(agora.year, agora.month, agora.day);
+              final dataEntrega = DateTime(
+                entrega.year,
+                entrega.month,
+                entrega.day,
+              );
+              if (dataEntrega.isBefore(hoje)) {
+                isAtrasado = true;
+              }
+            }
+
+            if (isAtrasado) return 1; // 1. Atraso
+            if (ehRetorno) return 2; // 2. Garantia
+            if (dataStr == null) return 3; // 3. Sem data
+            return 4; // 4. Em prazo
           }
 
           int pA = getPrioridade(a);
           int pB = getPrioridade(b);
 
-          // Ordena pela prioridade, desempata pela data de criação
           if (pA != pB) return pA.compareTo(pB);
 
+          // Se a prioridade for a mesma, desempata pela data de criação
           final dataA =
               DateTime.tryParse(a['data_pega'] ?? '') ?? DateTime(1900);
           final dataB =
@@ -339,11 +350,10 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     final valor = orcamento['valor'];
     final dataPegaStr = orcamento['data_pega'];
     final dataEntregaStr = orcamento['data_entrega'];
-    final status = orcamento['status'] ?? 'Pendente';
     final clienteNome =
         orcamento['clientes']?['nome'] ?? 'Cliente Desconhecido';
-
-    final bool isConcluido = status == 'Concluido';
+    final bool ehRetorno = orcamento['eh_retorno'] ?? false;
+    final bool isConcluido = orcamento['entregue'] ?? false;
 
     final dataFormatada = dataPegaStr != null
         ? DateFormat('dd/MM/yyyy').format(DateTime.parse(dataPegaStr))
@@ -360,18 +370,9 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     String textoAviso;
     Color corAviso;
 
-    if (isConcluido) {
-      // Prioridade 1: Entregue
-      corFaixaLateral = Colors.green[400]!;
-      textoAviso = "Entregue / Concluído";
-      corAviso = Colors.green[400]!;
-    } else if (dataEntregaStr == null) {
-      // Prioridade 2: Sem data definida
-      corFaixaLateral = Colors.white;
-      textoAviso = "Sem data de entrega";
-      corAviso = Colors.white;
-    } else {
-      // Prioridade 3: Verificação de prazo (Atrasado vs No Prazo)
+    // Lógica de Atraso
+    bool isAtrasado = false;
+    if (!isConcluido && dataEntregaStr != null) {
       final dataEntrega = DateTime.parse(dataEntregaStr);
       final agora = DateTime.now();
       final hoje = DateTime(agora.year, agora.month, agora.day);
@@ -380,16 +381,31 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
         dataEntrega.month,
         dataEntrega.day,
       );
-
       if (entrega.isBefore(hoje)) {
-        corFaixaLateral = Colors.red;
-        textoAviso = "Atrasado";
-        corAviso = Colors.red;
-      } else {
-        corFaixaLateral = corSecundaria;
-        textoAviso = "No prazo";
-        corAviso = corSecundaria;
+        isAtrasado = true;
       }
+    }
+
+    if (isConcluido) {
+      corFaixaLateral = corSecundaria; // Azul
+      textoAviso = "Concluído";
+      corAviso = corSecundaria;
+    } else if (ehRetorno) {
+      corFaixaLateral = Colors.green[400]!; // Verde
+      textoAviso = "Garantia";
+      corAviso = Colors.green[400]!;
+    } else if (isAtrasado) {
+      corFaixaLateral = corPrincipal; // Vermelho
+      textoAviso = "Atrasado";
+      corAviso = corPrincipal;
+    } else if (dataEntregaStr == null) {
+      corFaixaLateral = Colors.white;
+      textoAviso = "Sem data";
+      corAviso = Colors.white;
+    } else {
+      corFaixaLateral = corSecundaria; // Azul
+      textoAviso = "Em prazo";
+      corAviso = corSecundaria;
     }
 
     // 3. Renderização do Card

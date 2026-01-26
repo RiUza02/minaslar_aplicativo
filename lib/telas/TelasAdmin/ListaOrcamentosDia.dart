@@ -39,7 +39,8 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   @override
   void initState() {
     super.initState();
-    _atualizarLista();
+    // Carrega os dados diretamente na inicialização para evitar erros
+    _futureOrcamentos = _buscarOrcamentosDoDia();
   }
 
   /// Reinicia a busca de dados para atualizar a interface
@@ -64,12 +65,30 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         .add(const Duration(days: 1))
         .subtract(const Duration(seconds: 1));
 
+    if (!(Supabase
+            .instance
+            .client
+            .auth
+            .currentSession
+            ?.accessToken
+            .isNotEmpty ??
+        false)) {
+      debugPrint(
+        "Supabase client not initialized when _buscarOrcamentosDoDia was called.",
+      );
+      return []; // Retorna uma lista vazia para evitar crash
+    }
+
+    final filterEntrada =
+        'data_pega.gte.${startOfDay.toIso8601String()},data_pega.lte.${endOfDay.toIso8601String()}';
+    final filterEntrega =
+        'data_entrega.gte.${startOfDay.toIso8601String()},data_entrega.lte.${endOfDay.toIso8601String()}';
+
     // Busca no banco filtrando pela data e trazendo dados do cliente relacionado
     final response = await Supabase.instance.client
         .from('orcamentos')
         .select('*, clientes(nome, telefone, bairro)')
-        .gte('data_pega', startOfDay.toIso8601String())
-        .lte('data_pega', endOfDay.toIso8601String())
+        .or('and($filterEntrada),and($filterEntrega)')
         .order('data_pega', ascending: true);
 
     final lista = List<Map<String, dynamic>>.from(response);
@@ -174,14 +193,22 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           final orcamentos = snapshot.data ?? [];
 
           // Estado: Lista Vazia
-          if (orcamentos.isEmpty) return _buildEmptyState();
+          if (orcamentos.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: () async => _atualizarLista(),
+              child: _buildEmptyState(),
+            );
+          }
 
           // Estado: Lista com Dados
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: orcamentos.length,
-            itemBuilder: (context, index) =>
-                _buildOrcamentoCard(orcamentos[index]),
+          return RefreshIndicator(
+            onRefresh: () async => _atualizarLista(),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: orcamentos.length,
+              itemBuilder: (context, index) =>
+                  _buildOrcamentoCard(orcamentos[index]),
+            ),
           );
         },
       ),
@@ -193,18 +220,27 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   // ==================================================
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.event_busy, size: 80, color: Colors.white12),
-          SizedBox(height: 16),
-          Text(
-            "Nenhum serviço para este dia.",
-            style: TextStyle(color: Colors.white38, fontSize: 16),
+    // Envolve o conteúdo em um ListView para permitir o "arrastar para recarregar"
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.event_busy, size: 80, color: Colors.white12),
+                SizedBox(height: 16),
+                Text(
+                  "Nenhum serviço para este dia.",
+                  style: TextStyle(color: Colors.white38, fontSize: 16),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -221,6 +257,33 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     final isTarde = horarioTexto.toLowerCase() == 'tarde';
     final colorBanner = isTarde ? Colors.orangeAccent : Colors.yellowAccent;
     final iconHorario = isTarde ? Icons.wb_twilight : Icons.wb_sunny;
+
+    // Lógica para definir se é ENTRADA ou ENTREGA
+    String tipoAgendamento = '';
+    Color corAgendamento = Colors.grey;
+    final selectedDay = widget.dataSelecionada;
+
+    final dataPegaStr = orcamento['data_pega'];
+    if (dataPegaStr != null) {
+      final dataPega = DateTime.parse(dataPegaStr);
+      if (dataPega.year == selectedDay.year &&
+          dataPega.month == selectedDay.month &&
+          dataPega.day == selectedDay.day) {
+        tipoAgendamento = 'ENTRADA';
+        corAgendamento = Colors.lightBlueAccent;
+      }
+    }
+
+    final dataEntregaStr = orcamento['data_entrega'];
+    if (tipoAgendamento.isEmpty && dataEntregaStr != null) {
+      final dataEntrega = DateTime.parse(dataEntregaStr);
+      if (dataEntrega.year == selectedDay.year &&
+          dataEntrega.month == selectedDay.month &&
+          dataEntrega.day == selectedDay.day) {
+        tipoAgendamento = 'ENTREGA';
+        corAgendamento = Colors.greenAccent;
+      }
+    }
 
     return Card(
       color: corCard,
@@ -262,6 +325,27 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                     ),
                   ),
                   const Spacer(),
+                  // Adiciona o tipo de agendamento (Entrada/Entrega)
+                  if (tipoAgendamento.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: corAgendamento, width: 1),
+                      ),
+                      child: Text(
+                        tipoAgendamento,
+                        style: TextStyle(
+                          color: corAgendamento,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
                   Icon(
                     Icons.chevron_right,
                     color: colorBanner.withValues(alpha: 0.5),

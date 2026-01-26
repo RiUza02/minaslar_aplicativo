@@ -167,6 +167,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
     // Garante que horário tenha valor padrão se vier nulo
     final String horario = _orcamentoObj.horarioDoDia;
     final bool isTarde = horario.toLowerCase() == 'tarde';
+    final bool ehRetorno = _orcamentoObj.ehRetorno;
 
     final IconData iconHorario = isTarde
         ? Icons.wb_twilight
@@ -199,6 +200,20 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
     final Color corValor = _orcamentoObj.valor != null
         ? Colors.amber
         : Colors.white54;
+
+    // NOVA LÓGICA DE COR DA BORDA
+    Color corBordaPrincipal;
+    if (isConcluido) {
+      corBordaPrincipal = corSecundaria; // Azul
+    } else if (ehRetorno) {
+      corBordaPrincipal = corComplementar; // Verde
+    } else if (isAtrasado) {
+      corBordaPrincipal = corAlerta; // Vermelho
+    } else if (_orcamentoObj.dataEntrega == null) {
+      corBordaPrincipal = Colors.white; // Branco
+    } else {
+      corBordaPrincipal = corSecundaria; // Azul (Em prazo)
+    }
 
     return Scaffold(
       backgroundColor: corFundo,
@@ -233,7 +248,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                       color: corCard,
                       borderRadius: BorderRadius.circular(16),
                       border: Border(
-                        left: BorderSide(color: corSecundaria, width: 6),
+                        left: BorderSide(color: corBordaPrincipal, width: 6),
                       ),
                     ),
                     child: Column(
@@ -245,6 +260,9 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: corTextoClaro,
+                            decoration: isConcluido
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
                         ),
                         const SizedBox(height: 20),

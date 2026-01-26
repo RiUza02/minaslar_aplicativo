@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../servicos/autenticacao.dart';
-import 'ListaClienteAdmin.dart';
-import 'CalendarioAdmin.dart';
-import 'ListaOrcamentos.dart';
 
-class HomeAdmin extends StatefulWidget {
-  const HomeAdmin({super.key});
+/// Tela inicial da área do usuário logado
+class HomeUsuario extends StatefulWidget {
+  const HomeUsuario({super.key});
 
   @override
-  State<HomeAdmin> createState() => _HomeAdminState();
+  State<HomeUsuario> createState() => _HomeUsuarioState();
 }
 
-class _HomeAdminState extends State<HomeAdmin> {
+class _HomeUsuarioState extends State<HomeUsuario> {
   // ==================================================
   // ESTADO E CONTROLADORES DE NAVEGAÇÃO
   // ==================================================
@@ -20,7 +18,7 @@ class _HomeAdminState extends State<HomeAdmin> {
   final PageController _pageController = PageController(initialPage: 1);
 
   // Controle do índice ativo na BottomNavigationBar
-  // 0: Agenda | 1: Painel | 2: Clientes | 3: Orçamentos
+  // 0: Agenda | 1: Painel | 2: Aparelhos | 3: Orçamentos
   int _selectedIndex = 1;
 
   /// Atualiza o estado e anima a transição do PageView
@@ -58,17 +56,17 @@ class _HomeAdminState extends State<HomeAdmin> {
         controller: _pageController,
         onPageChanged: _onPageChanged,
         children: [
-          // Index 0: Visualização do Calendário
-          const AgendaCalendario(),
+          // Index 0: Visualização da Agenda do Usuário (Placeholder)
+          const Center(child: Text("Agenda do Usuário")),
 
           // Index 1: Tela Inicial (Dashboard)
           _buildConteudoPainel(),
 
-          // Index 2: Gestão de Clientes
-          const ListaClientes(),
+          // Index 2: Gestão de Aparelhos (Placeholder)
+          const Center(child: Text("Meus Aparelhos")),
 
-          // Index 3: Gestão de Orçamentos
-          const ListaOrcamentos(),
+          // Index 3: Gestão de Orçamentos (Placeholder)
+          const Center(child: Text("Meus Orçamentos")),
         ],
       ),
 
@@ -76,12 +74,12 @@ class _HomeAdminState extends State<HomeAdmin> {
       // BARRA DE NAVEGAÇÃO INFERIOR
       // ==================================================
       bottomNavigationBar: Theme(
-        // Força a cor vermelha no canvas para cobrir toda a área da barra
-        data: Theme.of(context).copyWith(canvasColor: Colors.red[900]),
+        // Força a cor azul no canvas para cobrir toda a área da barra
+        data: Theme.of(context).copyWith(canvasColor: Colors.blue[900]),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _navegarParaPagina,
-          backgroundColor: Colors.red[900],
+          backgroundColor: Colors.blue[900],
           selectedItemColor: Colors.white,
           unselectedItemColor: Colors.white60,
 
@@ -98,8 +96,8 @@ class _HomeAdminState extends State<HomeAdmin> {
               label: 'Painel',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.people),
-              label: 'Clientes',
+              icon: Icon(Icons.devices_other),
+              label: 'Aparelhos',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.monetization_on),
@@ -117,8 +115,8 @@ class _HomeAdminState extends State<HomeAdmin> {
   Widget _buildConteudoPainel() {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Painel Administrativo"),
-        backgroundColor: Colors.red[900],
+        title: const Text("Painel do Usuário"),
+        backgroundColor: Colors.blue[900],
         foregroundColor: Colors.white,
         centerTitle: true,
         actions: [
@@ -135,10 +133,10 @@ class _HomeAdminState extends State<HomeAdmin> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.security, size: 64, color: Colors.red),
+            const Icon(Icons.person, size: 64, color: Colors.blue),
             const SizedBox(height: 20),
             const Text(
-              "Bem-vindo, Administrador!",
+              "Bem-vindo!",
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
@@ -160,7 +158,7 @@ class _HomeAdminState extends State<HomeAdmin> {
 
                 const SizedBox(width: 20),
                 const Text(
-                  "Clientes > Orçamentos",
+                  "Aparelhos > Orçamentos",
                   style: TextStyle(color: Colors.grey),
                 ),
                 const Icon(Icons.arrow_right, color: Colors.grey),

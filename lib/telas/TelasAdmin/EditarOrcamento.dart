@@ -33,6 +33,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
   DateTime? _dataEntrega;
   late String _horarioSelecionado;
   late bool _foiEntregue;
+  late bool _ehRetorno;
 
   // ==================================================
   // DEFINIÇÃO DE CORES E TEMA LOCAL
@@ -78,6 +79,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     // Inicializa status e horário
     _horarioSelecionado = widget.orcamento['horario_do_dia'] ?? 'Manhã';
     _foiEntregue = widget.orcamento['entregue'] ?? false;
+    _ehRetorno = widget.orcamento['eh_retorno'] ?? false;
   }
 
   @override
@@ -116,6 +118,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
             'data_entrega': _dataEntrega?.toIso8601String(), // Pode ser null
             'horario_do_dia': _horarioSelecionado,
             'entregue': _foiEntregue,
+            'eh_retorno': _ehRetorno,
           })
           .eq('id', widget.orcamento['id']);
 
@@ -259,6 +262,29 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                         _foiEntregue = value;
                       });
                     },
+                  ),
+                  const Divider(color: Colors.white10, height: 20),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      _ehRetorno ? "É UM RETORNO" : "SERVIÇO NORMAL",
+                      style: TextStyle(
+                        color: _ehRetorno ? Colors.amber : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Marque se for um serviço de garantia/revisão.",
+                      style: TextStyle(color: corTextoCinza, fontSize: 12),
+                    ),
+                    secondary: Icon(
+                      Icons.history,
+                      color: _ehRetorno ? Colors.amber : corTextoCinza,
+                    ),
+                    value: _ehRetorno,
+                    activeThumbColor: Colors.amber,
+                    onChanged: (value) => setState(() => _ehRetorno = value),
                   ),
                 ],
               ),
