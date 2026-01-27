@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../servicos/autenticacao.dart';
+// Importe as telas que eram usadas no Admin (ajuste os caminhos se necessário)
+import 'ListaClienteUsuario.dart';
+import 'CalendarioUsuario.dart';
+import 'ListaOrcamentos.dart';
+import '../TelasUsuario/ListaOrcamentosDia.dart';
 
-/// Tela inicial da área do usuário logado
 class HomeUsuario extends StatefulWidget {
   const HomeUsuario({super.key});
 
@@ -14,14 +17,19 @@ class _HomeUsuarioState extends State<HomeUsuario> {
   // ESTADO E CONTROLADORES DE NAVEGAÇÃO
   // ==================================================
 
-  // Inicia na página 1 (Painel) ao invés da 0 (Agenda)
+  // Inicia na página 1 (Painel)
   final PageController _pageController = PageController(initialPage: 1);
 
-  // Controle do índice ativo na BottomNavigationBar
-  // 0: Agenda | 1: Painel | 2: Aparelhos | 3: Orçamentos
+  // Índices:
+  // 0: Agenda
+  // 1: Painel (Orçamentos do Dia)
+  // 2: Clientes
+  // 3: Orçamentos (Lista Geral)
   int _selectedIndex = 1;
 
-  /// Atualiza o estado e anima a transição do PageView
+  // TEMA AZUL (Diferente do Admin que é Vermelho)
+  final Color corTema = Colors.blue[900]!;
+
   void _navegarParaPagina(int index) {
     setState(() {
       _selectedIndex = index;
@@ -33,7 +41,6 @@ class _HomeUsuarioState extends State<HomeUsuario> {
     );
   }
 
-  /// Sincroniza o ícone da barra inferior quando o usuário desliza a tela (swipe)
   void _onPageChanged(int index) {
     setState(() {
       _selectedIndex = index;
@@ -46,123 +53,67 @@ class _HomeUsuarioState extends State<HomeUsuario> {
     super.dispose();
   }
 
+  // ==================================================
+  // CONSTRUÇÃO DA TELA
+  // ==================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ==================================================
-      // ESTRUTURA DE PÁGINAS (BODY)
-      // ==================================================
+      backgroundColor: Colors.black, // Fundo geral escuro
+      // CORPO COM AS TELAS (PageView)
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
+        physics:
+            const NeverScrollableScrollPhysics(), // Navegação apenas pela barra inferior
         children: [
-          // Index 0: Visualização da Agenda do Usuário (Placeholder)
-          const Center(child: Text("Agenda do Usuário")),
+          // 0: Agenda
+          const AgendaCalendario(),
 
-          // Index 1: Tela Inicial (Dashboard)
-          _buildConteudoPainel(),
+          // 1: Painel (Lista do Dia - Apenas Pendentes para foco)
+          ListaOrcamentosDia(
+            dataSelecionada: DateTime.now(),
+            apenasPendentes: true,
+          ),
 
-          // Index 2: Gestão de Aparelhos (Placeholder)
-          const Center(child: Text("Meus Aparelhos")),
-
-          // Index 3: Gestão de Orçamentos (Placeholder)
-          const Center(child: Text("Meus Orçamentos")),
+          // 2: Clientes
+          const ListaClientes(), // Usando a mesma lista do Admin
+          // 3: Orçamentos (Geral)
+          const ListaOrcamentos(),
         ],
       ),
 
-      // ==================================================
       // BARRA DE NAVEGAÇÃO INFERIOR
-      // ==================================================
       bottomNavigationBar: Theme(
-        // Força a cor azul no canvas para cobrir toda a área da barra
-        data: Theme.of(context).copyWith(canvasColor: Colors.blue[900]),
+        // Aplica o tema azul na barra
+        data: Theme.of(context).copyWith(canvasColor: corTema),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _navegarParaPagina,
-          backgroundColor: Colors.blue[900],
+          backgroundColor: corTema,
           selectedItemColor: Colors.white,
           unselectedItemColor: Colors.white60,
-
-          // 'fixed' impede que os ícones fiquem brancos/invisíveis quando há mais de 3 itens
           type: BottomNavigationBarType.fixed,
-
           items: const [
+            // Item 0
             BottomNavigationBarItem(
               icon: Icon(Icons.calendar_month),
               label: 'Agenda',
             ),
+            // Item 1
             BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard),
+              icon: Icon(Icons.bar_chart),
               label: 'Painel',
             ),
+            // Item 2
             BottomNavigationBarItem(
-              icon: Icon(Icons.devices_other),
-              label: 'Aparelhos',
+              icon: Icon(Icons.people),
+              label: 'Clientes',
             ),
+            // Item 3
             BottomNavigationBarItem(
               icon: Icon(Icons.monetization_on),
               label: 'Orçamentos',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==================================================
-  // WIDGETS AUXILIARES (DASHBOARD)
-  // ==================================================
-  Widget _buildConteudoPainel() {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Painel do Usuário"),
-        backgroundColor: Colors.blue[900],
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        actions: [
-          // Botão de Logout
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: () {
-              AuthService().deslogar();
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.person, size: 64, color: Colors.blue),
-            const SizedBox(height: 20),
-            const Text(
-              "Bem-vindo!",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-
-            // Indicador visual de navegação (Setas)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.arrow_left, color: Colors.grey),
-                const Text("Agenda", style: TextStyle(color: Colors.grey)),
-                const SizedBox(width: 20),
-
-                // Divisor vertical sutil
-                Container(
-                  width: 1,
-                  height: 20,
-                  color: Colors.grey.withValues(alpha: 0.5),
-                ),
-
-                const SizedBox(width: 20),
-                const Text(
-                  "Aparelhos > Orçamentos",
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const Icon(Icons.arrow_right, color: Colors.grey),
-              ],
             ),
           ],
         ),
