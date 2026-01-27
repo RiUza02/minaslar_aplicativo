@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -5,12 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 class ServicoRota {
   /// Função principal: Recebe a lista de orçamentos e abre o mapa
+  // Substitua o método otimizarRotaDoDia (ou o trecho equivalente) por este:
   static Future<void> otimizarRotaDoDia(
     BuildContext context,
-    List<Map<String, dynamic>>
-    orcamentos, // Sua lista de dados vinda do Supabase
+    List<Map<String, dynamic>> orcamentos,
   ) async {
-    // 1. Validação básica
+    // 1. Validação básica (Aqui pode usar context direto pois não teve await antes)
     if (orcamentos.isEmpty) {
       _aviso(context, "Não há orçamentos para traçar rota.");
       return;
@@ -21,14 +22,14 @@ class ServicoRota {
     try {
       // 2. Pegar Localização Atual (Ponto de Partida)
       Position? pontoPartida = await _obterLocalizacaoAtual(context);
-      if (pontoPartida == null) return;
+
+      // Se não conseguiu pegar a localização ou o usuário saiu da tela
+      if (pontoPartida == null || !context.mounted) return;
 
       // 3. Converter Endereços (Texto) em Coordenadas (Lat/Lng)
       List<PontoParada> paradas = [];
 
       for (var item in orcamentos) {
-        // MONTE O ENDEREÇO AQUI: Junte rua, número, bairro e cidade
-        // Exemplo: "Rua das Flores 123, Centro, Belo Horizonte"
         String enderecoCompleto =
             "${item['rua']}, ${item['numero']} - ${item['bairro']}, ${item['cidade']}";
 
@@ -44,9 +45,14 @@ class ServicoRota {
             );
           }
         } catch (e) {
-          print("Erro ao encontrar endereço: $enderecoCompleto");
+          if (kDebugMode) {
+            print("Erro ao encontrar endereço: $enderecoCompleto");
+          }
         }
       }
+
+      // Verificação de segurança: O usuário ainda está na tela após o loop demorado?
+      if (!context.mounted) return;
 
       if (paradas.isEmpty) {
         _aviso(context, "Nenhum endereço válido encontrado para a rota.");
@@ -62,7 +68,10 @@ class ServicoRota {
       // 5. Montar URL e Abrir Google Maps
       await _abrirGoogleMaps(pontoPartida, rotaOrdenada);
     } catch (e) {
-      _aviso(context, "Erro ao gerar rota: $e");
+      // Verifica se a tela ainda existe antes de mostrar o erro
+      if (context.mounted) {
+        _aviso(context, "Erro ao gerar rota: $e");
+      }
     }
   }
 
@@ -129,11 +138,8 @@ class ServicoRota {
     String strWaypoints = "";
     if (rota.length > 1) {
       strWaypoints =
-          "&waypoints=" +
-          rota
-              .sublist(0, rota.length - 1) // Pega todos menos o último
-              .map((p) => "${p.lat},${p.lng}")
-              .join("|");
+          "&waypoints=${rota.sublist(0, rota.length - 1) // Pega todos menos o último
+          .map((p) => "${p.lat},${p.lng}").join("|")}";
     }
 
     // Monta a URL Universal do Google Maps (Dir Action)
@@ -152,22 +158,34 @@ class ServicoRota {
   // --- UTILITÁRIOS ---
   static Future<Position?> _obterLocalizacaoAtual(BuildContext context) async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
     if (!serviceEnabled) {
-      _aviso(context, 'O GPS está desativado.');
+      // Verifica se a tela ainda está ativa antes de usar o context
+      if (context.mounted) {
+        _aviso(context, 'O GPS está desativado.');
+      }
       return null;
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
+
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+
       if (permission == LocationPermission.denied) {
-        _aviso(context, 'Permissão de localização negada.');
+        // Verifica novamente após a espera do requestPermission
+        if (context.mounted) {
+          _aviso(context, 'Permissão de localização negada.');
+        }
         return null;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      _aviso(context, 'Permissão de localização negada permanentemente.');
+      // Verifica se a tela ainda está ativa
+      if (context.mounted) {
+        _aviso(context, 'Permissão de localização negada permanentemente.');
+      }
       return null;
     }
 

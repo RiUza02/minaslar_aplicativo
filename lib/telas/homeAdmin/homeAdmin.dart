@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../TelasAdmin/Dashboard.dart';
+import 'Dashboard.dart';
 import 'ListaClienteAdmin.dart';
 import 'CalendarioAdmin.dart';
 import 'ListaOrcamentos.dart';
@@ -63,8 +63,10 @@ class _HomeAdminState extends State<HomeAdmin> {
           // Index 1: Visualização do Calendário
           const AgendaCalendario(),
           // Index 2: Novo Painel (Placeholder)
-          ListaOrcamentosDia(dataSelecionada: DateTime.now()),
-          // Index 3: Gestão de Clientes
+          ListaOrcamentosDia(
+            dataSelecionada: DateTime.now(),
+            apenasPendentes: true, // Isso faz o Painel filtrar os entregues
+          ), // Index 3: Gestão de Clientes
           const ListaClientes(),
           // Index 4: Gestão de Orçamentos
           const ListaOrcamentos(),

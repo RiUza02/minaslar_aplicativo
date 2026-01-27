@@ -10,6 +10,9 @@ class Cliente {
   /// Rua do cliente
   String rua;
 
+  /// Número do endereço (Novo campo obrigatório)
+  String numero;
+
   /// Bairro do cliente
   String bairro;
 
@@ -34,8 +37,9 @@ class Cliente {
   Cliente({
     this.id,
     required this.nome,
-    required this.rua, // Novo campo
-    required this.bairro, // Novo campo
+    required this.rua,
+    required this.numero, // Adicionado como obrigatório
+    required this.bairro,
     required this.telefone,
     this.cpf,
     this.cnpj,
@@ -50,8 +54,9 @@ class Cliente {
       // O ID não é enviado,
       // pois o Supabase gera automaticamente
       'nome': nome,
-      'rua': rua, // Mapeado para coluna 'rua'
-      'bairro': bairro, // Mapeado para coluna 'bairro'
+      'rua': rua,
+      'numero': numero, // Mapeado para coluna 'numero'
+      'bairro': bairro,
       'telefone': telefone,
       'cpf': cpf,
       'cnpj': cnpj,
@@ -73,6 +78,8 @@ class Cliente {
       // Dados básicos
       nome: map['nome'] ?? '',
       rua: map['rua'] ?? '',
+      // Se o campo for nulo no banco (registros antigos), retorna string vazia
+      numero: map['numero']?.toString() ?? '',
       bairro: map['bairro'] ?? '',
       telefone: map['telefone'] ?? '',
 

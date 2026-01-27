@@ -137,6 +137,43 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     }
   }
 
+  /// Abre o Google Maps com o endereço do cliente.
+  Future<void> _abrirGoogleMaps() async {
+    final String rua = _clienteExibido.rua;
+    final String numero = _clienteExibido.numero;
+    final String bairro = _clienteExibido.bairro;
+    const String cidade = "Juiz de Fora"; // Assumindo cidade padrão
+
+    // Constrói o endereço completo para a busca no mapa
+    final String enderecoCompleto = "$rua, $numero - $bairro, $cidade";
+
+    if (rua.isEmpty && bairro.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Endereço do cliente não disponível.')),
+        );
+      }
+      return;
+    }
+
+    // Codifica o endereço para ser usado na URL
+    final Uri googleMapsUri = Uri.parse(
+      "https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(enderecoCompleto)}",
+    );
+
+    if (await canLaunchUrl(googleMapsUri)) {
+      await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível abrir o Google Maps.'),
+          ),
+        );
+      }
+    }
+  }
+
   /// Navega para a tela de edição de orçamento
   void _editarOrcamento(Map<String, dynamic> orcamento) {
     Navigator.push(
@@ -225,6 +262,21 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
         foregroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: 'Editar Cliente',
+            onPressed: () async {
+              final bool? atualizou = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditarCliente(cliente: _clienteExibido),
+                ),
+              );
+              if (atualizou == true) _atualizarTela();
+            },
+          ),
+        ],
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
@@ -259,7 +311,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
               // CARD DE CABEÇALHO DO CLIENTE
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: corCard,
@@ -345,21 +397,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                             ],
                           ),
                         ),
-                        // Botão de Editar Cliente
-                        IconButton(
-                          icon: Icon(Icons.edit, color: corTextoCinza),
-                          tooltip: 'Editar Cliente',
-                          onPressed: () async {
-                            final bool? atualizou = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    EditarCliente(cliente: _clienteExibido),
-                              ),
-                            );
-                            if (atualizou == true) _atualizarTela();
-                          },
-                        ),
                       ],
                     ),
                   ],
@@ -373,7 +410,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                   decoration: BoxDecoration(
                     color: corCard,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.1),
@@ -473,8 +512,10 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                   label: "Endereço",
                   value: [
                     _clienteExibido.rua,
+                    _clienteExibido.numero,
                     _clienteExibido.bairro,
                   ].where((s) => s.isNotEmpty).join(', '),
+                  onTap: _abrirGoogleMaps, // Adiciona a ação de abrir o mapa
                 ),
 
               if (_clienteExibido.cpf != null &&
@@ -830,7 +871,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.white.withOpacity(0.1)),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: InkWell(
         onTap: onTap,

@@ -133,8 +133,8 @@ class _DashboardState extends State<Dashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Dashboard"), // Título alterado para "Dashboard"
-        backgroundColor: Colors.red[900], // Cor consistente com o tema
+        title: const Text("Dashboard"),
+        backgroundColor: Colors.red[900],
         centerTitle: true,
         foregroundColor: Colors.white,
       ),
@@ -226,8 +226,8 @@ class _DashboardState extends State<Dashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          height: 200,
-          padding: const EdgeInsets.only(top: 24, right: 16),
+          height: 250, // Aumentei um pouco a altura para caber os numeros
+          padding: const EdgeInsets.only(top: 24, right: 24, left: 12),
           decoration: BoxDecoration(
             color: const Color(0xFF1E1E1E),
             borderRadius: BorderRadius.circular(12),
@@ -257,14 +257,35 @@ class _DashboardState extends State<Dashboard> {
               gridData: FlGridData(
                 show: true,
                 drawVerticalLine: false,
-                horizontalInterval:
-                    1000, // Ajuste este valor conforme a escala do seu faturamento
                 getDrawingHorizontalLine: (value) =>
-                    FlLine(color: Colors.white10, strokeWidth: 1),
+                    const FlLine(color: Colors.white10, strokeWidth: 1),
               ),
               titlesData: FlTitlesData(
-                leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
+                // ATIVADO: Títulos na Esquerda (Valores Monetários)
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 40,
+                    interval:
+                        null, // Deixa automático ou defina um intervalo fixo
+                    getTitlesWidget: (value, meta) {
+                      if (value == 0) return const SizedBox.shrink();
+                      // Formatação compacta (ex: 1.5k)
+                      String text;
+                      if (value >= 1000) {
+                        text = '${(value / 1000).toStringAsFixed(1)}k';
+                      } else {
+                        text = value.toInt().toString();
+                      }
+                      return Text(
+                        text,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 10,
+                        ),
+                      );
+                    },
+                  ),
                 ),
                 rightTitles: const AxisTitles(
                   sideTitles: SideTitles(showTitles: false),
@@ -276,11 +297,24 @@ class _DashboardState extends State<Dashboard> {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 22,
-                    interval: 1, // Garante que cada mês apareça apenas uma vez
-                    getTitlesWidget: (value, meta) => Text(
-                      faturamento6Meses[value.toInt()]['month'],
-                      style: const TextStyle(color: Colors.grey, fontSize: 10),
-                    ),
+                    interval: 1,
+                    getTitlesWidget: (value, meta) {
+                      // Proteção contra índice fora da lista
+                      if (value.toInt() >= 0 &&
+                          value.toInt() < faturamento6Meses.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            faturamento6Meses[value.toInt()]['month'],
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 10,
+                            ),
+                          ),
+                        );
+                      }
+                      return const Text('');
+                    },
                   ),
                 ),
               ),
@@ -294,7 +328,7 @@ class _DashboardState extends State<Dashboard> {
                   color: Colors.greenAccent,
                   barWidth: 3,
                   isStrokeCapRound: true,
-                  dotData: const FlDotData(show: false),
+                  dotData: const FlDotData(show: true), // Mostra os pontos
                   belowBarData: BarAreaData(
                     show: true,
                     gradient: LinearGradient(
@@ -324,8 +358,8 @@ class _DashboardState extends State<Dashboard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          height: 220,
-          padding: const EdgeInsets.only(top: 24, right: 16),
+          height: 250,
+          padding: const EdgeInsets.only(top: 24, right: 16, left: 0),
           decoration: BoxDecoration(
             color: const Color(0xFF1E1E1E),
             borderRadius: BorderRadius.circular(12),
@@ -368,10 +402,29 @@ class _DashboardState extends State<Dashboard> {
                 ),
               ),
               alignment: BarChartAlignment.spaceAround,
-              gridData: const FlGridData(show: false),
+              gridData: const FlGridData(show: false), // Grid limpo para barras
               titlesData: FlTitlesData(
-                leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
+                // ATIVADO: Títulos na Esquerda (Quantidades)
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 30,
+                    interval: 1, // Mostra de 1 em 1 se possível, ou automático
+                    getTitlesWidget: (value, meta) {
+                      if (value == 0) return const SizedBox.shrink();
+                      // Se o valor for inteiro, mostra
+                      if (value % 1 == 0) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 10,
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
                 rightTitles: const AxisTitles(
                   sideTitles: SideTitles(showTitles: false),
@@ -383,10 +436,22 @@ class _DashboardState extends State<Dashboard> {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 22,
-                    getTitlesWidget: (value, meta) => Text(
-                      stats6Meses[value.toInt()]['month'],
-                      style: const TextStyle(color: Colors.grey, fontSize: 10),
-                    ),
+                    getTitlesWidget: (value, meta) {
+                      if (value.toInt() >= 0 &&
+                          value.toInt() < stats6Meses.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            stats6Meses[value.toInt()]['month'],
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 10,
+                            ),
+                          ),
+                        );
+                      }
+                      return const Text('');
+                    },
                   ),
                 ),
               ),
@@ -455,10 +520,12 @@ class _DashboardState extends State<Dashboard> {
                   return PieChartSectionData(
                     color: isManha ? Colors.amber : Colors.indigoAccent,
                     value: entry.value.toDouble(),
-                    title: '${percentage.toStringAsFixed(0)}%',
+                    // Título melhorado: Valor + Porcentagem
+                    title:
+                        '${entry.value}\n(${percentage.toStringAsFixed(0)}%)',
                     radius: 50,
                     titleStyle: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -468,7 +535,7 @@ class _DashboardState extends State<Dashboard> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0), // Existing padding
+            padding: const EdgeInsets.all(16.0),
             child: _buildLegend(
               servicosPorTurno.entries.map((entry) {
                 final isManha = entry.key == 'Manhã';
@@ -477,7 +544,7 @@ class _DashboardState extends State<Dashboard> {
                   text: '${entry.key} (${entry.value})',
                 );
               }).toList(),
-              isColumn: true, // Make it a column for pie chart
+              isColumn: true,
             ),
           ),
         ],

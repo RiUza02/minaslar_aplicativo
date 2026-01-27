@@ -29,6 +29,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   // Controladores de Texto
   final _nomeController = TextEditingController();
   final _ruaController = TextEditingController();
+  final _numeroController = TextEditingController();
   final _bairroController = TextEditingController();
   final _telefoneController = TextEditingController();
   final _cpfController = TextEditingController();
@@ -64,6 +65,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     // Libera recursos dos controladores ao fechar a tela
     _nomeController.dispose();
     _ruaController.dispose();
+    _numeroController.dispose(); // Não esqueça de descartar
     _bairroController.dispose();
     _telefoneController.dispose();
     _cpfController.dispose();
@@ -97,6 +99,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
       final novoCliente = Cliente(
         nome: _nomeController.text.trim(),
         rua: _ruaController.text.trim(),
+        numero: _numeroController.text.trim(), // Novo campo
         bairro: _bairroController.text.trim(),
         telefone: maskTelefone.getUnmaskedText(),
         cpf: cpfFinal,
@@ -174,11 +177,30 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           v!.length < 15 ? 'Telefone incompleto' : null,
                     ),
                     const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _ruaController,
-                      label: "Rua",
-                      icon: Icons.add_road,
-                      validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 10, // Ocupa 3/4 da largura
+                          child: _buildTextField(
+                            controller: _ruaController,
+                            label: 'Rua',
+                            icon: Icons.add_road,
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Obrigatório' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 6, // Ocupa 1/4 da largura
+                          child: _buildTextField(
+                            controller: _numeroController,
+                            label: 'Nº',
+                            icon: Icons.home_filled,
+                            validator: (v) =>
+                                v == null || v.isEmpty ? 'Req.' : null,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(

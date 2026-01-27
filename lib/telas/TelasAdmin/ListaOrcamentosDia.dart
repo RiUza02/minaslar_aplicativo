@@ -9,29 +9,27 @@ import '../../servicos/CalculaRota.dart';
 
 class ListaOrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
+  // Flag para controlar se mostra tudo ou só pendentes
+  final bool apenasPendentes;
 
-  const ListaOrcamentosDia({super.key, required this.dataSelecionada});
+  const ListaOrcamentosDia({
+    super.key,
+    required this.dataSelecionada,
+    this.apenasPendentes = false, // Padrão false (mostra tudo)
+  });
 
   @override
   State<ListaOrcamentosDia> createState() => _ListaOrcamentosDiaState();
 }
 
 class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
-  // ==================================================
-  // CONFIGURAÇÕES VISUAIS E ESTADO
-  // ==================================================
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corPrincipal = Colors.red[900]!;
 
   late Future<List<Map<String, dynamic>>> _futureOrcamentos;
-
-  // Lista em memória para passar para o gerador de rotas
   List<Map<String, dynamic>> _listaParaRota = [];
 
-  // ==================================================
-  // CICLO DE VIDA
-  // ==================================================
   @override
   void initState() {
     super.initState();
@@ -44,9 +42,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     });
   }
 
-  // ==================================================
-  // LÓGICA DE NEGÓCIO (SUPABASE)
-  // ==================================================
   Future<List<Map<String, dynamic>>> _buscarOrcamentosDoDia() async {
     final startOfDay = DateTime(
       widget.dataSelecionada.year,
@@ -73,17 +68,23 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     final filterEntrega =
         'data_entrega.gte.${startOfDay.toIso8601String()},data_entrega.lte.${endOfDay.toIso8601String()}';
 
-    // ---------------------------------------------------------
-    // ATUALIZAÇÃO: Buscando apenas os campos que existem no Modelo Cliente
-    // (nome, telefone, bairro, rua)
-    // ---------------------------------------------------------
-    final response = await Supabase.instance.client
+    // 1. BUSCA O NÚMERO NA TABELA DE CLIENTES
+    var query = Supabase.instance.client
         .from('orcamentos')
-        .select('*, clientes(nome, telefone, bairro, rua)')
-        .or('and($filterEntrada),and($filterEntrega)')
-        .order('data_pega', ascending: true);
+        .select('*, clientes(nome, telefone, bairro, rua, numero)')
+        .or('and($filterEntrada),and($filterEntrega)');
 
-    final lista = List<Map<String, dynamic>>.from(response);
+    final response = await query.order('data_pega', ascending: true);
+    var lista = List<Map<String, dynamic>>.from(response);
+
+    // 2. FILTRAGEM CONDICIONAL (PAINEL vs CALENDÁRIO)
+    if (widget.apenasPendentes) {
+      // Se for Painel, remove os que já foram entregues (entregue == true)
+      lista = lista.where((orcamento) {
+        final bool foiEntregue = orcamento['entregue'] ?? false;
+        return foiEntregue == false;
+      }).toList();
+    }
 
     // Ordenação Manhã/Tarde
     lista.sort((a, b) {
@@ -94,15 +95,10 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
       return 0;
     });
 
-    // Salva a lista carregada na variável de classe para usar no botão de Rota
     _listaParaRota = lista;
-
     return lista;
   }
 
-  // ==================================================
-  // LÓGICA DO BOTÃO DE ROTA
-  // ==================================================
   void _gerarRota() {
     if (_listaParaRota.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,18 +107,15 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
       return;
     }
 
-    // Adapta os dados do Supabase para o formato que o ServicoRota entende
+    // 3. ENVIA O NÚMERO PARA O GOOGLE MAPS/ROTA
     List<Map<String, dynamic>> listaFormatada = _listaParaRota.map((orc) {
       final cliente = orc['clientes'] ?? {};
       return {
         'id': orc['id'],
         'nome_cliente': cliente['nome'] ?? 'Cliente',
-        // Como seu modelo não tem numero, passamos vazio.
-        // O ServicoRota vai montar: "Rua Tal, - Bairro Tal, Juiz de Fora"
         'rua': cliente['rua'] ?? '',
-        'numero': '',
+        'numero': (cliente['numero'] ?? '').toString(), // Passa o número
         'bairro': cliente['bairro'] ?? '',
-        // Defina sua cidade padrão aqui
         'cidade': 'Juiz de Fora',
       };
     }).toList();
@@ -130,9 +123,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     ServicoRota.otimizarRotaDoDia(context, listaFormatada);
   }
 
-  // ==================================================
-  // NAVEGAÇÃO E AÇÕES
-  // ==================================================
   void _abrirNovoOrcamento() async {
     final Cliente? clienteEscolhido = await Navigator.push(
       context,
@@ -158,9 +148,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     }
   }
 
-  // ==================================================
-  // INTERFACE PRINCIPAL (BUILD)
-  // ==================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,24 +169,17 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           ),
         ],
       ),
-
-      // ---------------------------------------------------------
-      // FLOATING ACTION BUTTON DUPLO (ROTA + NOVO)
-      // ---------------------------------------------------------
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // 1. Botão de Rota
-          FloatingActionButton.extended(
+          FloatingActionButton(
             heroTag: "btnRota",
             onPressed: _gerarRota,
             backgroundColor: Colors.blue[800],
             foregroundColor: Colors.white,
-            icon: const Icon(Icons.map),
-            label: const Text("Rota"),
+            child: const Icon(Icons.map),
           ),
           const SizedBox(height: 16),
-          // 2. Botão de Adicionar
           FloatingActionButton(
             heroTag: "btnAdd",
             onPressed: _abrirNovoOrcamento,
@@ -209,7 +189,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           ),
         ],
       ),
-
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _futureOrcamentos,
         builder: (context, snapshot) {
@@ -232,19 +211,41 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           if (orcamentos.isEmpty) {
             return RefreshIndicator(
               onRefresh: () async => _atualizarLista(),
-              child: _buildEmptyState(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.event_busy,
+                            size: 80,
+                            color: Colors.white12,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            "Nenhum serviço pendente.",
+                            style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             );
           }
 
           return RefreshIndicator(
             onRefresh: () async => _atualizarLista(),
             child: ListView.builder(
-              padding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: 90,
-              ), // Espaço extra bottom
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
               itemCount: orcamentos.length,
               itemBuilder: (context, index) =>
                   _buildOrcamentoCard(orcamentos[index]),
@@ -255,84 +256,24 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     );
   }
 
-  // ==================================================
-  // COMPONENTES VISUAIS
-  // ==================================================
-  Widget _buildEmptyState() {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.6,
-          child: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.event_busy, size: 80, color: Colors.white12),
-                SizedBox(height: 16),
-                Text(
-                  "Nenhum serviço para este dia.",
-                  style: TextStyle(color: Colors.white38, fontSize: 16),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildOrcamentoCard(Map<String, dynamic> orcamento) {
-    // Extração segura baseada no seu Modelo Cliente
     final cliente = orcamento['clientes'] ?? {};
-    final nomeCliente = cliente['nome'] ?? 'Cliente Desconhecido';
-    final telefone = cliente['telefone'] ?? 'Sem telefone';
-    final bairro =
-        cliente['bairro'] ?? 'Bairro n/a'; // Pegando do modelo correto
-    final rua = cliente['rua'] ?? ''; // Pegando do modelo correto
-
-    final tituloServico = orcamento['titulo'] ?? 'Serviço sem título';
+    final nomeCliente = cliente['nome'] ?? 'Cliente';
+    final rua = cliente['rua'] ?? '';
+    final numero = cliente['numero'] ?? 'S/N'; // Recupera número
+    final bairro = cliente['bairro'] ?? '';
+    final tituloServico = orcamento['titulo'] ?? '';
 
     final horarioTexto = (orcamento['horario_do_dia'] ?? 'Manhã').toString();
     final isTarde = horarioTexto.toLowerCase() == 'tarde';
     final colorBanner = isTarde ? Colors.orangeAccent : Colors.yellowAccent;
     final iconHorario = isTarde ? Icons.wb_twilight : Icons.wb_sunny;
 
-    // Lógica de Entrada vs Entrega
-    String tipoAgendamento = '';
-    Color corAgendamento = Colors.grey;
-    final selectedDay = widget.dataSelecionada;
-
-    final dataPegaStr = orcamento['data_pega'];
-    if (dataPegaStr != null) {
-      final dataPega = DateTime.parse(dataPegaStr);
-      if (dataPega.year == selectedDay.year &&
-          dataPega.month == selectedDay.month &&
-          dataPega.day == selectedDay.day) {
-        tipoAgendamento = 'ENTRADA';
-        corAgendamento = Colors.lightBlueAccent;
-      }
-    }
-
-    final dataEntregaStr = orcamento['data_entrega'];
-    if (tipoAgendamento.isEmpty && dataEntregaStr != null) {
-      final dataEntrega = DateTime.parse(dataEntregaStr);
-      if (dataEntrega.year == selectedDay.year &&
-          dataEntrega.month == selectedDay.month &&
-          dataEntrega.day == selectedDay.day) {
-        tipoAgendamento = 'ENTREGA';
-        corAgendamento = Colors.greenAccent;
-      }
-    }
-
     return Card(
       color: corCard,
       elevation: 4,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
@@ -346,7 +287,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         },
         child: Column(
           children: [
-            // Banner Manhã/Tarde
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
@@ -361,34 +301,11 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                       color: colorBanner,
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
-                      letterSpacing: 1.2,
                     ),
                   ),
-                  const Spacer(),
-                  if (tipoAgendamento.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: corAgendamento, width: 1),
-                      ),
-                      child: Text(
-                        tipoAgendamento,
-                        style: TextStyle(
-                          color: corAgendamento,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
-
-            // Dados do Cliente
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -396,16 +313,11 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                 children: [
                   CircleAvatar(
                     backgroundColor: Colors.white10,
-                    radius: 24,
                     child: Text(
                       nomeCliente.isNotEmpty
                           ? nomeCliente[0].toUpperCase()
                           : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -420,28 +332,38 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                             fontWeight: FontWeight.bold,
                             fontSize: 18,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
                         Text(
                           tituloServico,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 14,
-                            fontStyle: FontStyle.italic,
                           ),
                         ),
                         const SizedBox(height: 12),
                         const Divider(color: Colors.white10, height: 1),
                         const SizedBox(height: 12),
-
-                        // Exibe Rua e Bairro (conforme seu modelo)
-                        _buildInfoRow(
-                          Icons.location_on_outlined,
-                          "$rua - $bairro",
+                        // EXIBE RUA E NÚMERO
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on_outlined,
+                              size: 14,
+                              color: Colors.grey[500],
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                "$rua, $numero - $bairro",
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 13,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 6),
-                        _buildInfoRow(Icons.phone_outlined, telefone),
                       ],
                     ),
                   ),
@@ -451,22 +373,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: Colors.grey[500]),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(color: Colors.grey[400], fontSize: 13),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
     );
   }
 }

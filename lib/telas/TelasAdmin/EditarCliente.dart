@@ -29,6 +29,7 @@ class _EditarClienteState extends State<EditarCliente> {
   late TextEditingController _nomeController;
   late TextEditingController _telefoneController;
   late TextEditingController _ruaController;
+  late TextEditingController _numeroController;
   late TextEditingController _bairroController;
   late TextEditingController _cpfController;
   late TextEditingController _cnpjController;
@@ -66,6 +67,8 @@ class _EditarClienteState extends State<EditarCliente> {
     // Preenche os controladores com os dados existentes do cliente
     _nomeController = TextEditingController(text: widget.cliente.nome);
     _ruaController = TextEditingController(text: widget.cliente.rua);
+    _numeroController = TextEditingController(text: widget.cliente.numero);
+    _numeroController = TextEditingController(text: widget.cliente.numero);
     _bairroController = TextEditingController(text: widget.cliente.bairro);
     _obsController = TextEditingController(
       text: widget.cliente.observacao ?? '',
@@ -90,6 +93,7 @@ class _EditarClienteState extends State<EditarCliente> {
     _nomeController.dispose();
     _telefoneController.dispose();
     _ruaController.dispose();
+    _numeroController.dispose();
     _bairroController.dispose();
     _cpfController.dispose();
     _cnpjController.dispose();
@@ -115,6 +119,7 @@ class _EditarClienteState extends State<EditarCliente> {
             'nome': _nomeController.text.trim(),
             'telefone': maskTelefone.getUnmaskedText(),
             'rua': _ruaController.text.trim(),
+            'numero': _numeroController.text.trim(),
             'bairro': _bairroController.text.trim(),
             // Envia null caso os campos opcionais estejam vazios
             'cpf': _cpfController.text.isEmpty
@@ -198,11 +203,28 @@ class _EditarClienteState extends State<EditarCliente> {
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                     const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _ruaController,
-                      label: "Rua",
-                      icon: Icons.add_road,
-                      validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 10,
+                          child: _buildTextField(
+                            controller: _ruaController,
+                            label: 'Rua',
+                            icon: Icons.add_road,
+                            validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 6,
+                          child: _buildTextField(
+                            controller: _numeroController,
+                            label: 'Nº',
+                            icon: Icons.home_filled,
+                            validator: (v) => v!.isEmpty ? 'Req.' : null,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     _buildTextField(
