@@ -14,6 +14,8 @@ class AuthService {
   // CADASTRO DE USUÁRIO
   // Cria o login no Auth e salva dados na tabela 'usuarios'
   // =====================================================
+  // Em servicos/autenticacao.dart
+
   Future<String?> cadastrarUsuario({
     required String email,
     required String password,
@@ -22,35 +24,43 @@ class AuthService {
     bool isAdmin = false,
   }) async {
     try {
-      // Cria o usuário no sistema de autenticação do Supabase
       final AuthResponse res = await _supabase.auth.signUp(
         email: email,
         password: password,
       );
 
-      // Se o usuário foi criado com sucesso
       if (res.user != null) {
-        // Salva os dados complementares
-        // na tabela personalizada 'usuarios'
         await _supabase.from('usuarios').insert({
-          // O ID deve ser o mesmo do Auth
           'id': res.user!.id,
           'email': email,
           'nome': nome,
           'telefone': telefone,
-
-          // Coluna em snake_case no banco
           'is_admin': isAdmin,
         });
       }
-
-      // Retorna null indicando sucesso
       return null;
     } on AuthException catch (e) {
-      // Erros tratados pelo Supabase (ex: e-mail já cadastrado)
-      return e.message;
+      // ==================================================
+      // AQUI ESTÁ A PERSONALIZAÇÃO
+      // ==================================================
+
+      // Converte para minúsculas para facilitar a verificação
+      final msg = e.message.toLowerCase();
+
+      // Verifica se a mensagem contém termos comuns de duplicidade
+      if (msg.contains('already registered') ||
+          msg.contains('already exists')) {
+        return 'Este e-mail já possui uma conta. Tente fazer login.';
+      }
+
+      // Tratamento para senha fraca (caso o Supabase reclame)
+      if (msg.contains('password') && msg.contains('short')) {
+        return 'A senha é muito curta.';
+      }
+
+      // Caso seja outro erro, retorna a mensagem original traduzida ou bruta
+      return 'Erro de autenticação: ${e.message}';
     } catch (e) {
-      // Qualquer outro erro inesperado
       return "Erro desconhecido: $e";
     }
   }

@@ -7,7 +7,7 @@ import 'telas/criarConta/Cadastro.dart';
 import 'package:intl/date_symbol_data_local.dart'; // Import para initializeDateFormatting
 import 'telas/homeUsuario/HomeUsuario.dart';
 import 'telas/homeAdmin/HomeAdmin.dart';
-import 'servicos/RedefinirSenha.dart';
+import 'telas/criarConta/RedefinirSenha.dart';
 
 // Permite navegação global sem necessidade de 'BuildContext' (essencial para callbacks assíncronos)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -183,15 +183,16 @@ class TelaApresentacao extends StatelessWidget {
                     const Icon(Icons.home_work, size: 150, color: Colors.blue),
               ),
               const Spacer(),
-
-              // Botão de Login
+              // Botão de Login (Destaque)
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blue,
+                    backgroundColor: Colors.blue[800], // Azul sólido
+                    foregroundColor: Colors.white,
+                    elevation: 5,
+                    shadowColor: Colors.blue.withValues(alpha: 0.4),
                   ),
                   onPressed: () {
                     Navigator.of(
@@ -199,21 +200,29 @@ class TelaApresentacao extends StatelessWidget {
                     ).push(MaterialPageRoute(builder: (_) => const Login()));
                   },
                   child: const Text(
-                    'Fazer Login',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    'ACESSAR MINHA CONTA',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
 
-              // Botão de Cadastro
+              const SizedBox(height: 16),
+
+              // Botão de Cadastro (Secundário)
               SizedBox(
                 width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                height: 55,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24, width: 1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: () {
                     Navigator.of(
@@ -221,8 +230,12 @@ class TelaApresentacao extends StatelessWidget {
                     ).push(MaterialPageRoute(builder: (_) => const Cadastro()));
                   },
                   child: const Text(
-                    'Criar Conta',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    'CRIAR UMA NOVA CONTA',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
                   ),
                 ),
               ),

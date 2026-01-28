@@ -237,7 +237,7 @@ class _DashboardState extends State<Dashboard> {
             LineChartData(
               lineTouchData: LineTouchData(
                 touchTooltipData: LineTouchTooltipData(
-                  tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
+                  tooltipBgColor: Colors.blueGrey.withValues(alpha: 0.8),
                   getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
                     return touchedBarSpots.map((barSpot) {
                       return LineTooltipItem(
@@ -333,8 +333,8 @@ class _DashboardState extends State<Dashboard> {
                     show: true,
                     gradient: LinearGradient(
                       colors: [
-                        Colors.greenAccent.withOpacity(0.3),
-                        Colors.greenAccent.withOpacity(0.0),
+                        Colors.greenAccent.withValues(alpha: 0.3),
+                        Colors.greenAccent.withValues(alpha: 0.0),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,

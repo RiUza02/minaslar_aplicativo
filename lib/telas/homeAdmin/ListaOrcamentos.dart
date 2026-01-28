@@ -24,7 +24,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   final Color corSecundaria = Colors.blue[300]!;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
-  final Color corTextoCinza = Colors.grey[400]!;
+  final Color corTextoCinza = Colors.grey[500]!;
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -93,13 +93,12 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     switch (_ordenacaoAtual) {
       case TipoOrdenacaoOrcamento.atraso:
         lista.sort((a, b) {
-          // Define a prioridade de exibição
           int getPrioridade(Map<String, dynamic> item) {
             final bool isConcluido = item['entregue'] ?? false;
             final bool ehRetorno = item['eh_retorno'] ?? false;
             final dataStr = item['data_entrega'];
 
-            if (isConcluido) return 5; // 5. Concluído
+            if (isConcluido) return 5;
 
             bool isAtrasado = false;
             if (dataStr != null) {
@@ -116,10 +115,10 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
               }
             }
 
-            if (isAtrasado) return 1; // 1. Atraso
-            if (ehRetorno) return 2; // 2. Garantia
-            if (dataStr == null) return 3; // 3. Sem data
-            return 4; // 4. Em prazo
+            if (isAtrasado) return 1;
+            if (ehRetorno) return 2;
+            if (dataStr == null) return 3;
+            return 4;
           }
 
           int pA = getPrioridade(a);
@@ -127,7 +126,6 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
 
           if (pA != pB) return pA.compareTo(pB);
 
-          // Se a prioridade for a mesma, desempata pela data de criação
           final dataA =
               DateTime.tryParse(a['data_pega'] ?? '') ?? DateTime(1900);
           final dataB =
@@ -216,7 +214,6 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   // ==================================================
   @override
   Widget build(BuildContext context) {
-    // Filtra a lista localmente baseada no input de busca (Título ou Cliente)
     final listaFiltrada = _termoBusca.isEmpty
         ? _listaOrcamentos
         : _listaOrcamentos.where((orc) {
@@ -230,6 +227,8 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
 
     return Scaffold(
       backgroundColor: corFundo,
+
+      // --- APP BAR PADRONIZADA ---
       appBar: AppBar(
         backgroundColor: corPrincipal,
         elevation: 0,
@@ -240,20 +239,21 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
         title: Container(
           height: 45,
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
+            color: Colors.black.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: TextField(
             controller: _searchController,
             onChanged: _onSearchChanged,
-            style: const TextStyle(color: Colors.black, fontSize: 16),
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+            cursorColor: Colors.white,
             decoration: InputDecoration(
               hintText: "Buscar título ou cliente...",
-              hintStyle: const TextStyle(color: Colors.grey),
-              prefixIcon: Icon(Icons.search, color: corPrincipal),
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+              prefixIcon: const Icon(Icons.search, color: Colors.white70),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      icon: const Icon(Icons.clear, color: Colors.white70),
                       onPressed: () {
                         _searchController.clear();
                         _onSearchChanged('');
@@ -261,10 +261,8 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                     )
                   : null,
               border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
+                horizontal: 16,
                 vertical: 10,
               ),
             ),
@@ -274,60 +272,47 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
           PopupMenuButton<TipoOrdenacaoOrcamento>(
             icon: const Icon(Icons.sort, color: Colors.white, size: 28),
             tooltip: 'Ordenar',
-            color: Colors.grey[900],
+            color: corCard,
             onSelected: _mudarOrdenacao,
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: TipoOrdenacaoOrcamento.dataRecente,
-                child: Text("Mais Recentes"),
+              _buildPopupItem(
+                TipoOrdenacaoOrcamento.dataRecente,
+                "Mais Recentes",
               ),
-              const PopupMenuItem(
-                value: TipoOrdenacaoOrcamento.atraso,
-                child: Text("Atraso (Urgente)"),
+              _buildPopupItem(
+                TipoOrdenacaoOrcamento.atraso,
+                "Atraso (Urgente)",
               ),
-              const PopupMenuItem(
-                value: TipoOrdenacaoOrcamento.valorMaior,
-                child: Text("Maior Valor"),
-              ),
-              const PopupMenuItem(
-                value: TipoOrdenacaoOrcamento.clienteAZ,
-                child: Text("Cliente (A-Z)"),
+              _buildPopupItem(TipoOrdenacaoOrcamento.valorMaior, "Maior Valor"),
+              _buildPopupItem(
+                TipoOrdenacaoOrcamento.clienteAZ,
+                "Cliente (A-Z)",
               ),
             ],
           ),
           const SizedBox(width: 8),
         ],
       ),
+
+      // --- BOTÃO FLUTUANTE ---
       floatingActionButton: FloatingActionButton(
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: _abrirNovoOrcamento,
         child: const Icon(Icons.post_add, size: 28),
       ),
+
+      // --- CORPO DA LISTA ---
       body: _estaCarregando
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : RefreshIndicator(
               color: corPrincipal,
-              backgroundColor: Colors.white,
+              backgroundColor: corCard,
               onRefresh: () async => await _carregarOrcamentos(true),
               child: listaFiltrada.isEmpty
-                  ? ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.7,
-                          child: Center(
-                            child: Text(
-                              "Nenhum orçamento encontrado.",
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
+                  ? _buildEmptyState()
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(16),
@@ -341,8 +326,46 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   }
 
   // ==================================================
-  // COMPONENTES UI (CARD DE ORÇAMENTO)
+  // COMPONENTES UI
   // ==================================================
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.assignment_outlined, size: 60, color: Colors.grey[800]),
+          const SizedBox(height: 16),
+          Text(
+            "Nenhum orçamento encontrado.",
+            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<TipoOrdenacaoOrcamento> _buildPopupItem(
+    TipoOrdenacaoOrcamento value,
+    String text,
+  ) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            _ordenacaoAtual == value
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            color: _ordenacaoAtual == value ? corSecundaria : Colors.grey,
+            size: 18,
+          ),
+          const SizedBox(width: 12),
+          Text(text, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
 
   Widget _buildOrcamentoCard(Map<String, dynamic> orcamento) {
     // 1. Extração segura de dados
@@ -355,15 +378,18 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     final bool ehRetorno = orcamento['eh_retorno'] ?? false;
     final bool isConcluido = orcamento['entregue'] ?? false;
 
-    final dataFormatada = dataPegaStr != null
-        ? DateFormat('dd/MM/yyyy').format(DateTime.parse(dataPegaStr))
+    // Formatação de datas (Apenas Dia/Mês para caber no card)
+    final dataEntradaFormatada = dataPegaStr != null
+        ? DateFormat('dd/MM').format(DateTime.parse(dataPegaStr))
+        : '--/--';
+
+    final dataEntregaFormatada = dataEntregaStr != null
+        ? DateFormat('dd/MM').format(DateTime.parse(dataEntregaStr))
         : '--/--';
 
     final valorFormatado = valor != null
         ? NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$').format(valor)
         : 'A Combinar';
-
-    final Color corValor = valor != null ? Colors.amber : Colors.grey;
 
     // 2. Lógica reativa de status e cores
     Color corFaixaLateral;
@@ -387,35 +413,48 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     }
 
     if (isConcluido) {
-      corFaixaLateral = corSecundaria; // Azul
-      textoAviso = "Concluído";
-      corAviso = corSecundaria;
+      corFaixaLateral = Colors.blue;
+      textoAviso = "CONCLUÍDO";
+      corAviso = Colors.blue;
     } else if (ehRetorno) {
-      corFaixaLateral = Colors.green[400]!; // Verde
-      textoAviso = "Garantia";
-      corAviso = Colors.green[400]!;
+      corFaixaLateral = Colors.green;
+      textoAviso = "GARANTIA";
+      corAviso = Colors.green;
     } else if (isAtrasado) {
       corFaixaLateral = corPrincipal; // Vermelho
-      textoAviso = "Atrasado";
+      textoAviso = "ATRASADO";
       corAviso = corPrincipal;
     } else if (dataEntregaStr == null) {
-      corFaixaLateral = Colors.white;
-      textoAviso = "Sem data";
-      corAviso = Colors.white;
+      corFaixaLateral = Colors.grey;
+      textoAviso = "SEM DATA";
+      corAviso = Colors.grey;
     } else {
-      corFaixaLateral = corSecundaria; // Azul
-      textoAviso = "Em prazo";
-      corAviso = corSecundaria;
+      corFaixaLateral = Colors.orange;
+      textoAviso = "EM ANDAMENTO";
+      corAviso = Colors.orange;
     }
 
-    // 3. Renderização do Card
-    return Card(
-      elevation: 4,
+    // Cor da data de entrega baseada no status
+    final Color corDataEntrega = isAtrasado
+        ? corPrincipal
+        : (isConcluido ? Colors.blue : Colors.white);
+
+    // 3. Renderização do Card (Design Novo)
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Colors.transparent,
-      child: InkWell(
+      decoration: BoxDecoration(
+        color: corCard,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
         onTap: () {
           Navigator.push(
             context,
@@ -425,135 +464,156 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
             ),
           ).then((_) => _carregarOrcamentos(true));
         },
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              stops: const [0.02, 0.02], // Cria o efeito de faixa lateral
-              colors: [corFaixaLateral, corCard],
-            ),
-            border: Border.all(
-              color: isConcluido
-                  ? corAviso.withValues(alpha: 0.2)
-                  : Colors.white10,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 12, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // --- BARRA LATERAL ---
+              Container(width: 6, color: corFaixaLateral),
+
+              // --- CONTEÚDO ---
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Cabeçalho: Status Badge e Datas (Entrada -> Entrega)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Nome do Cliente
+                          // Status Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: corAviso.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: corAviso.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Text(
+                              textoAviso,
+                              style: TextStyle(
+                                color: corAviso,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+
+                          // Datas: Entrada -> Seta -> Entrega
                           Row(
                             children: [
+                              // Entrada
                               Icon(
-                                Icons.person,
-                                size: 16,
-                                color: corSecundaria,
+                                Icons.calendar_today,
+                                size: 12,
+                                color: corTextoCinza,
                               ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  clienteNome,
-                                  style: TextStyle(
-                                    color: corTextoCinza,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                              const SizedBox(width: 4),
+                              Text(
+                                dataEntradaFormatada,
+                                style: TextStyle(
+                                  color: corTextoCinza,
+                                  fontSize: 12,
+                                ),
+                              ),
+
+                              // Seta
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 6),
+                                child: Icon(
+                                  Icons.arrow_forward,
+                                  size: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+
+                              // Entrega
+                              Icon(
+                                Icons.event_available,
+                                size: 12,
+                                color: corTextoCinza,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                dataEntregaFormatada,
+                                style: TextStyle(
+                                  color: corDataEntrega,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
                             ],
                           ),
-                          // Badge de Status (Texto + Ícone pequeno)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isConcluido
-                                      ? Icons.check_circle
-                                      : Icons.info_outline,
-                                  color: corAviso,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  textoAviso.toUpperCase(),
-                                  style: TextStyle(
-                                    color: corAviso,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Título do Serviço
+                      Text(
+                        titulo,
+                        style: TextStyle(
+                          color: isConcluido ? Colors.white54 : Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          decoration: isConcluido
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // Nome do Cliente
+                      Row(
+                        children: [
+                          Icon(Icons.person, size: 14, color: corSecundaria),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              clienteNome,
+                              style: TextStyle(
+                                color: corTextoCinza,
+                                fontSize: 14,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    // Data de Criação
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+
+                      const SizedBox(height: 16),
+                      const Divider(color: Colors.white10, height: 1),
+                      const SizedBox(height: 8),
+
+                      // Valor (Rodapé)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            valorFormatado,
+                            style: TextStyle(
+                              color: valor != null ? Colors.amber : Colors.grey,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.black38,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        dataFormatada,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Divider(color: Colors.white10, height: 1),
-                const SizedBox(height: 8),
-                // Título do Orçamento
-                Text(
-                  titulo,
-                  style: TextStyle(
-                    color: isConcluido ? Colors.white70 : Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    decoration: isConcluido ? TextDecoration.lineThrough : null,
+                    ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                // Valor e Seta
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      valorFormatado,
-                      style: TextStyle(
-                        color: isConcluido ? corAviso : corValor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: Colors.white24,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

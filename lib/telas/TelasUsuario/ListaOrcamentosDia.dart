@@ -22,7 +22,7 @@ class ListaOrcamentosDia extends StatefulWidget {
 class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
-  final Color corPrincipal = Colors.red[900]!;
+  final Color corPrincipal = Colors.blue[900]!;
 
   late Future<List<Map<String, dynamic>>> _futureOrcamentos;
   List<Map<String, dynamic>> _listaParaRota = [];

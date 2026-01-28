@@ -31,7 +31,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
 
   // Paleta de cores local
   final Color corFundo = Colors.black;
-  final Color corPrincipal = Colors.red[900]!;
+  final Color corPrincipal = Colors.blue[900]!;
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
   final Color corHoje = Colors.amber;

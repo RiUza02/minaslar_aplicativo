@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:minaslar/modelos/Orcamento.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'DetalhesCliente.dart';
 import '../../modelos/Cliente.dart';
+import '../../modelos/Orcamento.dart';
 
 // ==================================================
 // TELA DE DETALHES DO ORÇAMENTO
@@ -26,9 +26,9 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   String _nomeCliente = 'Cliente desconhecido';
   bool _isLoading = false;
 
-  // Paleta de Cores
-  final Color corPrincipal = Colors.red[900]!;
-  final Color corSecundaria = Colors.blue[300]!;
+  // Paleta de Cores - TEMA AZUL
+  final Color corPrincipal = Colors.blue[900]!; // Alterado para Azul Escuro
+  final Color corSecundaria = Colors.cyan[400]!; // Azul claro/Ciano
   final Color corComplementar = Colors.green[400]!;
   final Color corAlerta = Colors.redAccent;
   final Color corFundo = Colors.black;
@@ -51,7 +51,6 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   /// Processa o mapa do cliente com tratamento de tipos seguro
   void _processarDadosCliente(Map<String, dynamic> map) {
     if (map['clientes'] != null && map['clientes'] is Map) {
-      // Cast explícito para Map<String, dynamic> para evitar erro de tipo
       final Map<String, dynamic> dadosCliente = Map<String, dynamic>.from(
         map['clientes'],
       );
@@ -113,7 +112,6 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   Widget build(BuildContext context) {
     // Tratamento de nulos para campos opcionais
     final bool isConcluido = _orcamentoObj.entregue;
-    // Garante que horário tenha valor padrão se vier nulo
     final String horario = _orcamentoObj.horarioDoDia;
     final bool isTarde = horario.toLowerCase() == 'tarde';
     final bool ehRetorno = _orcamentoObj.ehRetorno;
@@ -138,26 +136,28 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
       isAtrasado = !isConcluido && dataEntregaApenas.isBefore(dataHojeApenas);
     }
 
-    // NOVA LÓGICA DE COR DA BORDA
+    // Lógica de Cor da Borda Lateral
     Color corBordaPrincipal;
     if (isConcluido) {
-      corBordaPrincipal = corSecundaria; // Azul
+      corBordaPrincipal = corPrincipal; // Verde
     } else if (ehRetorno) {
-      corBordaPrincipal = corComplementar; // Verde
+      corBordaPrincipal = corComplementar; // Roxo para retorno
     } else if (isAtrasado) {
       corBordaPrincipal = corAlerta; // Vermelho
     } else if (_orcamentoObj.dataEntrega == null) {
-      corBordaPrincipal = Colors.white; // Branco
+      corBordaPrincipal = Colors.grey; // Cinza
     } else {
-      corBordaPrincipal = corSecundaria; // Azul (Em prazo)
+      corBordaPrincipal = Colors.orange; // Azul (Em prazo)
     }
 
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
-        title: const Text("Detalhes do Orçamento"),
+        title: const Text("Detalhes do Serviço"),
         backgroundColor: corPrincipal,
         centerTitle: true,
+        elevation: 0,
+        // Actions removidas (sem editar/excluir)
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
@@ -165,7 +165,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // CARD PRINCIPAL (Título e Valor)
+                  // CARD PRINCIPAL: Título e Descrição (Valor removido)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
@@ -175,23 +175,58 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                       border: Border(
                         left: BorderSide(color: corBordaPrincipal, width: 6),
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _orcamentoObj.titulo,
-                          textAlign: TextAlign.center,
+                        // Título
+                        Center(
+                          child: Text(
+                            _orcamentoObj.titulo,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: corTextoClaro,
+                              decoration: isConcluido
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(color: Colors.white24),
+                        const SizedBox(height: 16),
+
+                        // Descrição no lugar do valor
+                        const Text(
+                          "DESCRIÇÃO DO SERVIÇO",
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: corTextoClaro,
-                            decoration: isConcluido
-                                ? TextDecoration.lineThrough
-                                : null,
+                            color: Colors.blueGrey,
+                            letterSpacing: 1.0,
                           ),
                         ),
                         const SizedBox(height: 8),
+                        Text(
+                          (_orcamentoObj.descricao != null &&
+                                  _orcamentoObj.descricao!.isNotEmpty)
+                              ? _orcamentoObj.descricao!
+                              : "Sem descrição detalhada.",
+                          style: TextStyle(
+                            fontSize: 15,
+                            height: 1.4,
+                            color: Colors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -241,10 +276,6 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // DESCRIÇÃO (Agora aceita null e trata corretamente)
-                  _secaoDescricao(_orcamentoObj.descricao),
 
                   const SizedBox(height: 80),
                 ],
@@ -270,7 +301,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.person, color: Colors.blue),
+            Icon(Icons.person, color: corSecundaria),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -316,42 +347,6 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// CORREÇÃO: Parâmetro `desc` agora é `String?` para aceitar nulos
-  Widget _secaoDescricao(String? desc) {
-    final temDescricao = desc != null && desc.isNotEmpty;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: corCard,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "DESCRIÇÃO DO SERVIÇO",
-            style: TextStyle(
-              color: corSecundaria,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-          const Divider(color: Colors.white10, height: 24),
-          Text(
-            temDescricao ? desc : "Nenhuma descrição informada.",
-            style: TextStyle(
-              color: temDescricao ? Colors.white70 : Colors.white24,
-              fontSize: 16,
-              fontStyle: temDescricao ? FontStyle.normal : FontStyle.italic,
             ),
           ),
         ],

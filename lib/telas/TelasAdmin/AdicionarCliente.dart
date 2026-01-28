@@ -194,6 +194,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           flex: 6, // Ocupa 1/4 da largura
                           child: _buildTextField(
                             controller: _numeroController,
+                            keyboardType: TextInputType.number,
                             label: 'Nº',
                             icon: Icons.home_filled,
                             validator: (v) =>

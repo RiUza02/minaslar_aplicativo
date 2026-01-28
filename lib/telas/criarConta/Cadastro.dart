@@ -9,78 +9,178 @@ class Cadastro extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Criar Conta'), centerTitle: true),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            const Spacer(),
+    // Cores do padrão visual
+    final Color corFundo = Colors.black;
+    final Color corCard = const Color(0xFF1E1E1E);
+    final Color corTextoCinza = Colors.grey[500]!;
 
-            /// Título principal da tela
+    return Scaffold(
+      backgroundColor: corFundo,
+      appBar: AppBar(
+        title: const Text(
+          'TIPO DE CONTA',
+          style: TextStyle(
+            fontSize: 14,
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Spacer(flex: 1),
+
+            // Título e Subtítulo
             const Text(
-              'Escolha o tipo de conta',
-              style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              'Vamos começar',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Escolha como você deseja se cadastrar no sistema.',
+              style: TextStyle(color: corTextoCinza, fontSize: 16),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
 
             // ==================================================
-            // BOTÃO: CADASTRO DE CONTA ADMINISTRADOR
+            // CARD: ADMINISTRADOR
             // ==================================================
-            SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.admin_panel_settings),
-                label: const Text(
-                  'Administrador',
-                  style: TextStyle(fontSize: 20),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () {
-                  // Navega para a tela de cadastro de administrador
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CadastroAdmin()),
-                  );
-                },
-              ),
+            _buildSelectionCard(
+              context: context,
+              title: "Administrador",
+              subtitle: "Gerenciar sistema",
+              icon: Icons.admin_panel_settings,
+              color: Colors.red[900]!,
+              cardColor: corCard,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CadastroAdmin()),
+                );
+              },
             ),
 
             const SizedBox(height: 20),
 
             // ==================================================
-            // BOTÃO: CADASTRO DE CONTA DE USUÁRIO COMUM
+            // CARD: USUÁRIO COMUM
             // ==================================================
-            SizedBox(
-              width: double.infinity,
-              height: 60,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.person),
-                label: const Text(
-                  'Usuário Comum',
-                  style: TextStyle(fontSize: 20),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () {
-                  // Navega para a tela de cadastro de usuário comum
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const CadastroUsuario()),
-                  );
-                },
-              ),
+            _buildSelectionCard(
+              context: context,
+              title: "Usuário Comum",
+              subtitle: "Acesso padrão",
+              icon: Icons.person,
+              color: Colors.blue[900]!,
+              cardColor: corCard,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CadastroUsuario()),
+                );
+              },
             ),
 
-            const Spacer(),
+            const Spacer(flex: 2),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Widget auxiliar para construir os cartões de seleção
+  Widget _buildSelectionCard({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required Color cardColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: color.withValues(alpha: 0.2),
+        highlightColor: color.withValues(alpha: 0.1),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.05),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Ícone Circular
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: color, // Usa a cor principal (Vermelho ou Azul)
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 20),
+
+              // Textos
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Seta indicativa
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.grey[600],
+                size: 18,
+              ),
+            ],
+          ),
         ),
       ),
     );

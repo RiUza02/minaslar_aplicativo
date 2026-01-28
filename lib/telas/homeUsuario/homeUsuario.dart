@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// Importe as telas que eram usadas no Admin (ajuste os caminhos se necessário)
 import 'ListaClienteUsuario.dart';
 import 'CalendarioUsuario.dart';
 import 'ListaOrcamentos.dart';
@@ -17,18 +16,13 @@ class _HomeUsuarioState extends State<HomeUsuario> {
   // ESTADO E CONTROLADORES DE NAVEGAÇÃO
   // ==================================================
 
-  // Inicia na página 1 (Painel)
-  final PageController _pageController = PageController(initialPage: 1);
+  // Agora inicia na página 0 (Painel/Dashboard)
+  final PageController _pageController = PageController(
+    initialPage: 1,
+  ); // Dashboard continua sendo o primeiro item
 
-  // Índices:
-  // 0: Agenda
-  // 1: Painel (Orçamentos do Dia)
-  // 2: Clientes
-  // 3: Orçamentos (Lista Geral)
+  // 0: Painel | 1: Agenda | 2: Clientes | 3: Orçamentos
   int _selectedIndex = 1;
-
-  // TEMA AZUL (Diferente do Admin que é Vermelho)
-  final Color corTema = Colors.blue[900]!;
 
   void _navegarParaPagina(int index) {
     setState(() {
@@ -53,64 +47,58 @@ class _HomeUsuarioState extends State<HomeUsuario> {
     super.dispose();
   }
 
-  // ==================================================
-  // CONSTRUÇÃO DA TELA
-  // ==================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Fundo geral escuro
-      // CORPO COM AS TELAS (PageView)
+      // ==================================================
+      // ESTRUTURA DE PÁGINAS (BODY)
+      // ==================================================
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        physics:
-            const NeverScrollableScrollPhysics(), // Navegação apenas pela barra inferior
         children: [
-          // 0: Agenda
+          // Index 0: Visualização do Calendário
           const AgendaCalendario(),
-
-          // 1: Painel (Lista do Dia - Apenas Pendentes para foco)
+          // Index 1: Novo Painel (Placeholder)
           ListaOrcamentosDia(
             dataSelecionada: DateTime.now(),
-            apenasPendentes: true,
-          ),
-
-          // 2: Clientes
-          const ListaClientes(), // Usando a mesma lista do Admin
-          // 3: Orçamentos (Geral)
+            apenasPendentes: true, // Isso faz o Painel filtrar os entregues
+          ), // Index 2: Gestão de Clientes
+          const ListaClientes(),
+          // Index 3: Gestão de Orçamentos
           const ListaOrcamentos(),
         ],
       ),
 
+      // ==================================================
       // BARRA DE NAVEGAÇÃO INFERIOR
+      // ==================================================
       bottomNavigationBar: Theme(
-        // Aplica o tema azul na barra
-        data: Theme.of(context).copyWith(canvasColor: corTema),
+        data: Theme.of(context).copyWith(canvasColor: Colors.blue[900]),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _navegarParaPagina,
-          backgroundColor: corTema,
+          backgroundColor: Colors.blue[900],
           selectedItemColor: Colors.white,
           unselectedItemColor: Colors.white60,
           type: BottomNavigationBarType.fixed,
           items: const [
-            // Item 0
+            // Item 0: Agenda
             BottomNavigationBarItem(
               icon: Icon(Icons.calendar_month),
               label: 'Agenda',
             ),
-            // Item 1
+            // Item 1: Novo Painel
             BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
+              icon: Icon(Icons.bar_chart), // Ícone diferente para distinção
               label: 'Painel',
             ),
-            // Item 2
+            // Item 2: Clientes (Deslocado)
             BottomNavigationBarItem(
               icon: Icon(Icons.people),
               label: 'Clientes',
             ),
-            // Item 3
+            // Item 3: Orçamentos (Deslocado)
             BottomNavigationBarItem(
               icon: Icon(Icons.monetization_on),
               label: 'Orçamentos',

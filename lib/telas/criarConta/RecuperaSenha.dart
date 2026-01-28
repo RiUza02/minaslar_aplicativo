@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
-import 'RecuperaSenha.dart';
-import 'Cadastro.dart';
-import '../../servicos/roteador.dart';
 
-/// Tela responsável pelo login do usuário
-class Login extends StatefulWidget {
-  const Login({super.key});
+/// Tela responsável pela recuperação de senha via e-mail
+class RecuperarSenha extends StatefulWidget {
+  const RecuperarSenha({super.key});
 
   @override
-  State<Login> createState() => _LoginState();
+  State<RecuperarSenha> createState() => _RecuperarSenhaState();
 }
 
-class _LoginState extends State<Login> {
-  /// Controladores dos campos de entrada
+class _RecuperarSenhaState extends State<RecuperarSenha> {
+  /// Controller do campo de e-mail
   final _emailController = TextEditingController();
-  final _senhaController = TextEditingController();
 
   /// Chave do formulário para validação
   final _formKey = GlobalKey<FormState>();
@@ -23,59 +19,68 @@ class _LoginState extends State<Login> {
   /// Serviço de autenticação (Supabase)
   final AuthService _authService = AuthService();
 
-  /// Controla exibição do loading
+  /// Controla o estado de carregamento da tela
   bool _isLoading = false;
 
-  /// Cores do tema (Consistente com a tela anterior)
+  /// Cores do tema
   final Color _corFundo = Colors.black;
   final Color _corCard = const Color(0xFF1E1E1E);
   final Color _corInput = Colors.black26;
 
-  /// Realiza o login do usuário
-  Future<void> _fazerLogin() async {
-    // Valida todos os campos do formulário
+  // ============================================================
+  // ENVIA O E-MAIL DE RECUPERAÇÃO DE SENHA
+  // ============================================================
+  Future<void> _enviarEmailRecuperacao() async {
+    // Valida o formulário antes de prosseguir
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // Tenta autenticar no Supabase
-      String? erro = await _authService.loginUsuario(
-        email: _emailController.text,
-        password: _senhaController.text,
+      // Solicita ao Supabase o envio do e-mail de recuperação
+      String? erro = await _authService.recuperarSenha(
+        email: _emailController.text.trim(),
       );
-
-      // Garante que a tela ainda está montada
-      if (!mounted) return;
 
       setState(() => _isLoading = false);
 
-      // Caso ocorra erro no login
-      if (erro != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              erro,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+      // Caso não haja erro, exibe mensagem de sucesso
+      if (erro == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'E-mail de recuperação enviado! Verifique sua caixa de entrada.',
+                style: TextStyle(fontSize: 15),
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
             ),
-            backgroundColor: const Color.fromARGB(255, 255, 110, 110),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+          );
+          // Retorna para a tela anterior (login)
+          Navigator.pop(context);
+        }
       } else {
-        // Login bem-sucedido
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const Roteador()),
-          (route) => false,
-        );
+        // Caso haja erro, exibe mensagem de falha
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(erro, style: const TextStyle(fontSize: 15)),
+              backgroundColor: const Color.fromARGB(255, 255, 110, 110),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     }
   }
 
-  /// Padrão visual moderno dos campos de texto
-  InputDecoration _buildInputDecoration(String label, IconData icon) {
+  // ============================================================
+  // PADRONIZA A DECORAÇÃO DOS CAMPOS DE TEXTO
+  // ============================================================
+  InputDecoration _buildInputDecoration(String label) {
     return InputDecoration(
       labelText: label,
       labelStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-      prefixIcon: Icon(icon, color: Colors.blue[700]),
+      prefixIcon: Icon(Icons.email_outlined, color: Colors.blue[700]),
       filled: true,
       fillColor: _corInput,
       contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
@@ -102,6 +107,20 @@ class _LoginState extends State<Login> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _corFundo,
+      appBar: AppBar(
+        title: const Text(
+          "RECUPERAÇÃO",
+          style: TextStyle(
+            fontSize: 14,
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return SingleChildScrollView(
@@ -136,7 +155,7 @@ class _LoginState extends State<Login> {
                           key: _formKey,
                           child: Column(
                             children: [
-                              /// Ícone ilustrativo no topo
+                              /// Ícone ilustrativo
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
@@ -144,34 +163,40 @@ class _LoginState extends State<Login> {
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
-                                  Icons.lock_person_rounded,
+                                  Icons.lock_reset_rounded,
                                   size: 48,
                                   color: Colors.blue[700],
                                 ),
                               ),
 
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 20),
 
                               /// Título da tela
                               const Text(
-                                "Bem-vindo",
+                                "Esqueceu a senha?",
                                 style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
+
+                              const SizedBox(height: 10),
+
+                              /// Texto explicativo
                               Text(
-                                "Faça login para continuar",
+                                "Não se preocupe. Digite seu e-mail abaixo e enviaremos um link para redefinir sua senha.",
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey[500],
+                                  color: Colors.grey[400],
+                                  height: 1.5,
                                 ),
                               ),
 
                               const SizedBox(height: 32),
 
-                              /// Campo de e-mail
+                              /// Campo de entrada do e-mail
                               TextFormField(
                                 cursorColor: Colors.blue,
                                 controller: _emailController,
@@ -180,35 +205,20 @@ class _LoginState extends State<Login> {
                                   fontSize: 15,
                                 ),
                                 decoration: _buildInputDecoration(
-                                  'E-mail',
-                                  Icons.email_outlined,
+                                  'E-mail Cadastrado',
                                 ),
-                                validator: (v) =>
-                                    v!.isEmpty ? 'Digite seu e-mail' : null,
+                                keyboardType: TextInputType.emailAddress,
+                                validator: (v) {
+                                  if (v!.isEmpty) return 'Informe o e-mail';
+                                  if (!v.contains('@'))
+                                    return 'E-mail inválido';
+                                  return null;
+                                },
                               ),
 
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 24),
 
-                              /// Campo de senha
-                              TextFormField(
-                                cursorColor: Colors.blue,
-                                controller: _senhaController,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                ),
-                                decoration: _buildInputDecoration(
-                                  'Senha',
-                                  Icons.lock_outline,
-                                ),
-                                obscureText: true,
-                                validator: (v) =>
-                                    v!.isEmpty ? 'Digite sua senha' : null,
-                              ),
-
-                              const SizedBox(height: 30),
-
-                              /// Botão de login ou indicador de carregamento
+                              /// Botão ou indicador de carregamento
                               _isLoading
                                   ? const CircularProgressIndicator(
                                       color: Colors.blue,
@@ -227,11 +237,11 @@ class _LoginState extends State<Login> {
                                             ),
                                           ),
                                         ),
-                                        onPressed: _fazerLogin,
+                                        onPressed: _enviarEmailRecuperacao,
                                         child: const Text(
-                                          'ENTRAR',
+                                          'ENVIAR LINK',
                                           style: TextStyle(
-                                            fontSize: 18,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.bold,
                                             letterSpacing: 1,
                                           ),
@@ -243,63 +253,7 @@ class _LoginState extends State<Login> {
                         ),
                       ),
 
-                      const Spacer(),
-
-                      // Divisor discreto
-                      Divider(color: Colors.white.withValues(alpha: 0.1)),
-                      const SizedBox(height: 10),
-
-                      /// Área inferior com ações secundárias
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          /// Criar conta
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const Cadastro(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              "Criar nova conta",
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-
-                          Container(
-                            height: 20,
-                            width: 1,
-                            color: Colors.white24,
-                          ),
-
-                          /// Recuperar senha
-                          TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const RecuperarSenha(),
-                                ),
-                              );
-                            },
-                            child: Text(
-                              "Esqueci a senha",
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
+                      const Spacer(flex: 2),
                     ],
                   ),
                 ),

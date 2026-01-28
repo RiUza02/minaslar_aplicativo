@@ -12,6 +12,16 @@ class CadastroAdmin extends StatefulWidget {
 }
 
 class _CadastroAdminState extends State<CadastroAdmin> {
+  // ==================================================
+  // CONFIGURAÇÕES VISUAIS (PADRÃO DARK)
+  // ==================================================
+  final Color corFundo = Colors.black;
+  final Color corCard = const Color(0xFF1E1E1E);
+  final Color corPrincipal = Colors.red[900]!;
+  final Color corSecundaria = Colors.blue[300]!;
+  final Color corTextoCinza = Colors.grey[500]!;
+  final Color corTextoBranco = Colors.white;
+
   /// Chave do formulário para validações
   final _formKey = GlobalKey<FormState>();
 
@@ -104,14 +114,20 @@ class _CadastroAdminState extends State<CadastroAdmin> {
 
   @override
   Widget build(BuildContext context) {
-    const Color corAdmin = Colors.red;
-
     return Scaffold(
+      backgroundColor: corFundo,
       appBar: AppBar(
-        title: const Text('Novo Administrador'),
+        title: const Text(
+          'Novo Administrador',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
-        backgroundColor: corAdmin,
+        backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -120,256 +136,306 @@ class _CadastroAdminState extends State<CadastroAdmin> {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: IntrinsicHeight(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(20.0),
                   child: Form(
                     key: _formKey,
                     child: Column(
                       children: [
-                        const Icon(
+                        // Cabeçalho da Tela
+                        const SizedBox(height: 10),
+                        Icon(
                           Icons.admin_panel_settings,
-                          size: 80,
-                          color: corAdmin,
+                          size: 50,
+                          color: corPrincipal,
                         ),
-
-                        const SizedBox(height: 20),
-
-                        /// Nome
-                        TextFormField(
-                          controller: _nomeController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nome Completo',
-                            prefixIcon: Icon(Icons.person, color: corAdmin),
-                          ),
-                          validator: (v) =>
-                              v!.isEmpty ? 'Informe o nome' : null,
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        /// E-mail
-                        TextFormField(
-                          controller: _emailController,
-                          decoration: const InputDecoration(
-                            labelText: 'E-mail',
-                            prefixIcon: Icon(Icons.email, color: corAdmin),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          onChanged: (_) {
-                            if (_erroEmailJaCadastrado != null) {
-                              setState(() => _erroEmailJaCadastrado = null);
-                            }
-                          },
-                          validator: (v) {
-                            if (!v!.contains('@')) return 'E-mail inválido';
-                            return _erroEmailJaCadastrado;
-                          },
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        /// Telefone
-                        TextFormField(
-                          controller: _telefoneController,
-                          inputFormatters: [maskFormatter],
-                          decoration: const InputDecoration(
-                            labelText: 'Telefone / Celular',
-                            prefixIcon: Icon(Icons.phone, color: corAdmin),
-                            hintText: '(32) 12345-6789',
-                          ),
-                          keyboardType: TextInputType.phone,
-                          onChanged: (v) {
-                            setState(() {
-                              _telefoneValido = v.length >= 15;
-                            });
-                          },
-                          validator: (v) {
-                            if (v!.isEmpty) return 'Informe o telefone';
-                            if (v.length < 15) return 'Telefone incompleto';
-                            return null;
-                          },
-                        ),
-
                         const SizedBox(height: 8),
+                        Text(
+                          "PREENCHA OS DADOS",
+                          style: TextStyle(
+                            color: corTextoCinza,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
 
-                        /// Indicador visual de telefone válido
-                        Row(
-                          children: [
-                            Icon(
-                              _telefoneValido
-                                  ? Icons.check_circle
-                                  : Icons.cancel,
-                              color: _telefoneValido
-                                  ? Colors.green
-                                  : Colors.red,
-                              size: 16,
+                        // =====================================================
+                        // BLOCO 1: DADOS PESSOAIS (Nome, Email, Telefone)
+                        // =====================================================
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: corCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.05),
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Mínimo de 11 dígitos',
-                              style: TextStyle(
-                                color: _telefoneValido
-                                    ? Colors.green
-                                    : Colors.red,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle(
+                                "DADOS PESSOAIS",
+                                Icons.person,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+
+                              // Nome
+                              _buildTextField(
+                                controller: _nomeController,
+                                label: 'Nome Completo',
+                                icon: Icons.person_outline,
+                                backgroundColor: Colors.black26,
+                                validator: (v) =>
+                                    v!.isEmpty ? 'Informe o nome' : null,
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Email
+                              _buildTextField(
+                                controller: _emailController,
+                                label: 'E-mail',
+                                icon: Icons.email_outlined,
+                                backgroundColor: Colors.black26,
+                                keyboardType: TextInputType.emailAddress,
+                                onChanged: (_) {
+                                  if (_erroEmailJaCadastrado != null) {
+                                    setState(
+                                      () => _erroEmailJaCadastrado = null,
+                                    );
+                                  }
+                                },
+                                validator: (v) {
+                                  if (!v!.contains('@')) {
+                                    return 'E-mail inválido';
+                                  }
+                                  return _erroEmailJaCadastrado;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Telefone
+                              _buildTextField(
+                                controller: _telefoneController,
+                                label: 'Telefone / Celular',
+                                icon: Icons.phone_android,
+                                backgroundColor: Colors.black26,
+                                hintText: '(32) 12345-6789',
+                                inputFormatters: [maskFormatter],
+                                keyboardType: TextInputType.phone,
+                                onChanged: (v) {
+                                  setState(() {
+                                    _telefoneValido = v.length >= 15;
+                                  });
+                                },
+                                validator: (v) {
+                                  if (v!.isEmpty) return 'Informe o telefone';
+                                  if (v.length < 15) {
+                                    return 'Telefone incompleto';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              // Validação Visual Telefone
+                              const SizedBox(height: 8),
+                              _buildValidationIndicator(
+                                isValid: _telefoneValido,
+                                text: 'Mínimo de 11 dígitos',
+                              ),
+                            ],
+                          ),
                         ),
 
                         const SizedBox(height: 20),
 
-                        /// Senha
-                        TextFormField(
-                          controller: _senhaController,
-                          obscureText: !_mostrarSenha,
-                          decoration: InputDecoration(
-                            labelText: 'Senha',
-                            prefixIcon: const Icon(Icons.lock, color: corAdmin),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _mostrarSenha
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _mostrarSenha = !_mostrarSenha;
-                                });
-                              },
+                        // =====================================================
+                        // BLOCO 2: SEGURANÇA (Senhas)
+                        // =====================================================
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: corCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.05),
                             ),
                           ),
-                          onChanged: (v) {
-                            setState(() {
-                              _senhaValida = v.length >= 6;
-                            });
-                          },
-                          validator: (v) => v!.length < 6
-                              ? 'A senha deve ter no mínimo 6 caracteres'
-                              : null,
-                        ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle("SEGURANÇA", Icons.lock),
+                              const SizedBox(height: 16),
 
-                        const SizedBox(height: 8),
-
-                        /// Indicador visual de senha válida
-                        Row(
-                          children: [
-                            Icon(
-                              _senhaValida ? Icons.check_circle : Icons.cancel,
-                              color: _senhaValida ? Colors.green : Colors.red,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Mínimo de 6 caracteres',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: _senhaValida ? Colors.green : Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        /// Confirmação de senha
-                        TextFormField(
-                          controller: _confirmaSenhaController,
-                          obscureText: !_mostrarConfirmaSenha,
-                          decoration: InputDecoration(
-                            labelText: 'Confirmar Senha',
-                            prefixIcon: const Icon(
-                              Icons.lock_outline,
-                              color: corAdmin,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _mostrarConfirmaSenha
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _mostrarConfirmaSenha =
-                                      !_mostrarConfirmaSenha;
-                                });
-                              },
-                            ),
-                          ),
-                          onChanged: (value) {
-                            setState(() {});
-                          },
-                          validator: (v) {
-                            if (v!.isEmpty) return 'Confirme sua senha';
-                            if (v != _senhaController.text) {
-                              return 'As senhas não coincidem';
-                            }
-                            return null;
-                          },
-                        ),
-
-                        // Exibe o erro visualmente logo abaixo do campo
-                        if (_confirmaSenhaController.text.isNotEmpty &&
-                            _confirmaSenhaController.text !=
-                                _senhaController.text)
-                          Padding(
-                            padding: const EdgeInsets.only(
-                              top: 6.0,
-                              left: 12.0,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.error_outline,
-                                  color: Colors.red[700],
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  "As senhas não coincidem",
-                                  style: TextStyle(
-                                    color: Colors.red[700],
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
+                              // Senha
+                              _buildTextField(
+                                controller: _senhaController,
+                                label: 'Senha',
+                                icon: Icons.lock_outline,
+                                backgroundColor: Colors.black26,
+                                obscureText: !_mostrarSenha,
+                                onChanged: (v) {
+                                  setState(() {
+                                    _senhaValida = v.length >= 6;
+                                  });
+                                },
+                                validator: (v) => v!.length < 6
+                                    ? 'Mínimo de 6 caracteres'
+                                    : null,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _mostrarSenha
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    color: corTextoCinza,
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _mostrarSenha = !_mostrarSenha,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+
+                              const SizedBox(height: 8),
+                              _buildValidationIndicator(
+                                isValid: _senhaValida,
+                                text: 'Mínimo de 6 caracteres',
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Confirmar Senha
+                              _buildTextField(
+                                controller: _confirmaSenhaController,
+                                label: 'Confirmar Senha',
+                                icon: Icons.lock_reset,
+                                backgroundColor: Colors.black26,
+                                obscureText: !_mostrarConfirmaSenha,
+                                onChanged: (value) => setState(() {}),
+                                validator: (v) {
+                                  if (v!.isEmpty) return 'Confirme sua senha';
+                                  if (v != _senhaController.text) {
+                                    return 'As senhas não coincidem';
+                                  }
+                                  return null;
+                                },
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _mostrarConfirmaSenha
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    color: corTextoCinza,
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _mostrarConfirmaSenha =
+                                        !_mostrarConfirmaSenha,
+                                  ),
+                                ),
+                              ),
+
+                              // Erro visual de senha não coincidente
+                              if (_confirmaSenhaController.text.isNotEmpty &&
+                                  _confirmaSenhaController.text !=
+                                      _senhaController.text)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    top: 8.0,
+                                    left: 4.0,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        color: Colors.red[700],
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        "As senhas não coincidem",
+                                        style: TextStyle(
+                                          color: Colors.red[700],
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
+                        ),
 
                         const SizedBox(height: 20),
 
-                        /// Código de segurança da empresa
-                        TextFormField(
-                          controller: _codigoSegurancaController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Código de Segurança da Empresa',
-                            prefixIcon: Icon(Icons.vpn_key, color: corAdmin),
+                        // =====================================================
+                        // BLOCO 3: ÁREA RESTRITA (Código Empresa)
+                        // =====================================================
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: corCard,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.05),
+                            ),
                           ),
-                          validator: (v) =>
-                              v != '123456' ? 'Código incorreto' : null,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle(
+                                "ÁREA RESTRITA",
+                                Icons.vpn_key,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildTextField(
+                                controller: _codigoSegurancaController,
+                                label: 'Código da Empresa',
+                                icon: Icons.security,
+                                backgroundColor: Colors.black26,
+                                obscureText: true,
+                                validator: (v) =>
+                                    v != '123456' ? 'Código incorreto' : null,
+                              ),
+                            ],
+                          ),
                         ),
 
-                        const Spacer(),
+                        const SizedBox(height: 40),
 
+                        // Botão de Criar Conta
                         SizedBox(
                           width: double.infinity,
+                          height: 55,
                           child: _isLoading
-                              ? const Center(child: CircularProgressIndicator())
+                              ? Center(
+                                  child: CircularProgressIndicator(
+                                    color: corPrincipal,
+                                  ),
+                                )
                               : ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: corAdmin,
+                                    backgroundColor: corPrincipal,
                                     foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 15,
+                                    elevation: 8,
+                                    shadowColor: corPrincipal.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
                                   onPressed: _cadastrarAdmin,
-                                  child: const Text('CRIAR CONTA'),
+                                  child: const Text(
+                                    'CRIAR CONTA',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
                                 ),
                         ),
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
@@ -379,6 +445,106 @@ class _CadastroAdminState extends State<CadastroAdmin> {
           );
         },
       ),
+    );
+  }
+
+  // ==================================================
+  // WIDGETS AUXILIARES
+  // ==================================================
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: corTextoCinza, size: 16),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: corTextoCinza,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+    List<MaskTextInputFormatter>? inputFormatters,
+    String? Function(String?)? validator,
+    void Function(String)? onChanged,
+    Widget? suffixIcon,
+    String? hintText,
+    Color? backgroundColor,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      onChanged: onChanged,
+      validator: validator,
+      style: TextStyle(color: corTextoBranco),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        hintStyle: TextStyle(color: corTextoCinza.withValues(alpha: 0.5)),
+        labelStyle: TextStyle(color: corTextoCinza),
+        prefixIcon: Icon(icon, color: corSecundaria),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: backgroundColor ?? corCard,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: corSecundaria),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildValidationIndicator({
+    required bool isValid,
+    required String text,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.cancel,
+          color: isValid ? Colors.greenAccent : Colors.redAccent,
+          size: 14,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            color: isValid ? Colors.greenAccent : Colors.redAccent,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

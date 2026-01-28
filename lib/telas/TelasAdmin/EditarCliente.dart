@@ -117,11 +117,10 @@ class _EditarClienteState extends State<EditarCliente> {
           .from('clientes')
           .update({
             'nome': _nomeController.text.trim(),
-            'telefone': maskTelefone.getUnmaskedText(),
+            'telefone': _telefoneController.text.trim(),
             'rua': _ruaController.text.trim(),
             'numero': _numeroController.text.trim(),
             'bairro': _bairroController.text.trim(),
-            // Envia null caso os campos opcionais estejam vazios
             'cpf': _cpfController.text.isEmpty
                 ? null
                 : _cpfController.text.trim(),

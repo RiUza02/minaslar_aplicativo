@@ -23,7 +23,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   // ===========================================================================
   // PALETA DE CORES E ESTILOS
   // ===========================================================================
-  final Color corPrincipal = Colors.red[900]!;
+  final Color corPrincipal = Colors.blue[900]!;
   final Color corSecundaria = Colors.blue[300]!;
   final Color corComplementar = Colors.green[400]!;
   final Color corAlerta = Colors.redAccent;
