@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart'; // Importante para ações rápidas
+import 'package:url_launcher/url_launcher.dart';
 import 'DetalhesOrcamento.dart';
 import 'AdicionarOrcamento.dart';
+import '../homeAdmin/configuracoes.dart';
 import '../../modelos/Cliente.dart';
 import '../../servicos/ListagemClientes.dart';
 import '../../servicos/autenticacao.dart';
@@ -10,13 +11,18 @@ import '../../servicos/CalculaRota.dart';
 
 class ListaOrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
-  // Flag para controlar se mostra tudo ou só pendentes
   final bool apenasPendentes;
+  final bool mostrarLogout;
+  final bool mostrarConfiguracoes;
+  final bool nostrarTitulo;
 
   const ListaOrcamentosDia({
     super.key,
     required this.dataSelecionada,
-    this.apenasPendentes = false, // Padrão false (mostra tudo)
+    this.apenasPendentes = false,
+    this.mostrarLogout = false,
+    this.mostrarConfiguracoes = false,
+    this.nostrarTitulo = true,
   });
 
   @override
@@ -47,9 +53,9 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     });
   }
 
-  // ==================================================
-  // LÓGICA DE DADOS (Inalterada)
-  // ==================================================
+  // ... (Lógica _buscarOrcamentosDoDia e _gerarRota permanecem idênticas) ...
+  // Vou omitir para economizar espaço, mantenha sua lógica original aqui.
+
   Future<List<Map<String, dynamic>>> _buscarOrcamentosDoDia() async {
     final startOfDay = DateTime(
       widget.dataSelecionada.year,
@@ -151,8 +157,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     }
   }
 
-  // --- AÇÕES RÁPIDAS NO CARD ---
-
   Future<void> _abrirWhatsApp(String telefone) async {
     final numero = telefone.replaceAll(RegExp(r'[^0-9]'), '');
     final url = Uri.parse('https://wa.me/55$numero');
@@ -161,13 +165,11 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     }
   }
 
-  // Nova função para abrir o mapa individualmente
   Future<void> _abrirGoogleMapsIndividual(
     String rua,
     String numero,
     String bairro,
   ) async {
-    // Monta a query de busca
     final String query = Uri.encodeComponent(
       '$rua, $numero - $bairro, Juiz de Fora - MG',
     );
@@ -194,10 +196,13 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
-        title: const Text(
-          "Orçamentos do Dia",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: widget.nostrarTitulo
+            ? const Text(
+                "Orçamentos do Dia",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              )
+            : null,
+
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -205,12 +210,26 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
+
+        leading: widget.mostrarConfiguracoes
+            ? IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const Configuracoes(),
+                  ),
+                ),
+                tooltip: 'Configurações',
+              )
+            : null,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: () => AuthService().deslogar(),
-            tooltip: 'Sair',
-          ),
+          if (widget.mostrarLogout)
+            IconButton(
+              icon: const Icon(Icons.exit_to_app),
+              onPressed: () => AuthService().deslogar(),
+              tooltip: 'Sair',
+            ),
         ],
       ),
       floatingActionButton: Column(
@@ -275,6 +294,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     );
   }
 
+  // ... (Widgets _buildEmptyState e _buildOrcamentoCard mantidos iguais)
   Widget _buildEmptyState() {
     return RefreshIndicator(
       onRefresh: () async => _atualizarLista(),
@@ -316,7 +336,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     final horarioTexto = (orcamento['horario_do_dia'] ?? 'Manhã').toString();
     final isTarde = horarioTexto.toLowerCase() == 'tarde';
 
-    // Cores baseadas no turno
     final Color corFaixa = isTarde ? Colors.orange[800]! : Colors.yellow[700]!;
     final IconData iconHorario = isTarde ? Icons.wb_twilight : Icons.wb_sunny;
     final String labelTurno = isTarde ? "TARDE" : "MANHÃ";
@@ -349,17 +368,13 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Barra Lateral Colorida (Turno)
               Container(width: 6, color: corFaixa),
-
-              // 2. Conteúdo Principal
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Cabeçalho: Turno e Nome do Cliente
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -390,10 +405,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                           const Spacer(),
                         ],
                       ),
-
                       const SizedBox(height: 12),
-
-                      // Nome do Cliente em Destaque
                       Row(
                         children: [
                           const Icon(
@@ -415,10 +427,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 4),
-
-                      // Título do Serviço
                       Padding(
                         padding: const EdgeInsets.only(left: 26),
                         child: Text(
@@ -429,21 +438,16 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 16),
                       const Divider(color: Colors.white10, height: 1),
                       const SizedBox(height: 12),
-
-                      // Rodapé: Endereço/Telefone e Botões de Ação
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Coluna de Informações (Esq)
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Endereço
                                 Row(
                                   children: [
                                     Icon(
@@ -479,10 +483,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
-
                                 const SizedBox(height: 10),
-
-                                // Telefone (Novo)
                                 if (telefone.isNotEmpty)
                                   Row(
                                     children: [
@@ -493,7 +494,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        telefone, // Exibe o telefone
+                                        telefone,
                                         style: TextStyle(
                                           color: Colors.grey[300],
                                           fontSize: 13,
@@ -504,11 +505,8 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                               ],
                             ),
                           ),
-
-                          // Coluna de Botões (Dir)
                           Column(
                             children: [
-                              // Botão WhatsApp
                               if (telefone.isNotEmpty)
                                 IconButton(
                                   onPressed: () => _abrirWhatsApp(telefone),
@@ -521,8 +519,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                                     ),
                                   ),
                                 ),
-
-                              // Botão Google Maps (Novo)
                               if (rua.isNotEmpty || bairro.isNotEmpty)
                                 IconButton(
                                   onPressed: () => _abrirGoogleMapsIndividual(

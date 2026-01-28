@@ -37,8 +37,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   final _observacaoController = TextEditingController();
 
   // Estados de Controle Lógico
-  bool _isPessoaFisica =
-      true; // Define qual input (CPF/CNPJ) será exibido/validado
+  bool _isPessoaFisica = true;
   bool _isProblematico = false;
 
   // ==================================================
@@ -57,15 +56,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     filter: {"#": RegExp(r'[0-9]')},
   );
 
-  // ==================================================
-  // CICLO DE VIDA (DISPOSE)
-  // ==================================================
   @override
   void dispose() {
-    // Libera recursos dos controladores ao fechar a tela
     _nomeController.dispose();
     _ruaController.dispose();
-    _numeroController.dispose(); // Não esqueça de descartar
+    _numeroController.dispose();
     _bairroController.dispose();
     _telefoneController.dispose();
     _cpfController.dispose();
@@ -75,16 +70,171 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   }
 
   // ==================================================
+  // NOVA FUNCIONALIDADE: IMPORTAÇÃO DE TEXTO
+  // ==================================================
+  void _mostrarModalImportacao() {
+    final importarController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          scrollable: true,
+          backgroundColor: corCard,
+          title: Row(
+            children: [
+              Icon(Icons.paste, color: corSecundaria),
+              const SizedBox(width: 10),
+              const Text(
+                "Importar Dados",
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Cole o texto abaixo na seguinte ordem:\n1. Nome\n2. Telefone\n3. Rua\n4. Número\n5. Bairro",
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: importarController,
+                maxLines: 8,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.black26,
+                  hintText: "Cole o texto aqui...",
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancelar",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: corPrincipal),
+              onPressed: () {
+                _processarTextoImportado(importarController.text);
+                Navigator.pop(context);
+              },
+              child: const Text(
+                "Preencher Campos",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _processarTextoImportado(String texto) {
+    if (texto.trim().isEmpty) return;
+
+    // Separa as linhas e remove espaços em branco das pontas
+    List<String> linhas = texto.split('\n').map((l) => l.trim()).toList();
+
+    // =========================================================
+    // ETAPA DE VALIDAÇÃO (Bloqueia se não for numérico)
+    // =========================================================
+
+    // 1. Validar Linha 2 (Telefone) - Index 1
+    if (linhas.length > 1) {
+      String linhaTel = linhas[1];
+      // Verifica se contém alguma letra (a-z ou A-Z)
+      bool temLetras = RegExp(r'[a-zA-Z]').hasMatch(linhaTel);
+
+      if (temLetras) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Erro: A 2ª linha (Telefone) contém letras. Corrija para apenas números.",
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return; // Para a execução aqui, não preenche nada
+      }
+    }
+
+    // 2. Validar Linha 4 (Número da Casa) - Index 3
+    if (linhas.length > 3) {
+      String linhaNum = linhas[3];
+      // Verifica se a linha INTEIRA é composta apenas por dígitos (0 a 9)
+      // Se tiver espaço, letra ou traço, retorna falso.
+      bool soNumeros = RegExp(r'^[0-9]+$').hasMatch(linhaNum);
+
+      if (!soNumeros) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Erro: A 4ª linha (Número) deve conter APENAS números (sem letras, espaços ou S/N).",
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return; // Para a execução aqui
+      }
+    }
+
+    // =========================================================
+    // PREENCHIMENTO DOS CAMPOS (Só chega aqui se validou)
+    // =========================================================
+    setState(() {
+      // Linha 1 - Nome
+      if (linhas.isNotEmpty) _nomeController.text = linhas[0];
+
+      // Linha 2 - Telefone
+      if (linhas.length > 1) {
+        String telLimpo = linhas[1].replaceAll(RegExp(r'[^0-9]'), '');
+        if (telLimpo.length >= 10) {
+          var mascaraAplicada = maskTelefone.maskText(telLimpo);
+          _telefoneController.text = mascaraAplicada;
+        } else {
+          _telefoneController.text =
+              telLimpo; // Cola o que tiver se for curto (mas sem letras)
+        }
+      }
+
+      // Linha 3 - Rua
+      if (linhas.length > 2) _ruaController.text = linhas[2];
+
+      // Linha 4 - Número
+      if (linhas.length > 3) _numeroController.text = linhas[3];
+
+      // Linha 5 - Bairro
+      if (linhas.length > 4) _bairroController.text = linhas[4];
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Dados importados com sucesso!"),
+        backgroundColor: Colors.green[800],
+      ),
+    );
+  }
+
+  // ==================================================
   // LÓGICA DE PERSISTÊNCIA (SUPABASE)
   // ==================================================
   Future<void> _salvarCliente() async {
-    // 1. Validação do formulário
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 2. Tratamento condicional de CPF vs CNPJ
       String? cpfFinal;
       if (_isPessoaFisica && _cpfController.text.trim().isNotEmpty) {
         cpfFinal = _cpfController.text.trim();
@@ -95,13 +245,12 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         cnpjFinal = _cnpjController.text.trim();
       }
 
-      // 3. Montagem do Objeto Cliente
       final novoCliente = Cliente(
         nome: _nomeController.text.trim(),
         rua: _ruaController.text.trim(),
-        numero: _numeroController.text.trim(), // Novo campo
+        numero: _numeroController.text.trim(),
         bairro: _bairroController.text.trim(),
-        telefone: maskTelefone.getUnmaskedText(),
+        telefone: maskTelefone.getUnmaskedText(), // Pega apenas números
         cpf: cpfFinal,
         cnpj: cnpjFinal,
         observacao: _observacaoController.text.trim().isEmpty
@@ -110,7 +259,6 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         clienteProblematico: _isProblematico,
       );
 
-      // 4. Inserção no Banco de Dados
       await Supabase.instance.client
           .from('clientes')
           .insert(novoCliente.toMap());
@@ -154,6 +302,45 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
           key: _formKey,
           child: Column(
             children: [
+              // ==========================================
+              // BOTÃO DE IMPORTAÇÃO (NOVO)
+              // ==========================================
+              InkWell(
+                onTap: _mostrarModalImportacao,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[900]!.withValues(
+                      alpha: 0.3,
+                    ), // Azul sutil
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.blueAccent.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.content_paste_go, color: Colors.blueAccent),
+                      SizedBox(width: 8),
+                      Text(
+                        "Importar Dados de Texto",
+                        style: TextStyle(
+                          color: Colors.blueAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
               // ------------------------------------------
               // SEÇÃO 1: DADOS CADASTRAIS BÁSICOS
               // ------------------------------------------
@@ -180,7 +367,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                     Row(
                       children: [
                         Expanded(
-                          flex: 10, // Ocupa 3/4 da largura
+                          flex: 10,
                           child: _buildTextField(
                             controller: _ruaController,
                             label: 'Rua',
@@ -191,10 +378,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          flex: 6, // Ocupa 1/4 da largura
+                          flex: 6,
                           child: _buildTextField(
                             controller: _numeroController,
-                            keyboardType: TextInputType.number,
+                            keyboardType: TextInputType
+                                .text, // Mudado para text caso tenha letras (Ex: 10A)
                             label: 'Nº',
                             icon: Icons.home_filled,
                             validator: (v) =>
@@ -361,7 +549,6 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   // WIDGETS AUXILIARES
   // ==================================================
 
-  /// Container estilizado padrão para agrupar campos do formulário
   Widget _buildCard(Widget child) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -374,7 +561,6 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     );
   }
 
-  /// Campo de texto genérico com estilização escura e validação
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -413,7 +599,6 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     );
   }
 
-  /// Botão de seleção customizado para alternar entre Física/Jurídica
   Widget _buildRadioButton(String title, bool valorEnum) {
     final isSelected = _isPessoaFisica == valorEnum;
     return InkWell(

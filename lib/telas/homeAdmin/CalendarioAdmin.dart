@@ -35,6 +35,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
   final Color corHoje = Colors.amber;
+  final Color corCard = const Color(0xFF1E1E1E);
 
   @override
   void initState() {
@@ -161,7 +162,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : RefreshIndicator(
               color: corPrincipal,
-              backgroundColor: Colors.white,
+              backgroundColor: corCard,
               onRefresh: _carregarEventosDoMes,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),

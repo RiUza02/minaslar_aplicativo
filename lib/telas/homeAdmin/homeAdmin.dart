@@ -66,6 +66,10 @@ class _HomeAdminState extends State<HomeAdmin> {
           ListaOrcamentosDia(
             dataSelecionada: DateTime.now(),
             apenasPendentes: true, // Isso faz o Painel filtrar os entregues
+            mostrarLogout: true, // Mostra o botão de logout na AppBar do Painel
+            mostrarConfiguracoes:
+                true, // Mostra o botão de configurações na AppBar do Painel
+            nostrarTitulo: false, // Não mostra o título na AppBar do Painel
           ), // Index 3: Gestão de Clientes
           const ListaClientes(),
           // Index 4: Gestão de Orçamentos

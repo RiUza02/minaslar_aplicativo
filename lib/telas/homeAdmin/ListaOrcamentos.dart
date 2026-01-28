@@ -189,9 +189,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   void _abrirNovoOrcamento() async {
     final Cliente? clienteEscolhido = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const ListaClientes(isSelecao: true),
-      ),
+      MaterialPageRoute(builder: (context) => const ListaClientes()),
     );
 
     if (clienteEscolhido == null || !mounted) return;

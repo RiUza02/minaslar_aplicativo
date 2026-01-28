@@ -63,6 +63,10 @@ class _HomeUsuarioState extends State<HomeUsuario> {
           ListaOrcamentosDia(
             dataSelecionada: DateTime.now(),
             apenasPendentes: true, // Isso faz o Painel filtrar os entregues
+            mostrarLogout: true, // Mostra o botão de logout na AppBar do Painel
+            mostrarConfiguracoes:
+                true, // Mostra o botão de configurações na AppBar do Painel
+            mostrarTitulo: false, // Não mostra o título na AppBar do Painel
           ), // Index 2: Gestão de Clientes
           const ListaClientes(),
           // Index 3: Gestão de Orçamentos
