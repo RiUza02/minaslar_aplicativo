@@ -1,10 +1,11 @@
+import 'dart:io'; // Necessário para SocketException (Sem internet)
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Necessário para AuthException
 import '../../servicos/Autenticacao.dart';
 import 'RecuperaSenha.dart';
 import 'Cadastro.dart';
 import '../../servicos/roteador.dart';
 
-/// Tela responsável pelo login do usuário
 class Login extends StatefulWidget {
   const Login({super.key});
 
@@ -13,64 +14,119 @@ class Login extends StatefulWidget {
 }
 
 class _LoginState extends State<Login> {
-  /// Controladores dos campos de entrada
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
-
-  /// Chave do formulário para validação
   final _formKey = GlobalKey<FormState>();
-
-  /// Serviço de autenticação (Supabase)
   final AuthService _authService = AuthService();
 
-  /// Controla exibição do loading
   bool _isLoading = false;
 
-  /// Cores do tema (Consistente com a tela anterior)
+  // Cores do tema
   final Color _corFundo = Colors.black;
   final Color _corCard = const Color(0xFF1E1E1E);
   final Color _corInput = Colors.black26;
 
-  /// Realiza o login do usuário
+  /// Realiza o login do usuário com verificação prévia de internet
   Future<void> _fazerLogin() async {
-    // Valida todos os campos do formulário
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    // 1. Validações locais (campo vazio, etc)
+    if (!_formKey.currentState!.validate()) return;
 
-      // Tenta autenticar no Supabase
-      String? erro = await _authService.loginUsuario(
+    // Esconde o teclado para limpar a visão
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isLoading = true);
+
+    // ===========================================================
+    // 2. VERIFICAÇÃO DE INTERNET (Igual ao Cadastro)
+    // ===========================================================
+    try {
+      final result = await InternetAddress.lookup(
+        'google.com',
+      ).timeout(const Duration(seconds: 5));
+
+      if (result.isEmpty || result[0].rawAddress.isEmpty) {
+        throw const SocketException("Sem resposta");
+      }
+    } catch (_) {
+      // Se cair aqui, é CERTEZA que é falta de internet
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar("Sem conexão com a internet.", isError: true);
+      }
+      return; // Para tudo aqui
+    }
+
+    // ===========================================================
+    // 3. TENTATIVA DE LOGIN (Agora sabemos que tem internet)
+    // ===========================================================
+    try {
+      // Se der erro aqui, é 99% de chance de ser senha/email errados
+      await _authService.loginUsuario(
         email: _emailController.text,
         password: _senhaController.text,
       );
 
-      // Garante que a tela ainda está montada
       if (!mounted) return;
 
-      setState(() => _isLoading = false);
+      // Sucesso!
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const Roteador()),
+        (route) => false,
+      );
+    } on AuthException catch (e) {
+      // TRATAMENTO: Credenciais Incorretas
+      // Como já passamos pelo teste de internet, esse erro é do Auth mesmo
+      String mensagem = "E-mail ou senha incorretos.";
 
-      // Caso ocorra erro no login
-      if (erro != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              erro,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
-            ),
-            backgroundColor: const Color.fromARGB(255, 255, 110, 110),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        // Login bem-sucedido
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const Roteador()),
-          (route) => false,
-        );
+      // Casos específicos extras (opcional)
+      if (e.message.toLowerCase().contains("confirm")) {
+        mensagem = "Confirme seu cadastro no e-mail recebido.";
+      }
+
+      _showSnackBar(mensagem, isError: true);
+    } catch (e) {
+      // Erro inesperado (bug no app, servidor caiu, etc)
+      _showSnackBar(
+        "Ocorreu um erro inesperado. Tente novamente.",
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
 
-  /// Padrão visual moderno dos campos de texto
+  /// Helper para exibir mensagens (Evita repetição de código)
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: isError
+            ? const Color.fromARGB(255, 200, 60, 60) // Vermelho mais suave
+            : Colors.green[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
   InputDecoration _buildInputDecoration(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
@@ -100,6 +156,7 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
+    // O restante do seu build permanece igual, pois a lógica está isolada no _fazerLogin
     return Scaffold(
       backgroundColor: _corFundo,
       body: LayoutBuilder(
@@ -114,8 +171,6 @@ class _LoginState extends State<Login> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Spacer(),
-
-                      // Container Principal (Card)
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
@@ -136,7 +191,6 @@ class _LoginState extends State<Login> {
                           key: _formKey,
                           child: Column(
                             children: [
-                              /// Ícone ilustrativo no topo
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
@@ -149,10 +203,7 @@ class _LoginState extends State<Login> {
                                   color: Colors.blue[700],
                                 ),
                               ),
-
                               const SizedBox(height: 16),
-
-                              /// Título da tela
                               const Text(
                                 "Bem-vindo",
                                 style: TextStyle(
@@ -168,10 +219,7 @@ class _LoginState extends State<Login> {
                                   color: Colors.grey[500],
                                 ),
                               ),
-
                               const SizedBox(height: 32),
-
-                              /// Campo de e-mail
                               TextFormField(
                                 cursorColor: Colors.blue,
                                 controller: _emailController,
@@ -186,10 +234,7 @@ class _LoginState extends State<Login> {
                                 validator: (v) =>
                                     v!.isEmpty ? 'Digite seu e-mail' : null,
                               ),
-
                               const SizedBox(height: 16),
-
-                              /// Campo de senha
                               TextFormField(
                                 cursorColor: Colors.blue,
                                 controller: _senhaController,
@@ -205,10 +250,7 @@ class _LoginState extends State<Login> {
                                 validator: (v) =>
                                     v!.isEmpty ? 'Digite sua senha' : null,
                               ),
-
                               const SizedBox(height: 30),
-
-                              /// Botão de login ou indicador de carregamento
                               _isLoading
                                   ? const CircularProgressIndicator(
                                       color: Colors.blue,
@@ -242,18 +284,12 @@ class _LoginState extends State<Login> {
                           ),
                         ),
                       ),
-
                       const Spacer(),
-
-                      // Divisor discreto
                       Divider(color: Colors.white.withValues(alpha: 0.1)),
                       const SizedBox(height: 10),
-
-                      /// Área inferior com ações secundárias
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          /// Criar conta
                           TextButton(
                             onPressed: () {
                               Navigator.push(
@@ -272,14 +308,11 @@ class _LoginState extends State<Login> {
                               ),
                             ),
                           ),
-
                           Container(
                             height: 20,
                             width: 1,
                             color: Colors.white24,
                           ),
-
-                          /// Recuperar senha
                           TextButton(
                             onPressed: () {
                               Navigator.push(

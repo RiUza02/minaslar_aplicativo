@@ -163,11 +163,16 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     String apartamento,
     String bairro,
   ) async {
-    final String query = Uri.encodeComponent(
-      '$rua, $numero - $bairro, Juiz de Fora - MG',
-    );
+    final String enderecoCompleto = [
+      rua,
+      numero,
+      if (apartamento.isNotEmpty) 'Apto $apartamento',
+      bairro,
+      'Juiz de Fora - MG',
+    ].where((s) => s.isNotEmpty).join(', ');
+
     final Uri googleMapsUrl = Uri.parse(
-      "https://www.google.com/maps/search/?api=1&query=$query",
+      "https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(enderecoCompleto)}",
     );
 
     if (await canLaunchUrl(googleMapsUrl)) {

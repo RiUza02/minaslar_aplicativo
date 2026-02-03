@@ -1,9 +1,9 @@
+import 'dart:io'; // Necessário para verificação de internet
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../servicos/Autenticacao.dart';
 import '../../servicos/VerificacaoEmail.dart';
 
-/// Tela responsável pelo cadastro de usuários comuns (Padrão Visual Admin)
 class CadastroUsuario extends StatefulWidget {
   const CadastroUsuario({super.key});
 
@@ -13,101 +13,149 @@ class CadastroUsuario extends StatefulWidget {
 
 class _CadastroUsuarioState extends State<CadastroUsuario> {
   // ==================================================
-  // CONFIGURAÇÕES VISUAIS (PADRÃO DARK)
+  // CONFIGURAÇÕES VISUAIS
   // ==================================================
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
-  final Color corPrincipal = Colors.blue[900]!; // Azul para Usuário Comum
+  final Color corPrincipal = Colors.blue[900]!;
   final Color corSecundaria = Colors.cyan[400]!;
   final Color corTextoCinza = Colors.grey[500]!;
   final Color corTextoBranco = Colors.white;
 
-  /// Chave do formulário para validações
   final _formKey = GlobalKey<FormState>();
 
-  /// Controladores dos campos do formulário
+  // Controladores
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _telefoneController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmaSenhaController = TextEditingController();
 
-  /// Mensagem de erro caso o e-mail já esteja cadastrado
+  // Variável de controle de erro específico de banco
   String? _erroEmailJaCadastrado;
 
-  /// Máscara para o campo de telefone
+  // Máscara
   final maskFormatter = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
-  /// Estados de controle da interface
+  // Estados
   bool _isLoading = false;
   bool _senhaValida = false;
   bool _telefoneValido = false;
   bool _mostrarSenha = false;
   bool _mostrarConfirmaSenha = false;
 
-  /// Serviço de autenticação
   final AuthService _authService = AuthService();
 
-  /// Realiza o cadastro de um usuário comum
+  // ==================================================
+  // FUNÇÃO PRINCIPAL DE CADASTRO
+  // ==================================================
   Future<void> _cadastrarUsuario() async {
-    // Limpa erros anteriores e ativa o loading
-    setState(() {
-      _erroEmailJaCadastrado = null;
-      _isLoading = true;
-    });
+    // Esconde o teclado
+    FocusScope.of(context).unfocus();
 
-    // Validação dos campos do formulário
-    if (!_formKey.currentState!.validate()) {
-      setState(() => _isLoading = false);
-      return;
-    }
+    try {
+      // 1. Resetar estados e iniciar loading
+      setState(() {
+        _erroEmailJaCadastrado = null;
+        _isLoading = true;
+      });
 
-    // Verifica se o e-mail já existe no banco
-    if (_emailController.text.contains('@')) {
-      final existe = await _authService.verificarSeEmailExiste(
-        _emailController.text.trim(),
-      );
-
-      if (existe && mounted) {
-        setState(() {
-          _erroEmailJaCadastrado = 'Este e-mail já está em uso.';
-          _isLoading = false;
-        });
-
-        // Força revalidação do formulário para exibir o erro no campo
-        _formKey.currentState!.validate();
+      if (!_formKey.currentState!.validate()) {
+        setState(() => _isLoading = false);
         return;
       }
-    }
 
-    // Tenta realizar o cadastro
-    final erro = await _authService.cadastrarUsuario(
-      email: _emailController.text.trim(),
-      password: _senhaController.text,
-      nome: _nomeController.text.trim(),
-      telefone: _telefoneController.text.trim(),
-      isAdmin: false, // Define como usuário comum
-    );
+      // 2. Verificação de Internet
+      try {
+        final result = await InternetAddress.lookup(
+          'google.com',
+        ).timeout(const Duration(seconds: 5));
+        if (result.isEmpty || result[0].rawAddress.isEmpty) {
+          throw const SocketException("Sem resposta");
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Sem conexão com a internet."),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
-    if (mounted) setState(() => _isLoading = false);
-
-    if (erro == null && mounted) {
-      // Cadastro realizado com sucesso
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) =>
-              VerificacaoEmail(email: _emailController.text.trim()),
-        ),
+      // 3. Tenta Cadastrar
+      final erroRetornado = await _authService.cadastrarUsuario(
+        email: _emailController.text.trim(),
+        password: _senhaController.text,
+        nome: _nomeController.text.trim(),
+        telefone: _telefoneController.text.trim(),
+        isAdmin: false,
       );
-    } else if (mounted) {
-      // Exibe erro retornado pelo Supabase
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
-      );
+
+      if (mounted) setState(() => _isLoading = false);
+
+      // ===========================================================
+      // 4. TRATAMENTO DO ERRO RETORNADO PELO SERVICE
+      // ===========================================================
+      if (erroRetornado != null) {
+        // Converte tudo para string para facilitar a verificação
+        final msg = erroRetornado.toString();
+
+        // Verifica se é o erro de chave estrangeira (23503) ou violação única
+        // Isso acontece quando o Auth falha (email duplicado) ou o ID não bate
+        if (msg.contains('23503') ||
+            msg.contains('foreign key') ||
+            msg.contains('already registered') ||
+            msg.contains('violates foreign key constraint')) {
+          if (mounted) {
+            setState(() {
+              _erroEmailJaCadastrado = 'E-mail já cadastrado ou inválido.';
+            });
+            // Força a validação visual do formulário para pintar de vermelho
+            _formKey.currentState!.validate();
+          }
+          return; // Para aqui e não mostra o SnackBar
+        }
+
+        // Se for outro erro qualquer, mostra no SnackBar
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Erro: $erroRetornado"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 5. Sucesso (erroRetornado é null)
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                VerificacaoEmail(email: _emailController.text.trim()),
+          ),
+        );
+      }
+    } catch (e) {
+      // Caso ocorra um erro grave que não foi pego pelo Service
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Erro inesperado: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -140,7 +188,6 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                     key: _formKey,
                     child: Column(
                       children: [
-                        // Cabeçalho da Tela
                         const SizedBox(height: 10),
                         Icon(
                           Icons.person_add_outlined,
@@ -159,16 +206,14 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                         ),
                         const SizedBox(height: 24),
 
-                        // =====================================================
-                        // BLOCO 1: DADOS PESSOAIS (Nome, Email, Telefone)
-                        // =====================================================
+                        // DADOS PESSOAIS
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: corCard,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.05),
+                              color: Colors.white.withOpacity(0.05),
                             ),
                           ),
                           child: Column(
@@ -180,25 +225,22 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                               ),
                               const SizedBox(height: 16),
 
-                              // Nome
                               _buildTextField(
                                 controller: _nomeController,
                                 label: 'Nome Completo',
                                 icon: Icons.person_outline,
-                                backgroundColor: Colors.black26,
                                 validator: (v) =>
                                     v!.isEmpty ? 'Informe o nome' : null,
                               ),
                               const SizedBox(height: 16),
 
-                              // Email
                               _buildTextField(
                                 controller: _emailController,
                                 label: 'E-mail',
                                 icon: Icons.email_outlined,
-                                backgroundColor: Colors.black26,
                                 keyboardType: TextInputType.emailAddress,
                                 onChanged: (_) {
+                                  // Limpa o erro ao digitar
                                   if (_erroEmailJaCadastrado != null) {
                                     setState(
                                       () => _erroEmailJaCadastrado = null,
@@ -209,17 +251,16 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                                   if (!v!.contains('@')) {
                                     return 'E-mail inválido';
                                   }
+                                  // Aqui a mágica acontece: retorna o erro do banco
                                   return _erroEmailJaCadastrado;
                                 },
                               ),
                               const SizedBox(height: 16),
 
-                              // Telefone
                               _buildTextField(
                                 controller: _telefoneController,
                                 label: 'Telefone / Celular',
                                 icon: Icons.phone_android,
-                                backgroundColor: Colors.black26,
                                 hintText: '(32) 12345-6789',
                                 inputFormatters: [maskFormatter],
                                 keyboardType: TextInputType.phone,
@@ -236,8 +277,6 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                                   return null;
                                 },
                               ),
-
-                              // Validação Visual Telefone
                               const SizedBox(height: 8),
                               _buildValidationIndicator(
                                 isValid: _telefoneValido,
@@ -249,16 +288,14 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
 
                         const SizedBox(height: 20),
 
-                        // =====================================================
-                        // BLOCO 2: SEGURANÇA (Senhas)
-                        // =====================================================
+                        // SEGURANÇA
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             color: corCard,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.05),
+                              color: Colors.white.withOpacity(0.05),
                             ),
                           ),
                           child: Column(
@@ -267,12 +304,10 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                               _buildSectionTitle("SEGURANÇA", Icons.lock),
                               const SizedBox(height: 16),
 
-                              // Senha
                               _buildTextField(
                                 controller: _senhaController,
                                 label: 'Senha',
                                 icon: Icons.lock_outline,
-                                backgroundColor: Colors.black26,
                                 obscureText: !_mostrarSenha,
                                 onChanged: (v) {
                                   setState(() {
@@ -294,7 +329,6 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                                   ),
                                 ),
                               ),
-
                               const SizedBox(height: 8),
                               _buildValidationIndicator(
                                 isValid: _senhaValida,
@@ -303,12 +337,10 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
 
                               const SizedBox(height: 16),
 
-                              // Confirmar Senha
                               _buildTextField(
                                 controller: _confirmaSenhaController,
                                 label: 'Confirmar Senha',
                                 icon: Icons.lock_reset,
-                                backgroundColor: Colors.black26,
                                 obscureText: !_mostrarConfirmaSenha,
                                 onChanged: (value) => setState(() {}),
                                 validator: (v) {
@@ -332,7 +364,6 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                                 ),
                               ),
 
-                              // Erro visual de senha não coincidente
                               if (_confirmaSenhaController.text.isNotEmpty &&
                                   _confirmaSenhaController.text !=
                                       _senhaController.text)
@@ -366,7 +397,7 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
 
                         const SizedBox(height: 40),
 
-                        // Botão de Criar Conta
+                        // Botão Criar Conta
                         SizedBox(
                           width: double.infinity,
                           height: 55,
@@ -381,9 +412,7 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
                                     backgroundColor: corPrincipal,
                                     foregroundColor: Colors.white,
                                     elevation: 8,
-                                    shadowColor: corPrincipal.withValues(
-                                      alpha: 0.5,
-                                    ),
+                                    shadowColor: corPrincipal.withOpacity(0.5),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -412,9 +441,7 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
     );
   }
 
-  // ==================================================
-  // WIDGETS AUXILIARES (IDÊNTICOS AO ADMIN)
-  // ==================================================
+  // WIDGETS AUXILIARES
 
   Widget _buildSectionTitle(String title, IconData icon) {
     return Row(
@@ -445,7 +472,6 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
     void Function(String)? onChanged,
     Widget? suffixIcon,
     String? hintText,
-    Color? backgroundColor,
   }) {
     return TextFormField(
       controller: controller,
@@ -458,19 +484,19 @@ class _CadastroUsuarioState extends State<CadastroUsuario> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
-        hintStyle: TextStyle(color: corTextoCinza.withValues(alpha: 0.5)),
+        hintStyle: TextStyle(color: corTextoCinza.withOpacity(0.5)),
         labelStyle: TextStyle(color: corTextoCinza),
         prefixIcon: Icon(icon, color: corSecundaria),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: backgroundColor ?? corCard,
+        fillColor: Colors.black26, // Cor fixa para contraste
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
           vertical: 16,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

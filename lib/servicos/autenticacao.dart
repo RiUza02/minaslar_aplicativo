@@ -1,21 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Serviço responsável por autenticação
-/// e controle de sessão usando Supabase
 class AuthService {
-  /// Cliente principal do Supabase
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Retorna o usuário atualmente autenticado
-  /// (null se não estiver logado)
   User? get usuarioAtual => _supabase.auth.currentUser;
 
   // =====================================================
-  // CADASTRO DE USUÁRIO
-  // Cria o login no Auth e salva dados na tabela 'usuarios'
+  // CADASTRO (Mantive sua lógica de retornar String)
   // =====================================================
-  // Em servicos/autenticacao.dart
-
   Future<String?> cadastrarUsuario({
     required String email,
     required String password,
@@ -40,25 +32,14 @@ class AuthService {
       }
       return null;
     } on AuthException catch (e) {
-      // ==================================================
-      // AQUI ESTÁ A PERSONALIZAÇÃO
-      // ==================================================
-
-      // Converte para minúsculas para facilitar a verificação
       final msg = e.message.toLowerCase();
-
-      // Verifica se a mensagem contém termos comuns de duplicidade
       if (msg.contains('already registered') ||
           msg.contains('already exists')) {
         return 'Este e-mail já possui uma conta. Tente fazer login.';
       }
-
-      // Tratamento para senha fraca (caso o Supabase reclame)
       if (msg.contains('password') && msg.contains('short')) {
         return 'A senha é muito curta.';
       }
-
-      // Caso seja outro erro, retorna a mensagem original traduzida ou bruta
       return 'Erro de autenticação: ${e.message}';
     } catch (e) {
       return "Erro desconhecido: $e";
@@ -66,14 +47,28 @@ class AuthService {
   }
 
   // =====================================================
+  // LOGIN (Ajustado para void)
+  // =====================================================
+  // Alterei de Future<String?> para Future<void> pois não retornamos erro aqui,
+  // deixamos ele "subir" para a tela tratar.
+  Future<void> loginUsuario({
+    required String email,
+    required String password,
+  }) async {
+    await _supabase.auth.signInWithPassword(email: email, password: password);
+  }
+
+  // =====================================================
   // RECUPERAÇÃO DE SENHA
-  // Envia link de redefinição por e-mail
   // =====================================================
   Future<String?> recuperarSenha({required String email}) async {
     try {
-      // Supabase envia um e-mail com link de redefinição
-      await _supabase.auth.resetPasswordForEmail(email);
-      return null; // Sucesso
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'https://github.com/RiUza02/minaslar_aplicativo',
+      );
+
+      return null;
     } on AuthException catch (e) {
       return e.message;
     } catch (e) {
@@ -82,35 +77,13 @@ class AuthService {
   }
 
   // =====================================================
-  // LOGIN DO USUÁRIO
-  // Autenticação usando e-mail e senha
-  // =====================================================
-  Future<String?> loginUsuario({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      await _supabase.auth.signInWithPassword(email: email, password: password);
-      return null; // Login realizado
-    } on AuthException catch (e) {
-      return e.message;
-    } catch (e) {
-      return "Erro ao logar: $e";
-    }
-  }
-
-  // =====================================================
   // VERIFICAÇÃO DE PERMISSÃO
-  // Retorna true se o usuário for administrador
   // =====================================================
   Future<bool> isUsuarioAdmin() async {
     final user = _supabase.auth.currentUser;
-
-    // Se não estiver logado, não é admin
     if (user == null) return false;
 
     try {
-      // Busca o campo is_admin na tabela 'usuarios'
       final data = await _supabase
           .from('usuarios')
           .select('is_admin')
@@ -119,14 +92,12 @@ class AuthService {
 
       return data['is_admin'] ?? false;
     } catch (e) {
-      // Em caso de erro, assume que não é admin
       return false;
     }
   }
 
   // =====================================================
   // LOGOUT
-  // Encerra a sessão atual
   // =====================================================
   Future<void> deslogar() async {
     await _supabase.auth.signOut();

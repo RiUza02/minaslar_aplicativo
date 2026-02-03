@@ -1,80 +1,45 @@
-import 'dart:async'; // Gerenciamento de assinaturas de eventos (Streams)
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart'; // Import para initializeDateFormatting
+
+// Telas
 import 'servicos/Autenticacao.dart';
 import 'telas/criarConta/Login.dart';
 import 'telas/criarConta/Cadastro.dart';
-import 'package:intl/date_symbol_data_local.dart'; // Import para initializeDateFormatting
 import 'telas/homeUsuario/HomeUsuario.dart';
 import 'telas/homeAdmin/HomeAdmin.dart';
-import 'telas/criarConta/RedefinirSenha.dart';
 
-// Permite navegação global sem necessidade de 'BuildContext' (essencial para callbacks assíncronos)
+// Permite navegação global (ainda útil para contextos onde não temos o BuildContext direto)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializa Supabase. O fluxo PKCE é obrigatório para Deep Links seguros em mobile.
+  // Inicializa Supabase
   await Supabase.initialize(
     url: 'https://uwkxgmmjubpincteqckc.supabase.co',
     anonKey: 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8',
-    // Certifique-se de que esta é a sua anonKey real.
-    // Se for um placeholder, substitua-o pela chave pública do seu projeto Supabase.
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
     ),
   );
-  // Inicializa a formatação de data para pt_BR globalmente, uma única vez.
+
+  // Inicializa a formatação de data
   await initializeDateFormatting('pt_BR', null);
 
   runApp(const MyApp());
 }
 
-/// Widget principal com estado para gerenciar ouvintes de Deep Links
-class MyApp extends StatefulWidget {
+/// Widget principal da aplicação
+/// Simplificado para StatelessWidget pois a lógica de rotas é reativa via StreamBuilder
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  late final StreamSubscription<AuthState> _authSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _setupAuthListener();
-  }
-
-  /// Monitora eventos de autenticação externos (ex: link de recuperação de senha clicado no e-mail)
-  void _setupAuthListener() {
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
-      data,
-    ) {
-      final AuthChangeEvent event = data.event;
-
-      // Se o app foi aberto via link de recuperação, força a navegação para a tela de nova senha
-      if (event == AuthChangeEvent.passwordRecovery) {
-        navigatorKey.currentState?.push(
-          MaterialPageRoute(builder: (context) => const RedefinirSenhaScreen()),
-        );
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _authSubscription.cancel(); // Evita vazamento de memória ao fechar o app
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MinasLar',
-      navigatorKey: navigatorKey, // Vincula a chave global
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
 
       // Configuração do Tema Escuro
@@ -113,7 +78,7 @@ class RoteadorTelas extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        // Exibe loading enquanto verifica se existe sessão cacheada
+        // Loading inicial enquanto verifica sessão cacheada
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -126,7 +91,7 @@ class RoteadorTelas extends StatelessWidget {
         // USUÁRIO LOGADO
         // ==================================================
         if (session != null) {
-          // Verifica no banco de dados se o usuário possui permissão de Admin
+          // Verifica se é Admin
           return FutureBuilder<bool>(
             future: AuthService().isUsuarioAdmin(),
             builder: (context, snapshotAdmin) {
@@ -146,7 +111,7 @@ class RoteadorTelas extends StatelessWidget {
               }
 
               final bool isAdmin = snapshotAdmin.data ?? false;
-              // Redireciona para a Home correta baseada na role
+              // Redireciona para a Home correta
               return isAdmin ? const HomeAdmin() : const HomeUsuario();
             },
           );
@@ -183,13 +148,14 @@ class TelaApresentacao extends StatelessWidget {
                     const Icon(Icons.home_work, size: 150, color: Colors.blue),
               ),
               const Spacer(),
-              // Botão de Login (Destaque)
+
+              // Botão de Login
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[800], // Azul sólido
+                    backgroundColor: Colors.blue[800],
                     foregroundColor: Colors.white,
                     elevation: 5,
                     shadowColor: Colors.blue.withValues(alpha: 0.4),
@@ -212,7 +178,7 @@ class TelaApresentacao extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Botão de Cadastro (Secundário)
+              // Botão de Cadastro
               SizedBox(
                 width: double.infinity,
                 height: 55,

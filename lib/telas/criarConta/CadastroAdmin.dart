@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+
 import '../../servicos/autenticacao.dart';
 import '../../servicos/VerificacaoEmail.dart';
 
@@ -55,60 +57,116 @@ class _CadastroAdminState extends State<CadastroAdmin> {
 
   /// Realiza o cadastro de um administrador
   Future<void> _cadastrarAdmin() async {
-    // Limpa erros anteriores e ativa o loading
-    setState(() {
-      _erroEmailJaCadastrado = null;
-      _isLoading = true;
-    });
+    // Esconde o teclado
+    FocusScope.of(context).unfocus();
 
-    // Validação dos campos do formulário
-    if (!_formKey.currentState!.validate()) {
-      setState(() => _isLoading = false);
-      return;
-    }
+    try {
+      // 1. Resetar estados e iniciar loading
+      setState(() {
+        _erroEmailJaCadastrado = null;
+        _isLoading = true;
+      });
 
-    // Verifica se o e-mail já existe no banco
-    if (_emailController.text.contains('@')) {
-      final existe = await _authService.verificarSeEmailExiste(
-        _emailController.text.trim(),
-      );
-
-      if (existe && mounted) {
-        setState(() {
-          _erroEmailJaCadastrado = 'Este e-mail já está em uso.';
-          _isLoading = false;
-        });
-
-        // Força revalidação do formulário
-        _formKey.currentState!.validate();
+      if (!_formKey.currentState!.validate()) {
+        setState(() => _isLoading = false);
         return;
       }
-    }
 
-    // Tenta realizar o cadastro
-    final erro = await _authService.cadastrarUsuario(
-      email: _emailController.text.trim(),
-      password: _senhaController.text,
-      nome: _nomeController.text.trim(),
-      telefone: _telefoneController.text.trim(),
-      isAdmin: true, // Sempre true nesta tela
-    );
+      // ===========================================================
+      // 2. VERIFICAÇÃO DE INTERNET ROBUSTA
+      // ===========================================================
+      try {
+        final result = await InternetAddress.lookup(
+          'google.com',
+        ).timeout(const Duration(seconds: 5));
+        if (result.isEmpty || result[0].rawAddress.isEmpty) {
+          throw const SocketException("Sem resposta");
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.wifi_off, color: Colors.white),
+                  SizedBox(width: 10),
+                  Expanded(child: Text("Sem conexão com a internet.")),
+                ],
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
-    if (mounted) setState(() => _isLoading = false);
-
-    if (erro == null && mounted) {
-      // Cadastro realizado com sucesso
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) =>
-              VerificacaoEmail(email: _emailController.text.trim()),
-        ),
+      // ===========================================================
+      // 3. TENTA CADASTRAR (ADMIN = TRUE)
+      // ===========================================================
+      final erroRetornado = await _authService.cadastrarUsuario(
+        email: _emailController.text.trim(),
+        password: _senhaController.text,
+        nome: _nomeController.text.trim(),
+        telefone: _telefoneController.text.trim(),
+        isAdmin: true, // Sempre true nesta tela
       );
-    } else if (mounted) {
-      // Exibe erro retornado pelo Supabase
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
-      );
+
+      if (mounted) setState(() => _isLoading = false);
+
+      // ===========================================================
+      // 4. TRATAMENTO DO ERRO (INCLUINDO CHAVE ESTRANGEIRA)
+      // ===========================================================
+      if (erroRetornado != null) {
+        final msg = erroRetornado.toString();
+
+        // Detecta erro de chave estrangeira (23503) ou usuário duplicado
+        if (msg.contains('23503') ||
+            msg.contains('foreign key') ||
+            msg.contains('already registered') ||
+            msg.contains('violates foreign key constraint')) {
+          if (mounted) {
+            setState(() {
+              _erroEmailJaCadastrado = 'E-mail já cadastrado ou inválido.';
+            });
+            // Força a validação visual para pintar o campo de vermelho
+            _formKey.currentState!.validate();
+          }
+          return;
+        }
+
+        // Outros erros
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Erro: $erroRetornado"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 5. Sucesso (erroRetornado é null)
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                VerificacaoEmail(email: _emailController.text.trim()),
+          ),
+        );
+      }
+    } catch (e) {
+      // Erro inesperado
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Erro inesperado: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

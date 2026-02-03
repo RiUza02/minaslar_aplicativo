@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../modelos/Usuario.dart';
+import '../modelos/Cliente.dart';
 
 class Servicos {
   // ===========================================================================
@@ -10,6 +14,7 @@ class Servicos {
 
     if (numeroLimpo.isEmpty) return;
 
+    // Lógica para adicionar o código do Brasil (55) se faltar
     if (numeroLimpo.length >= 10 && numeroLimpo.length <= 11) {
       numeroLimpo = "55$numeroLimpo";
     } else if ((numeroLimpo.length == 12 || numeroLimpo.length == 13) &&
@@ -17,6 +22,7 @@ class Servicos {
       numeroLimpo = "55${numeroLimpo.substring(1)}";
     }
 
+    // Usar a URL universal que funciona melhor em Android e iOS
     final Uri url = Uri.parse("https://wa.me/$numeroLimpo");
 
     try {
@@ -52,13 +58,14 @@ class Servicos {
   }
 
   // ===========================================================================
-  // SERVIÇO DE GOOGLE MAPS [NOVO]
+  // SERVIÇO DE GOOGLE MAPS [CORRIGIDO]
   // ===========================================================================
   static Future<void> abrirGoogleMaps(String endereco) async {
     if (endereco.trim().isEmpty) return;
 
-    // Codifica o endereço para ser válido na URL (espaços viram %20, etc)
     final query = Uri.encodeComponent(endereco);
+
+    // URL Universal do Google Maps (Funciona Web, Android e iOS)
     final Uri url = Uri.parse(
       "https://www.google.com/maps/search/?api=1&query=$query",
     );
@@ -71,6 +78,93 @@ class Servicos {
       }
     } catch (e) {
       debugPrint("Erro ao abrir mapa: $e");
+    }
+  }
+
+  // ===========================================================================
+  // SERVIÇO DE CACHE DE DADOS GLOBAIS
+  // ===========================================================================
+  static List<Map<String, dynamic>> clientesComOrcamentos = [];
+  static List<Map<String, dynamic>> orcamentosComClientes = [];
+  static List<Usuario> usuarios = [];
+  static final ValueNotifier<bool> isDataLoaded = ValueNotifier(false);
+
+  /// Carrega todos os dados essenciais do Supabase para um cache em memória.
+  static Future<void> carregarCacheGlobal() async {
+    isDataLoaded.value = false;
+    try {
+      // Executa as buscas em paralelo
+      final responses = await Future.wait([
+        Supabase.instance.client
+            .from('clientes')
+            .select('*, orcamentos(data_pega)'), // Index 0
+        Supabase.instance.client
+            .from('orcamentos')
+            .select('*, clientes(*)'), // Index 1
+        Supabase.instance.client.from('usuarios').select(), // Index 2
+      ]);
+
+      // Conversão segura com 'as List' para evitar erros de tipagem
+      clientesComOrcamentos = List<Map<String, dynamic>>.from(
+        responses[0] as List,
+      );
+      orcamentosComClientes = List<Map<String, dynamic>>.from(
+        responses[1] as List,
+      );
+
+      usuarios = (responses[2] as List)
+          .map((map) => Usuario.fromMap(map))
+          .toList();
+
+      isDataLoaded.value = true;
+      debugPrint("Cache Global: Dados carregados com sucesso.");
+    } catch (e) {
+      isDataLoaded.value = false;
+      debugPrint("Erro ao carregar dados para o cache: $e");
+      rethrow;
+    }
+  }
+
+  // Função útil para limpar o cache ao fazer Logout
+  static void limparCache() {
+    clientesComOrcamentos = [];
+    orcamentosComClientes = [];
+    usuarios = [];
+    isDataLoaded.value = false;
+  }
+
+  // ===========================================================================
+  // SERVIÇO DE VERIFICAÇÃO DE CLIENTE DUPLICADO
+  // ===========================================================================
+  static Future<Cliente?> verificarClienteDuplicado({
+    required String nome,
+    required String rua,
+    required String numero,
+  }) async {
+    if (nome.trim().isEmpty || rua.trim().isEmpty || numero.trim().isEmpty) {
+      return null;
+    }
+
+    final primeiroNome = nome.trim().split(' ').first;
+
+    try {
+      final response = await Supabase.instance.client
+          .from('clientes')
+          .select()
+          .ilike('nome', '$primeiroNome%')
+          .ilike('rua', rua.trim())
+          .eq('numero', numero.trim())
+          .limit(1)
+          .maybeSingle();
+
+      if (response != null) {
+        return Cliente.fromMap(response);
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint("Erro ao verificar cliente duplicado: $e");
+      return null;
     }
   }
 }

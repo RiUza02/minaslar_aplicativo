@@ -1,3 +1,4 @@
+import 'dart:io'; // Importante para checar conexão (SocketException)
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
 
@@ -28,49 +29,106 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
   final Color _corInput = Colors.black26;
 
   // ============================================================
-  // ENVIA O E-MAIL DE RECUPERAÇÃO DE SENHA
+  // LÓGICA DE ENVIO COM VALIDAÇÕES
   // ============================================================
   Future<void> _enviarEmailRecuperacao() async {
-    // Valida o formulário antes de prosseguir
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    // 1. Validação do formulário
+    if (!_formKey.currentState!.validate()) return;
 
-      // Solicita ao Supabase o envio do e-mail de recuperação
-      String? erro = await _authService.recuperarSenha(
-        email: _emailController.text.trim(),
+    // Fecha o teclado para melhor UX
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 2. VERIFICAÇÃO DE CONEXÃO COM A INTERNET
+      // Tentamos buscar o endereço do Google. Se falhar, não tem internet.
+      try {
+        final result = await InternetAddress.lookup(
+          'google.com',
+        ).timeout(const Duration(seconds: 5));
+        if (result.isEmpty || result[0].rawAddress.isEmpty) {
+          throw const SocketException("Sem resposta");
+        }
+      } catch (_) {
+        throw const SocketException("Sem internet");
+      }
+
+      final email = _emailController.text.trim();
+
+      // 3. VERIFICAÇÃO SE O E-MAIL EXISTE NO BANCO
+      // Usamos aquela função RPC do seu AuthService
+      final bool existe = await _authService.verificarSeEmailExiste(email);
+
+      if (!existe) {
+        // Se cair aqui, interrompemos o processo
+        throw "Este e-mail não está cadastrado no sistema.";
+      }
+
+      // 4. ENVIA O E-MAIL DE RECUPERAÇÃO
+      // Agora sabemos que tem internet e o usuário existe
+      String? erro = await _authService.recuperarSenha(email: email);
+
+      if (erro != null) {
+        throw erro; // Repassa o erro do Supabase se houver
+      }
+
+      if (!mounted) return;
+
+      // 5. SUCESSO
+      _showSnackBar(
+        'E-mail enviado! Verifique sua caixa de entrada.',
+        isError: false,
       );
 
-      setState(() => _isLoading = false);
-
-      // Caso não haja erro, exibe mensagem de sucesso
-      if (erro == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'E-mail de recuperação enviado! Verifique sua caixa de entrada.',
-                style: TextStyle(fontSize: 15),
-              ),
-              backgroundColor: Colors.green,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          // Retorna para a tela anterior (login)
-          Navigator.pop(context);
-        }
-      } else {
-        // Caso haja erro, exibe mensagem de falha
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(erro, style: const TextStyle(fontSize: 15)),
-              backgroundColor: const Color.fromARGB(255, 255, 110, 110),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+      // Aguarda um pouco para o usuário ler e volta para o login
+      await Future.delayed(const Duration(seconds: 2));
+      if (mounted) Navigator.pop(context);
+    } on SocketException {
+      // TRATAMENTO: Sem Internet
+      _showSnackBar("Sem conexão com a internet.", isError: true);
+    } catch (e) {
+      // TRATAMENTO: E-mail não cadastrado ou Erro Genérico
+      // Removemos o "Exception:" da mensagem se houver
+      String msg = e.toString().replaceAll("Exception: ", "");
+      _showSnackBar(msg, isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
+  }
+
+  // ============================================================
+  // HELPER PARA EXIBIR MENSAGENS (SnackBar Bonito)
+  // ============================================================
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontSize: 15),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: isError
+            ? const Color.fromARGB(255, 200, 60, 60)
+            : Colors.green[700],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   // ============================================================
