@@ -366,7 +366,7 @@ class _ListaClientesState extends State<ListaClientes> {
         : corComplementar;
 
     // --- MUDANÇA 2: Função centralizada para decidir clique ---
-    void _handleCardTap() {
+    void handleCardTap() {
       if (widget.isSelecao) {
         // Se estiver selecionando, devolve o cliente para a tela anterior
         Navigator.pop(context, cliente);
@@ -389,7 +389,7 @@ class _ListaClientesState extends State<ListaClientes> {
         // Sombra suave
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -406,7 +406,7 @@ class _ListaClientesState extends State<ListaClientes> {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: _handleCardTap, // Usa a função nova
+        onTap: handleCardTap, // Usa a função nova
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -453,7 +453,7 @@ class _ListaClientesState extends State<ListaClientes> {
                             IconButton(
                               icon: Icon(
                                 Icons.delete_outline,
-                                color: Colors.red[300]!.withOpacity(0.7),
+                                color: Colors.red[300]!.withValues(alpha: 0.7),
                                 size: 24,
                               ),
                               onPressed: () => _confirmarExclusao(cliente),
@@ -516,7 +516,7 @@ class _ListaClientesState extends State<ListaClientes> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: corSecundaria,
                             side: BorderSide(
-                              color: corSecundaria.withOpacity(0.5),
+                              color: corSecundaria.withValues(alpha: 0.5),
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -532,7 +532,7 @@ class _ListaClientesState extends State<ListaClientes> {
                           label: Text(
                             widget.isSelecao ? "SELECIONAR" : "Detalhes",
                           ),
-                          onPressed: _handleCardTap, // Mesma lógica
+                          onPressed: handleCardTap, // Mesma lógica
                         ),
                       ),
                     ],

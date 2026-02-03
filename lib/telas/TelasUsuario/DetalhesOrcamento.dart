@@ -90,6 +90,28 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
     }
   }
 
+  Future<void> _alterarStatusEntrega(bool statusAtual) async {
+    setState(() => _isLoading = true);
+    try {
+      await Supabase.instance.client
+          .from('orcamentos')
+          .update({'entregue': !statusAtual})
+          .eq('id', _orcamentoObj.id!);
+
+      await _atualizarDados();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao alterar status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   void _navegarDetalhesCliente() {
     if (_clienteCompleto != null) {
       Navigator.push(
@@ -381,36 +403,61 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
 
   Widget _buildStatusCard(bool isConcluido) {
     final Color statusColor = isConcluido
-        ? corComplementar
+        ? corComplementar // Certifique-se que essa variável existe no escopo
         : Colors.orangeAccent;
+
     final IconData statusIcon = isConcluido
         ? Icons.check_circle_outline
         : Icons.hourglass_top;
+
     final String statusText = isConcluido ? "CONCLUÍDO" : "PENDENTE";
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(statusIcon, color: statusColor, size: 24),
-          const SizedBox(width: 12),
-          Text(
-            statusText,
-            style: TextStyle(
-              color: statusColor,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
+    return Row(
+      children: [
+        // PARTE 1: O Card com a informação (ocupa o espaço disponível)
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: statusColor),
+            ),
+            child: Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Centraliza o conteúdo no card
+              children: [
+                Icon(statusIcon, color: statusColor, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+
+        const SizedBox(width: 12), // Espaçamento entre o card e o botão
+        // PARTE 2: O botão de atualizar (ao lado de fora)
+        Container(
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: statusColor),
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.update, color: Colors.white54),
+            tooltip: "Alterar Status",
+            onPressed: () => _alterarStatusEntrega(isConcluido),
+          ),
+        ),
+      ],
     );
   }
 }

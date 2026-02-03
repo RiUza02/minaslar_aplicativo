@@ -29,6 +29,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   // Controladores de Texto
   final _nomeController = TextEditingController();
   final _ruaController = TextEditingController();
+  final _apartamentoController = TextEditingController();
   final _numeroController = TextEditingController();
   final _bairroController = TextEditingController();
   final _telefoneController = TextEditingController();
@@ -61,6 +62,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     _nomeController.dispose();
     _ruaController.dispose();
     _numeroController.dispose();
+    _apartamentoController.dispose();
     _bairroController.dispose();
     _telefoneController.dispose();
     _cpfController.dispose();
@@ -249,8 +251,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         nome: _nomeController.text.trim(),
         rua: _ruaController.text.trim(),
         numero: _numeroController.text.trim(),
+        apartamento: _apartamentoController.text.trim().isEmpty
+            ? null
+            : _apartamentoController.text.trim(),
         bairro: _bairroController.text.trim(),
-        telefone: maskTelefone.getUnmaskedText(), // Pega apenas números
+        telefone: maskTelefone.getUnmaskedText(),
         cpf: cpfFinal,
         cnpj: cnpjFinal,
         observacao: _observacaoController.text.trim().isEmpty
@@ -324,9 +329,9 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                       color: Colors.blueAccent.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       Icon(Icons.content_paste_go, color: Colors.blueAccent),
                       SizedBox(width: 8),
                       Text(
@@ -364,29 +369,39 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           v!.length < 15 ? 'Telefone incompleto' : null,
                     ),
                     const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _ruaController,
+                      label: 'Rua',
+                      icon: Icons.add_road,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Obrigatório' : null,
+                    ),
+                    const SizedBox(height: 16),
                     Row(
                       children: [
+                        // Campo Número
                         Expanded(
-                          flex: 10,
-                          child: _buildTextField(
-                            controller: _ruaController,
-                            label: 'Rua',
-                            icon: Icons.add_road,
-                            validator: (v) =>
-                                v == null || v.isEmpty ? 'Obrigatório' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 6,
+                          flex: 1,
                           child: _buildTextField(
                             controller: _numeroController,
-                            keyboardType: TextInputType
-                                .text, // Mudado para text caso tenha letras (Ex: 10A)
+                            keyboardType: TextInputType.text,
                             label: 'Nº',
                             icon: Icons.home_filled,
                             validator: (v) =>
                                 v == null || v.isEmpty ? 'Req.' : null,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Campo Apartamento (Novo)
+                        Expanded(
+                          flex: 1,
+                          child: _buildTextField(
+                            controller: _apartamentoController,
+                            keyboardType: TextInputType.text,
+                            label: 'Apt/Comp', // Label curto para caber
+                            icon: Icons.apartment,
+                            // Sem validator pois é opcional
                           ),
                         ),
                       ],

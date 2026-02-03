@@ -35,7 +35,6 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
   final Color corHoje = Colors.amber;
-  final Color corCard = const Color(0xFF1E1E1E);
 
   @override
   void initState() {
@@ -66,7 +65,9 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
     try {
       final response = await Supabase.instance.client
           .from('orcamentos')
-          .select('id, data_pega, titulo, horario_do_dia, clientes(nome)');
+          .select(
+            'id, data_pega, titulo, horario_do_dia, clientes(nome, bairro)',
+          );
 
       final Map<DateTime, List<dynamic>> eventos = {};
 
@@ -162,7 +163,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : RefreshIndicator(
               color: corPrincipal,
-              backgroundColor: corCard,
+              backgroundColor: const Color(0xFF1E1E1E),
               onRefresh: _carregarEventosDoMes,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -334,8 +335,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                     ..._eventosSelecionados.map((item) {
                       final titulo = item['titulo'] ?? 'Sem Título';
                       String nomeCliente = 'Cliente não identificado';
+                      String bairroCliente = '';
                       if (item['clientes'] != null) {
                         nomeCliente = item['clientes']['nome'] ?? 'Sem Nome';
+                        bairroCliente = item['clientes']['bairro'] ?? '';
                       }
 
                       final horario = item['horario_do_dia'] ?? 'Manhã';
@@ -387,23 +390,50 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                           ),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment
+                                  .start, // Alinha os itens à esquerda
                               children: [
-                                Icon(
-                                  Icons.person,
-                                  size: 14,
-                                  color: corTextoCinza,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    nomeCliente,
-                                    style: TextStyle(
+                                // Linha do Nome
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.person,
+                                      size: 14,
                                       color: corTextoCinza,
-                                      fontSize: 14,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      nomeCliente,
+                                      style: TextStyle(
+                                        color: corTextoCinza,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons
+                                          .location_on, // Troquei para ícone de localização, faz mais sentido para bairro!
+                                      size: 14,
+                                      color: corTextoCinza,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      bairroCliente,
+                                      style: TextStyle(
+                                        color: corTextoCinza,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

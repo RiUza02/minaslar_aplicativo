@@ -69,7 +69,7 @@ class _HomeAdminState extends State<HomeAdmin> {
             mostrarLogout: true, // Mostra o botão de logout na AppBar do Painel
             mostrarConfiguracoes:
                 true, // Mostra o botão de configurações na AppBar do Painel
-            nostrarTitulo: false, // Não mostra o título na AppBar do Painel
+            mostrarTitulo: false, // Não mostra o título na AppBar do Painel
           ), // Index 3: Gestão de Clientes
           const ListaClientes(),
           // Index 4: Gestão de Orçamentos

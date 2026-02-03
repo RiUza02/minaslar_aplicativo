@@ -10,8 +10,11 @@ class Cliente {
   /// Rua do cliente
   String rua;
 
-  /// Número do endereço (Novo campo obrigatório)
+  /// Número do endereço
   String numero;
+
+  /// Apartamento ou complemento
+  String? apartamento;
 
   /// Bairro do cliente
   String bairro;
@@ -38,7 +41,8 @@ class Cliente {
     this.id,
     required this.nome,
     required this.rua,
-    required this.numero, // Adicionado como obrigatório
+    required this.numero,
+    this.apartamento,
     required this.bairro,
     required this.telefone,
     this.cpf,
@@ -51,19 +55,15 @@ class Cliente {
   /// para envio ao Supabase
   Map<String, dynamic> toMap() {
     return {
-      // O ID não é enviado,
-      // pois o Supabase gera automaticamente
       'nome': nome,
       'rua': rua,
-      'numero': numero, // Mapeado para coluna 'numero'
+      'numero': numero,
+      'apartamento': apartamento,
       'bairro': bairro,
       'telefone': telefone,
       'cpf': cpf,
       'cnpj': cnpj,
       'observacao': observacao,
-
-      // Conversão de camelCase (Dart)
-      // para snake_case (Banco de Dados)
       'cliente_problematico': clienteProblematico,
     };
   }
@@ -72,22 +72,15 @@ class Cliente {
   /// de um Map retornado pelo Supabase
   factory Cliente.fromMap(Map<String, dynamic> map) {
     return Cliente(
-      // O ID já vem dentro do Map
       id: map['id']?.toString(),
-
-      // Dados básicos
       nome: map['nome'] ?? '',
       rua: map['rua'] ?? '',
-      // Se o campo for nulo no banco (registros antigos), retorna string vazia
       numero: map['numero']?.toString() ?? '',
+      apartamento: map['apartamento'],
       bairro: map['bairro'] ?? '',
       telefone: map['telefone'] ?? '',
-
-      // Documentos (podem ser nulos)
       cpf: map['cpf'],
       cnpj: map['cnpj'],
-
-      // Leitura da coluna em snake_case
       clienteProblematico: map['cliente_problematico'] ?? false,
       observacao: map['observacao'],
     );

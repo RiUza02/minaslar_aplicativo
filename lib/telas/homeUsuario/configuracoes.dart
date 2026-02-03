@@ -293,8 +293,14 @@ class _ConfiguracoesState extends State<Configuracoes> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () async {
+                        // 1. Executa a ação assíncrona
                         await Supabase.instance.client.auth.signOut();
-                        if (mounted) Navigator.of(context).pop();
+
+                        // 2. CORREÇÃO: Verifica se o widget ainda está montado
+                        if (!mounted) return;
+
+                        // 3. Agora é seguro usar o context
+                        Navigator.of(context).pop();
                       },
                       icon: const Icon(Icons.logout, color: Colors.redAccent),
                       label: const Text(
@@ -346,7 +352,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
         border: Border.all(color: Colors.white10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -398,7 +404,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
             icon: const Icon(Icons.edit, color: Colors.blueAccent),
             tooltip: "Editar Perfil",
             style: IconButton.styleFrom(
-              backgroundColor: Colors.blueAccent.withOpacity(0.1),
+              backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
             ),
           ),
         ],
@@ -446,7 +452,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
                 onPressed: () => _fazerLigacao(user.telefone),
                 tooltip: "Ligar",
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                  backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
                 ),
               ),
             const SizedBox(width: 8),
@@ -457,7 +463,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
                 onPressed: () => _abrirWhatsApp(user.telefone),
                 tooltip: "WhatsApp",
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.greenAccent.withOpacity(0.1),
+                  backgroundColor: Colors.greenAccent.withValues(alpha: 0.1),
                 ),
               ),
           ],

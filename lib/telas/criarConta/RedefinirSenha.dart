@@ -308,20 +308,17 @@ class _RedefinirSenhaScreenState extends State<RedefinirSenhaScreen> {
                               if (_confirmaSenhaController.text.isNotEmpty &&
                                   _confirmaSenhaController.text !=
                                       _senhaController.text)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 8.0,
-                                    left: 4.0,
-                                  ),
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 8.0, left: 4.0),
                                   child: Row(
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.error_outline,
                                         color: Colors.redAccent,
                                         size: 16,
                                       ),
-                                      const SizedBox(width: 6),
-                                      const Text(
+                                      SizedBox(width: 6),
+                                      Text(
                                         "As senhas não coincidem",
                                         style: TextStyle(
                                           color: Colors.redAccent,

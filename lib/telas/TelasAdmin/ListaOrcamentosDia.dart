@@ -14,7 +14,7 @@ class ListaOrcamentosDia extends StatefulWidget {
   final bool apenasPendentes;
   final bool mostrarLogout;
   final bool mostrarConfiguracoes;
-  final bool nostrarTitulo;
+  final bool mostrarTitulo;
 
   const ListaOrcamentosDia({
     super.key,
@@ -22,7 +22,7 @@ class ListaOrcamentosDia extends StatefulWidget {
     this.apenasPendentes = false,
     this.mostrarLogout = false,
     this.mostrarConfiguracoes = false,
-    this.nostrarTitulo = true,
+    this.mostrarTitulo = true,
   });
 
   @override
@@ -196,12 +196,9 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
-        title: widget.nostrarTitulo
-            ? const Text(
-                "Orçamentos do Dia",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              )
-            : null,
+        title: widget.mostrarTitulo
+            ? const Text("Orçamentos do Dia", style: TextStyle())
+            : const Text("Orçamentos Pendentes", style: TextStyle()),
 
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
@@ -510,7 +507,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                               if (telefone.isNotEmpty)
                                 IconButton(
                                   onPressed: () => _abrirWhatsApp(telefone),
-                                  icon: const Icon(Icons.chat_bubble_outline),
+                                  icon: const Icon(Icons.chat),
                                   color: Colors.greenAccent,
                                   tooltip: 'WhatsApp',
                                   style: IconButton.styleFrom(

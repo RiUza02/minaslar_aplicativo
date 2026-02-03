@@ -10,8 +10,8 @@ class Cadastro extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Cores do padrão visual
-    final Color corFundo = Colors.black;
-    final Color corCard = const Color(0xFF1E1E1E);
+    const Color corFundo = Colors.black;
+    const Color corCard = Color(0xFF1E1E1E);
     final Color corTextoCinza = Colors.grey[500]!;
 
     return Scaffold(

@@ -210,8 +210,9 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
                                   if (v!.isEmpty) return 'Informe o e-mail';
-                                  if (!v.contains('@'))
+                                  if (!v.contains('@')) {
                                     return 'E-mail inválido';
+                                  }
                                   return null;
                                 },
                               ),

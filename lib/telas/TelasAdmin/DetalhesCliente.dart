@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -77,6 +78,89 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
         ).showSnackBar(SnackBar(content: Text('Erro ao atualizar: $e')));
       }
     }
+  }
+
+  /// Copia o texto para a área de transferência e avisa o usuário
+  void _copiarParaClipboard(String texto, String item) {
+    if (texto.isEmpty) return;
+
+    Clipboard.setData(ClipboardData(text: texto));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$item copiado com sucesso!'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Widget auxiliar para criar os cards de info (Endereço, CPF, etc)
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? iconColor,
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+  }) {
+    return Card(
+      elevation: 0,
+      color: corCard,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(12),
+        splashColor: Colors.white.withValues(alpha: 0.2),
+        highlightColor: Colors.white.withValues(alpha: 0.1),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          child: Row(
+            children: [
+              Icon(icon, color: iconColor ?? corSecundaria, size: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label.toUpperCase(),
+                      style: TextStyle(
+                        color: corTextoCinza,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(color: corTextoClaro, fontSize: 16),
+                    ),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                IconButton(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.map_outlined),
+                  color: Colors.blueAccent,
+                  tooltip: 'Abrir no Mapa',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ===========================================================================
@@ -342,11 +426,18 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   Future<void> _abrirGoogleMaps() async {
     final String rua = _clienteExibido.rua;
     final String numero = _clienteExibido.numero;
+    final String? apto = _clienteExibido.apartamento;
     final String bairro = _clienteExibido.bairro;
     const String cidade = "Juiz de Fora"; // Assumindo cidade padrão
 
     // Constrói o endereço completo para a busca no mapa
-    final String enderecoCompleto = "$rua, $numero - $bairro, $cidade";
+    final String enderecoCompleto = [
+      rua,
+      numero,
+      if (apto != null && apto.isNotEmpty) 'Apto $apto',
+      bairro,
+      cidade,
+    ].where((s) => s.isNotEmpty).join(', ');
 
     if (rua.isEmpty && bairro.isEmpty) {
       if (mounted) {
@@ -442,22 +533,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     }
   }
 
-  Widget _buildActionButton(IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(30),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          shape: BoxShape.circle,
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Icon(icon, color: color, size: 20),
-      ),
-    );
-  }
-
   // ===========================================================================
   // INTERFACE DO USUÁRIO (UI)
   // ===========================================================================
@@ -525,357 +600,261 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ===============================================================
-              // BLOCO ÚNICO: INFORMAÇÕES DO CLIENTE (CORRIGIDO)
-              // ===============================================================
+              // CARD DE CABEÇALHO DO CLIENTE
               Container(
                 width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 20),
-                // Removemos o padding daqui e passamos para dentro (para não afastar a barra lateral)
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: corCard,
                   borderRadius: BorderRadius.circular(16),
-                  // Removemos a propriedade 'border' que causava o erro
+                  border: Border(
+                    left: BorderSide(color: corStatusAtual, width: 6),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
+                      color: Colors.white.withValues(alpha: 0.05),
                       offset: const Offset(0, 4),
                       blurRadius: 10,
                     ),
                   ],
                 ),
-                // Clip.antiAlias garante que a barra lateral respeite o arredondamento do Container
-                clipBehavior: Clip.antiAlias,
-                child: IntrinsicHeight(
-                  // Garante que a barra lateral estique a altura toda
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // 1. A BARRA LATERAL COLORIDA (Simulando a borda esquerda)
-                      Container(width: 6, color: corStatusAtual),
-
-                      // 2. O CONTEÚDO DO CARD
-                      Expanded(
-                        child: Container(
-                          // Adicionamos as bordas finas apenas internamente ou removemos para simplificar
-                          decoration: BoxDecoration(
-                            border: Border(
-                              top: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.05),
-                              ),
-                              right: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.05),
-                              ),
-                              bottom: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.05),
-                              ),
-                            ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: corStatusAtual.withValues(
+                            alpha: 0.15,
                           ),
-                          padding: const EdgeInsets.all(
-                            20,
-                          ), // Padding do conteúdo
+                          child: Icon(
+                            Icons.person,
+                            color: corStatusAtual,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // --- TÍTULO DA SEÇÃO ---
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.person_outline,
-                                    color: corTextoCinza,
-                                    size: 18,
+                              Text(
+                                _clienteExibido.nome,
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: corTextoClaro,
+                                ),
+                              ),
+                              if (_clienteExibido.clienteProblematico)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.redAccent,
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber,
+                                          color: Colors.redAccent,
+                                          size: 14,
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          "Problemático",
+                                          style: TextStyle(
+                                            color: Colors.redAccent,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(width: 8),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              if (_clienteExibido.telefone.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: corCard,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      splashColor: Colors.white.withValues(alpha: 0.2),
+                      highlightColor: Colors.white.withValues(alpha: 0.1),
+                      onLongPress: () => _copiarParaClipboard(
+                        _clienteExibido.telefone,
+                        'Telefone',
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 16,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.phone_android,
+                              color: corSecundaria,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    "INFORMAÇÕES DO CLIENTE",
+                                    "TELEFONE",
                                     style: TextStyle(
                                       color: corTextoCinza,
-                                      fontSize: 12,
+                                      fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1.2,
                                     ),
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-
-                              // --- 1. CABEÇALHO (Avatar + Nome) ---
-                              Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 24,
-                                    backgroundColor: corStatusAtual.withValues(
-                                      alpha: 0.15,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    maskTelefone.maskText(
+                                      _clienteExibido.telefone,
                                     ),
-                                    child: Icon(
-                                      Icons.person,
-                                      color: corStatusAtual,
-                                      size: 28,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _clienteExibido.nome,
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: corTextoClaro,
-                                          ),
-                                        ),
-                                        if (_clienteExibido.clienteProblematico)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 4,
-                                            ),
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.red.withValues(
-                                                  alpha: 0.2,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                                border: Border.all(
-                                                  color: Colors.redAccent
-                                                      .withValues(alpha: 0.5),
-                                                ),
-                                              ),
-                                              child: const Text(
-                                                "PROBLEMÁTICO",
-                                                style: TextStyle(
-                                                  color: Colors.redAccent,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
+                                    style: TextStyle(
+                                      color: corTextoClaro,
+                                      fontSize: 16,
                                     ),
                                   ),
                                 ],
                               ),
-
-                              const SizedBox(height: 16),
-                              const Divider(color: Colors.white10),
-                              const SizedBox(height: 16),
-
-                              // --- 2. TELEFONE & AÇÕES ---
-                              if (_clienteExibido.telefone.isNotEmpty) ...[
-                                Text(
-                                  "CONTATO",
-                                  style: TextStyle(
-                                    color: corTextoCinza,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  onPressed: _ligarParaCliente,
+                                  tooltip: 'Ligar',
+                                  icon: const Icon(
+                                    Icons.phone,
+                                    color: Colors.white,
+                                  ),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.white.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        maskTelefone.maskText(
-                                          _clienteExibido.telefone,
-                                        ),
-                                        style: TextStyle(
-                                          color: corTextoClaro,
-                                          fontSize: 16,
-                                        ),
-                                      ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  onPressed: _abrirWhatsApp,
+                                  tooltip: 'WhatsApp',
+                                  icon: const Icon(
+                                    Icons.chat,
+                                    color: Colors.greenAccent,
+                                  ),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.green.withValues(
+                                      alpha: 0.2,
                                     ),
-                                    Row(
-                                      children: [
-                                        _buildActionButton(
-                                          Icons.phone,
-                                          Colors.white,
-                                          _ligarParaCliente,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        _buildActionButton(
-                                          Icons.chat,
-                                          Colors.greenAccent,
-                                          _abrirWhatsApp,
-                                        ),
-                                      ],
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                const Divider(color: Colors.white10),
-                                const SizedBox(height: 16),
-                              ],
-
-                              // --- 3. ENDEREÇO ---
-                              if (_clienteExibido.rua.isNotEmpty ||
-                                  _clienteExibido.bairro.isNotEmpty) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Icon(
-                                      Icons.location_on_outlined,
-                                      color: corSecundaria,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "ENDEREÇO",
-                                            style: TextStyle(
-                                              color: corTextoCinza,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            [
-                                                  _clienteExibido.rua,
-                                                  _clienteExibido.numero,
-                                                  _clienteExibido.bairro,
-                                                ]
-                                                .where((s) => s.isNotEmpty)
-                                                .join(', '),
-                                            style: TextStyle(
-                                              color: corTextoClaro,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.map,
-                                        color: Colors.grey,
-                                        size: 20,
-                                      ),
-                                      onPressed: _abrirGoogleMaps,
-                                      tooltip: "Abrir no Mapa",
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                const Divider(color: Colors.white10),
-                                const SizedBox(height: 16),
-                              ],
-
-                              // --- 4. DOCUMENTOS ---
-                              if ((_clienteExibido.cpf != null &&
-                                      _clienteExibido.cpf!.isNotEmpty) ||
-                                  (_clienteExibido.cnpj != null &&
-                                      _clienteExibido.cnpj!.isNotEmpty)) ...[
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.badge_outlined,
-                                      color: corSecundaria,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "DOCUMENTO",
-                                            style: TextStyle(
-                                              color: corTextoCinza,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _clienteExibido.cpf?.isNotEmpty ==
-                                                    true
-                                                ? "CPF: ${_clienteExibido.cpf}"
-                                                : "CNPJ: ${_clienteExibido.cnpj}",
-                                            style: TextStyle(
-                                              color: corTextoClaro,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                const Divider(color: Colors.white10),
-                                const SizedBox(height: 16),
-                              ],
-
-                              // --- 5. OBSERVAÇÕES ---
-                              if (_clienteExibido.observacao != null &&
-                                  _clienteExibido.observacao!.isNotEmpty) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.notes,
-                                      color: Colors.grey,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            "OBSERVAÇÕES",
-                                            style: TextStyle(
-                                              color: corTextoCinza,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _clienteExibido.observacao!,
-                                            style: const TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 14,
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
 
-              // ===============================================================
-              // FIM DO BLOCO DE INFORMAÇÕES
-              // ===============================================================
+              if (_clienteExibido.rua.isNotEmpty ||
+                  _clienteExibido.bairro.isNotEmpty)
+                _buildInfoCard(
+                  icon: Icons.location_on_outlined,
+                  label: "Endereço",
+                  value: ([
+                    [
+                      _clienteExibido.rua,
+                      _clienteExibido.numero,
+                      if (_clienteExibido.apartamento?.isNotEmpty ?? false)
+                        'Apto: ${_clienteExibido.apartamento!}',
+                    ].where((s) => s.isNotEmpty).join(', '),
+                    _clienteExibido.bairro,
+                  ].where((s) => s.isNotEmpty).join(' - ')),
+                  onTap: _abrirGoogleMaps,
+                  onLongPress: () {
+                    final String enderecoCompleto = ([
+                      [
+                        _clienteExibido.rua,
+                        _clienteExibido.numero,
+                        if (_clienteExibido.apartamento?.isNotEmpty ?? false)
+                          'Apto: ${_clienteExibido.apartamento!}',
+                      ].where((s) => s.isNotEmpty).join(', '),
+                      _clienteExibido.bairro,
+                    ].where((s) => s.isNotEmpty).join(' - '));
+                    _copiarParaClipboard(enderecoCompleto, 'Endereço');
+                  },
+                ),
+
+              if (_clienteExibido.cpf != null &&
+                  _clienteExibido.cpf!.isNotEmpty)
+                _buildInfoCard(
+                  icon: Icons.badge_outlined,
+                  label: "CPF",
+                  value: _clienteExibido.cpf!,
+                  onLongPress: () =>
+                      _copiarParaClipboard(_clienteExibido.cpf!, 'CPF'),
+                ),
+
+              if (_clienteExibido.cnpj != null &&
+                  _clienteExibido.cnpj!.isNotEmpty)
+                _buildInfoCard(
+                  icon: Icons.domain,
+                  label: "CNPJ",
+                  value: _clienteExibido.cnpj!,
+                  onLongPress: () =>
+                      _copiarParaClipboard(_clienteExibido.cnpj!, 'CNPJ'),
+                ),
+
+              if (_clienteExibido.observacao != null &&
+                  _clienteExibido.observacao!.isNotEmpty)
+                _buildInfoCard(
+                  icon: Icons.comment_outlined,
+                  label: "Observações",
+                  value: _clienteExibido.observacao!,
+                  iconColor: Colors.grey,
+                ),
+
+              const SizedBox(height: 20),
 
               // Título da Lista de Orçamentos
               Padding(

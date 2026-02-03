@@ -29,6 +29,7 @@ class _EditarClienteState extends State<EditarCliente> {
   late TextEditingController _nomeController;
   late TextEditingController _telefoneController;
   late TextEditingController _ruaController;
+  late TextEditingController _apartamentoController;
   late TextEditingController _numeroController;
   late TextEditingController _bairroController;
   late TextEditingController _cpfController;
@@ -68,7 +69,9 @@ class _EditarClienteState extends State<EditarCliente> {
     _nomeController = TextEditingController(text: widget.cliente.nome);
     _ruaController = TextEditingController(text: widget.cliente.rua);
     _numeroController = TextEditingController(text: widget.cliente.numero);
-    _numeroController = TextEditingController(text: widget.cliente.numero);
+    _apartamentoController = TextEditingController(
+      text: widget.cliente.apartamento ?? '',
+    );
     _bairroController = TextEditingController(text: widget.cliente.bairro);
     _obsController = TextEditingController(
       text: widget.cliente.observacao ?? '',
@@ -95,6 +98,7 @@ class _EditarClienteState extends State<EditarCliente> {
     _ruaController.dispose();
     _numeroController.dispose();
     _bairroController.dispose();
+    _apartamentoController.dispose();
     _cpfController.dispose();
     _cnpjController.dispose();
     _obsController.dispose();
@@ -121,6 +125,9 @@ class _EditarClienteState extends State<EditarCliente> {
             'rua': _ruaController.text.trim(),
             'numero': _numeroController.text.trim(),
             'bairro': _bairroController.text.trim(),
+            'apartamento': _apartamentoController.text.trim().isEmpty
+                ? null
+                : _apartamentoController.text.trim(),
             'cpf': _cpfController.text.isEmpty
                 ? null
                 : _cpfController.text.trim(),
@@ -202,20 +209,23 @@ class _EditarClienteState extends State<EditarCliente> {
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                     const SizedBox(height: 16),
+
+                    // --- RUA (Agora ocupa a largura total) ---
+                    _buildTextField(
+                      controller: _ruaController,
+                      label: 'Rua',
+                      icon: Icons.add_road,
+                      validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // --- LINHA COM NÚMERO E APARTAMENTO ---
                     Row(
                       children: [
+                        // Campo Número
                         Expanded(
-                          flex: 10,
-                          child: _buildTextField(
-                            controller: _ruaController,
-                            label: 'Rua',
-                            icon: Icons.add_road,
-                            validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 6,
+                          flex: 1,
                           child: _buildTextField(
                             controller: _numeroController,
                             label: 'Nº',
@@ -223,9 +233,23 @@ class _EditarClienteState extends State<EditarCliente> {
                             validator: (v) => v!.isEmpty ? 'Req.' : null,
                           ),
                         ),
+                        const SizedBox(width: 12),
+
+                        // Campo Apartamento [NOVO]
+                        Expanded(
+                          flex: 1,
+                          child: _buildTextField(
+                            controller: _apartamentoController,
+                            label: 'Apt/Comp',
+                            icon: Icons.apartment,
+                            // Sem validador pois é opcional
+                          ),
+                        ),
                       ],
                     ),
+
                     const SizedBox(height: 16),
+
                     _buildTextField(
                       controller: _bairroController,
                       label: "Bairro",

@@ -65,7 +65,9 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
     try {
       final response = await Supabase.instance.client
           .from('orcamentos')
-          .select('id, data_pega, titulo, horario_do_dia, clientes(nome)');
+          .select(
+            'id, data_pega, titulo, horario_do_dia, clientes(nome, bairro)',
+          );
 
       final Map<DateTime, List<dynamic>> eventos = {};
 
@@ -161,7 +163,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : RefreshIndicator(
               color: corPrincipal,
-              backgroundColor: Colors.white,
+              backgroundColor: const Color(0xFF1E1E1E),
               onRefresh: _carregarEventosDoMes,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -333,8 +335,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                     ..._eventosSelecionados.map((item) {
                       final titulo = item['titulo'] ?? 'Sem Título';
                       String nomeCliente = 'Cliente não identificado';
+                      String bairroCliente = '';
                       if (item['clientes'] != null) {
                         nomeCliente = item['clientes']['nome'] ?? 'Sem Nome';
+                        bairroCliente = item['clientes']['bairro'] ?? '';
                       }
 
                       final horario = item['horario_do_dia'] ?? 'Manhã';
@@ -396,7 +400,26 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
-                                    nomeCliente,
+                                    bairroCliente.isNotEmpty
+                                        ? '$nomeCliente ($bairroCliente)'
+                                        : nomeCliente,
+                                    style: TextStyle(
+                                      color: corTextoCinza,
+                                      fontSize: 14,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+
+                                Icon(
+                                  Icons.person,
+                                  size: 14,
+                                  color: corTextoCinza,
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    bairroCliente,
                                     style: TextStyle(
                                       color: corTextoCinza,
                                       fontSize: 14,

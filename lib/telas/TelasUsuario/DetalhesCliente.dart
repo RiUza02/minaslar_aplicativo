@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -131,6 +132,22 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
           context,
         ).showSnackBar(SnackBar(content: Text('Erro: $e')));
       }
+    }
+  }
+
+  /// Copia o texto para a área de transferência e avisa o usuário
+  void _copiarParaClipboard(String texto, String item) {
+    if (texto.isEmpty) return;
+
+    Clipboard.setData(ClipboardData(text: texto));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$item copiado com sucesso!'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -318,85 +335,98 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                       ),
                     ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 16,
-                    ),
-                    child: Row(
-                      children: [
-                        // Ícone e Texto (Esquerda)
-                        Icon(
-                          Icons.phone_android,
-                          color: corSecundaria,
-                          size: 24,
+
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onLongPress: () => _copiarParaClipboard(
+                        _clienteExibido.telefone,
+                        'Telefone',
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 16,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "TELEFONE",
-                                style: TextStyle(
-                                  color: corTextoCinza,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                maskTelefone.maskText(_clienteExibido.telefone),
-                                style: TextStyle(
-                                  color: corTextoClaro,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Botões de Ação (Direita)
-                        Row(
+                        child: Row(
                           children: [
-                            // Botão Ligar
-                            IconButton(
-                              onPressed: _ligarParaCliente,
-                              tooltip: 'Ligar',
-                              icon: const Icon(
-                                Icons.phone,
-                                color: Colors.white,
-                              ),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.white.withValues(
-                                  alpha: 0.1,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                            // Ícone e Texto (Esquerda)
+                            Icon(
+                              Icons.phone_android,
+                              color: corSecundaria,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "TELEFONE",
+                                    style: TextStyle(
+                                      color: corTextoCinza,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    maskTelefone.maskText(
+                                      _clienteExibido.telefone,
+                                    ),
+                                    style: TextStyle(
+                                      color: corTextoClaro,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            // Botão WhatsApp
-                            IconButton(
-                              onPressed: _abrirWhatsApp,
-                              tooltip: 'WhatsApp',
-                              icon: const Icon(
-                                Icons.chat, // Ou Icons.message
-                                color: Colors.greenAccent,
-                              ),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.green.withValues(
-                                  alpha: 0.2,
+                            // Botões de Ação (Direita)
+                            Row(
+                              children: [
+                                // Botão Ligar
+                                IconButton(
+                                  onPressed: _ligarParaCliente,
+                                  tooltip: 'Ligar',
+                                  icon: const Icon(
+                                    Icons.phone,
+                                    color: Colors.white,
+                                  ),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.white.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
                                 ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                const SizedBox(width: 8),
+                                // Botão WhatsApp
+                                IconButton(
+                                  onPressed: _abrirWhatsApp,
+                                  tooltip: 'WhatsApp',
+                                  icon: const Icon(
+                                    Icons.chat, // Ou Icons.message
+                                    color: Colors.greenAccent,
+                                  ),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor: Colors.green.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -413,6 +443,11 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                     _clienteExibido.bairro,
                   ].where((s) => s.isNotEmpty).join(', '),
                   onTap: _abrirGoogleMaps, // Adiciona a ação de abrir o mapa
+                  onLongPress: () {
+                    final String enderecoCompleto =
+                        "${_clienteExibido.rua}, ${_clienteExibido.numero} - ${_clienteExibido.bairro}";
+                    _copiarParaClipboard(enderecoCompleto, 'Endereço');
+                  },
                 ),
 
               if (_clienteExibido.cpf != null &&
@@ -683,6 +718,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     required String value,
     Color? iconColor,
     VoidCallback? onTap,
+    VoidCallback? onLongPress,
   }) {
     return Card(
       elevation: 2,
@@ -694,6 +730,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
       ),
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -723,7 +760,15 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 ),
               ),
               if (onTap != null)
-                Icon(Icons.launch, color: corTextoCinza, size: 18),
+                IconButton(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.map_outlined),
+                  color: Colors.blueAccent,
+                  tooltip: 'Abrir no Mapa',
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                  ),
+                ),
             ],
           ),
         ),
