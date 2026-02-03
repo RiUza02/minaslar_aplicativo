@@ -450,9 +450,10 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
                   const SizedBox(height: 20),
 
                   // Campo Descrição (AGORA OPCIONAL - Validator removido)
-                  _tituloCampo("Descrição (Opcional)"),
+                  _tituloCampo("Descrição do Serviço"),
                   TextFormField(
                     controller: _descricaoController,
+                    keyboardType: TextInputType.visiblePassword,
                     maxLines: 3,
                     style: TextStyle(color: corTextoClaro),
                     decoration: _inputDecoration(

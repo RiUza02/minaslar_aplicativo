@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import '../../servicos/servicos.dart';
 import 'DetalhesOrcamento.dart';
 import '../homeUsuario/configuracoes.dart';
 import '../../servicos/autenticacao.dart';
@@ -8,7 +9,6 @@ import '../../servicos/CalculaRota.dart';
 
 class ListaOrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
-  // Flag para controlar se mostra tudo ou só pendentes
   final bool apenasPendentes;
   final bool mostrarLogout;
   final bool mostrarConfiguracoes;
@@ -33,7 +33,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   // ==================================================
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
-  final Color corPrincipal = Colors.blue[900]!;
+  final Color corPrincipal = Colors.blue[900]!; // Mantido azul para usuário
   final Color corTextoCinza = Colors.grey[500]!;
 
   late Future<List<Map<String, dynamic>>> _futureOrcamentos;
@@ -52,7 +52,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   }
 
   // ==================================================
-  // LÓGICA DE DADOS (Inalterada)
+  // LÓGICA DE DADOS
   // ==================================================
   Future<List<Map<String, dynamic>>> _buscarOrcamentosDoDia() async {
     final startOfDay = DateTime(
@@ -80,9 +80,10 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     final filterEntrega =
         'data_entrega.gte.${startOfDay.toIso8601String()},data_entrega.lte.${endOfDay.toIso8601String()}';
 
+    // [CORREÇÃO]: Adicionei 'apartamento' na query para poder exibir
     var query = Supabase.instance.client
         .from('orcamentos')
-        .select('*, clientes(nome, telefone, bairro, rua, numero)')
+        .select('*, clientes(nome, telefone, bairro, rua, numero, apartamento)')
         .or('and($filterEntrada),and($filterEntrega)');
 
     final response = await query.order('data_pega', ascending: true);
@@ -122,47 +123,13 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         'nome_cliente': cliente['nome'] ?? 'Cliente',
         'rua': cliente['rua'] ?? '',
         'numero': (cliente['numero'] ?? '').toString(),
+        'apartamento': cliente['apartamento'] ?? '', // Agora pega corretamente
         'bairro': cliente['bairro'] ?? '',
         'cidade': 'Juiz de Fora',
       };
     }).toList();
 
     ServicoRota.otimizarRotaDoDia(context, listaFormatada);
-  }
-
-  // --- AÇÕES RÁPIDAS NO CARD ---
-
-  Future<void> _abrirWhatsApp(String telefone) async {
-    final numero = telefone.replaceAll(RegExp(r'[^0-9]'), '');
-    final url = Uri.parse('https://wa.me/55$numero');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  // Nova função para abrir o mapa individualmente
-  Future<void> _abrirGoogleMapsIndividual(
-    String rua,
-    String numero,
-    String bairro,
-  ) async {
-    // Monta a query de busca
-    final String query = Uri.encodeComponent(
-      '$rua, $numero - $bairro, Juiz de Fora - MG',
-    );
-    final Uri googleMapsUrl = Uri.parse(
-      "https://www.google.com/maps/search/?api=1&query=$query",
-    );
-
-    if (await canLaunchUrl(googleMapsUrl)) {
-      await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Não foi possível abrir o mapa.")),
-        );
-      }
-    }
   }
 
   // ==================================================
@@ -176,7 +143,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         title: widget.mostrarTitulo
             ? const Text("Orçamentos do Dia", style: TextStyle())
             : const Text("Orçamentos Pendentes", style: TextStyle()),
-
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         centerTitle: true,
@@ -184,7 +150,6 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
-
         leading: widget.mostrarConfiguracoes
             ? IconButton(
                 icon: const Icon(Icons.settings),
@@ -206,18 +171,14 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
             ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: "btnRota",
-            onPressed: _gerarRota,
-            backgroundColor: Colors.blue[800],
-            foregroundColor: Colors.white,
-            elevation: 6,
-            child: const Icon(Icons.map),
-          ),
-        ],
+      // Apenas o botão de Rota, sem adicionar orçamentos
+      floatingActionButton: FloatingActionButton(
+        heroTag: "btnRota",
+        onPressed: _gerarRota,
+        backgroundColor: Colors.blue[800],
+        foregroundColor: Colors.white,
+        elevation: 6,
+        child: const Icon(Icons.map),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _futureOrcamentos,
@@ -288,19 +249,22 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
     );
   }
 
+  // =========================================================
+  // CARD DE ORÇAMENTO (VISUAL ATUALIZADO)
+  // =========================================================
   Widget _buildOrcamentoCard(Map<String, dynamic> orcamento) {
     final cliente = orcamento['clientes'] ?? {};
     final nomeCliente = cliente['nome'] ?? 'Cliente';
     final telefone = cliente['telefone'] ?? '';
     final rua = cliente['rua'] ?? '';
     final numero = cliente['numero'] ?? 'S/N';
+    final apartamento = cliente['apartamento'] ?? '';
     final bairro = cliente['bairro'] ?? '';
     final tituloServico = orcamento['titulo'] ?? '';
 
     final horarioTexto = (orcamento['horario_do_dia'] ?? 'Manhã').toString();
     final isTarde = horarioTexto.toLowerCase() == 'tarde';
 
-    // Cores baseadas no turno
     final Color corFaixa = isTarde ? Colors.orange[800]! : Colors.yellow[700]!;
     final IconData iconHorario = isTarde ? Icons.wb_twilight : Icons.wb_sunny;
     final String labelTurno = isTarde ? "TARDE" : "MANHÃ";
@@ -333,19 +297,18 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Barra Lateral Colorida (Turno)
+              // Faixa Lateral
               Container(width: 6, color: corFaixa),
 
-              // 2. Conteúdo Principal
+              // Conteúdo
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Cabeçalho: Turno e Nome do Cliente
+                      // Cabeçalho (Turno)
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -374,10 +337,9 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                           const Spacer(),
                         ],
                       ),
-
                       const SizedBox(height: 12),
 
-                      // Nome do Cliente em Destaque
+                      // Nome do Cliente
                       Row(
                         children: [
                           const Icon(
@@ -399,10 +361,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 4),
-
-                      // Título do Serviço
                       Padding(
                         padding: const EdgeInsets.only(left: 26),
                         child: Text(
@@ -418,16 +377,17 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                       const Divider(color: Colors.white10, height: 1),
                       const SizedBox(height: 12),
 
-                      // Rodapé: Endereço/Telefone e Botões de Ação
+                      // =======================================================
+                      // BLOCO DE ENDEREÇO E AÇÕES
+                      // =======================================================
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Coluna de Informações (Esq)
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Endereço
+                                // Cabeçalho do Endereço
                                 Row(
                                   children: [
                                     Icon(
@@ -442,87 +402,207 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
                                         color: corTextoCinza,
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.0,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  "$rua, $numero",
-                                  style: TextStyle(
-                                    color: Colors.grey[300],
-                                    fontSize: 13,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  bairro,
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 13,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                                const SizedBox(height: 8),
 
-                                const SizedBox(height: 10),
+                                // 1. RUA
+                                if (rua.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      rua,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
 
-                                // Telefone (Novo)
-                                if (telefone.isNotEmpty)
-                                  Row(
+                                // 2. NÚMERO
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
                                     children: [
                                       Icon(
-                                        Icons.phone,
-                                        size: 14,
+                                        Icons.home_filled,
+                                        size: 12,
                                         color: corTextoCinza,
                                       ),
-                                      const SizedBox(width: 4),
+                                      const SizedBox(width: 6),
                                       Text(
-                                        telefone, // Exibe o telefone
+                                        "Nº $numero",
                                         style: TextStyle(
-                                          color: Colors.grey[300],
+                                          color: Colors.grey[400],
                                           fontSize: 13,
                                         ),
                                       ),
                                     ],
                                   ),
+                                ),
+
+                                // 3. APARTAMENTO
+                                if (apartamento.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.apartment,
+                                          size: 12,
+                                          color: corTextoCinza,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Apt/Comp: $apartamento",
+                                          style: TextStyle(
+                                            color: Colors.grey[400],
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                // 4. BAIRRO
+                                if (bairro.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.map,
+                                          size: 12,
+                                          color: corTextoCinza,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          bairro,
+                                          style: TextStyle(
+                                            color: Colors.grey[400],
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                const SizedBox(height: 12),
+
+                                // Telefone (Visualmente separado)
+                                if (telefone.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.05,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.phone_android,
+                                          size: 14,
+                                          color: corTextoCinza,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          telefone,
+                                          style: TextStyle(
+                                            color: Colors.grey[300],
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
 
-                          // Coluna de Botões (Dir)
+                          // =================================================
+                          // COLUNA DE BOTÕES (USANDO CLASSE SERVICOS)
+                          // =================================================
+                          const SizedBox(width: 8),
                           Column(
                             children: [
-                              // Botão WhatsApp
-                              if (telefone.isNotEmpty)
-                                IconButton(
-                                  onPressed: () => _abrirWhatsApp(telefone),
-                                  icon: const Icon(Icons.chat),
-                                  color: Colors.greenAccent,
-                                  tooltip: 'WhatsApp',
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Colors.green.withValues(
-                                      alpha: 0.1,
-                                    ),
-                                  ),
+                              // Ligar
+                              IconButton(
+                                onPressed: () =>
+                                    Servicos.fazerLigacao(telefone),
+                                tooltip: 'Ligar',
+                                icon: const Icon(
+                                  Icons.phone,
+                                  color: Colors.white,
+                                  size: 20,
                                 ),
-
-                              // Botão Google Maps (Novo)
-                              if (rua.isNotEmpty || bairro.isNotEmpty)
-                                IconButton(
-                                  onPressed: () => _abrirGoogleMapsIndividual(
-                                    rua,
-                                    numero,
-                                    bairro,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.1,
                                   ),
-                                  icon: const Icon(Icons.map_outlined),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.all(10),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              // WhatsApp
+                              IconButton(
+                                onPressed: () =>
+                                    Servicos.abrirWhatsApp(telefone),
+                                tooltip: 'WhatsApp',
+                                icon: const Icon(
+                                  Icons.chat,
+                                  color: Colors.greenAccent,
+                                  size: 20,
+                                ),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.green.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.all(10),
+                                ),
+                              ),
+                              // Mapa
+                              if (rua.isNotEmpty || bairro.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                IconButton(
+                                  onPressed: () => Servicos.abrirGoogleMaps(
+                                    "$rua, $numero - $bairro, Juiz de Fora - MG",
+                                  ),
+                                  icon: const Icon(
+                                    Icons.map_outlined,
+                                    size: 20,
+                                  ),
                                   color: Colors.blueAccent,
                                   tooltip: 'Abrir no Mapa',
                                   style: IconButton.styleFrom(
                                     backgroundColor: Colors.blue.withValues(
                                       alpha: 0.1,
                                     ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.all(10),
                                   ),
                                 ),
+                              ],
                             ],
                           ),
                         ],

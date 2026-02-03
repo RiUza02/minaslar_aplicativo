@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../../servicos/servicos.dart';
 import '../../modelos/Cliente.dart';
 import 'adicionarOrcamento.dart';
 import 'EditarCliente.dart';
@@ -54,6 +56,66 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   // ===========================================================================
   // LÓGICA DE NEGÓCIO E SUPABASE
   // ===========================================================================
+
+  /// Exclui o cliente e todos os seus dados associados.
+  Future<void> _excluirCliente() async {
+    final bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: corCard,
+          title: const Text(
+            'Confirmar Exclusão',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Text(
+            'Tem certeza que deseja excluir o cliente "${_clienteExibido.nome}"? Todos os orçamentos vinculados também serão removidos. Esta ação não pode ser desfeita.',
+            style: TextStyle(color: Colors.grey[300]),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text('Excluir', style: TextStyle(color: corAlerta)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmar == true) {
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
+      try {
+        await Supabase.instance.client
+            .from('clientes')
+            .delete()
+            .eq('id', _clienteExibido.id as Object);
+
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text("Cliente excluído com sucesso!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+        navigator.pop(true);
+      } catch (e) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("Erro ao excluir cliente: $e"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
 
   /// Recarrega os dados do cliente atual diretamente do Supabase
   Future<void> _atualizarTela() async {
@@ -364,64 +426,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     );
   }
 
-  /// Abre o discador do celular com o número do cliente.
-  Future<void> _ligarParaCliente() async {
-    if (_clienteExibido.telefone.isEmpty) return;
-
-    // Garante que o número esteja limpo, removendo formatação (parênteses, traços, etc.)
-    final String numeroLimpo = _clienteExibido.telefone.replaceAll(
-      RegExp(r'[^\d]'),
-      '',
-    );
-    final Uri telUri = Uri(scheme: 'tel', path: numeroLimpo);
-
-    if (await canLaunchUrl(telUri)) {
-      await launchUrl(telUri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível abrir o discador.')),
-        );
-      }
-    }
-  }
-
-  /// Abre o WhatsApp com o número do cliente
-  Future<void> _abrirWhatsApp() async {
-    if (_clienteExibido.telefone.isEmpty) return;
-
-    // 1. Limpa o número (remove parênteses, traços, espaços)
-    var numeroLimpo = _clienteExibido.telefone.replaceAll(RegExp(r'[^\d]'), '');
-
-    // 2. Verifica se precisa adicionar o código do Brasil (55)
-    // Se o número tiver 10 ou 11 dígitos (DDD + Número), adicionamos 55.
-    if (numeroLimpo.length >= 10 && !numeroLimpo.startsWith('55')) {
-      numeroLimpo = '55$numeroLimpo';
-    }
-
-    // 3. Cria a URL (usando https://wa.me para compatibilidade universal)
-    final Uri whatsappUri = Uri.parse("https://wa.me/$numeroLimpo");
-
-    // 4. Tenta abrir
-    try {
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível abrir o WhatsApp.')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erro: $e')));
-      }
-    }
-  }
-
   /// Abre o Google Maps com o endereço do cliente.
   Future<void> _abrirGoogleMaps() async {
     final String rua = _clienteExibido.rua;
@@ -687,6 +691,13 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                             ],
                           ),
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_forever_outlined),
+                          color: corAlerta,
+                          iconSize: 28,
+                          tooltip: 'Excluir Cliente',
+                          onPressed: _excluirCliente,
+                        ),
                       ],
                     ),
                   ],
@@ -755,7 +766,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                             Row(
                               children: [
                                 IconButton(
-                                  onPressed: _ligarParaCliente,
+                                  onPressed: () => Servicos.fazerLigacao(
+                                    _clienteExibido.telefone,
+                                  ),
                                   tooltip: 'Ligar',
                                   icon: const Icon(
                                     Icons.phone,
@@ -772,7 +785,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                 ),
                                 const SizedBox(width: 8),
                                 IconButton(
-                                  onPressed: _abrirWhatsApp,
+                                  onPressed: () => Servicos.abrirWhatsApp(
+                                    _clienteExibido.telefone,
+                                  ),
                                   tooltip: 'WhatsApp',
                                   icon: const Icon(
                                     Icons.chat,
@@ -921,10 +936,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                   // ... (Lógica de renderização dos itens da lista continua igual)
                   return Column(
                     children: listaOrcamentos.map((orcamento) {
-                      // ... (Seu código de build do Card de Orçamento aqui)
-                      // Para economizar espaço na resposta, assumo que você mantém
-                      // o código do `ListTile` do orçamento que já estava funcionando.
-                      // Se precisar dele, me avise!
                       return _buildOrcamentoItem(
                         orcamento,
                         listaOrcamentos,

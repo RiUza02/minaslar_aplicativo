@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+
+import '../../../servicos/servicos.dart';
 import '../../modelos/Cliente.dart';
 
 // ===========================================================================
@@ -73,64 +75,6 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Erro ao atualizar: $e')));
-      }
-    }
-  }
-
-  /// Abre o discador do celular com o número do cliente.
-  Future<void> _ligarParaCliente() async {
-    if (_clienteExibido.telefone.isEmpty) return;
-
-    // Garante que o número esteja limpo, removendo formatação (parênteses, traços, etc.)
-    final String numeroLimpo = _clienteExibido.telefone.replaceAll(
-      RegExp(r'[^\d]'),
-      '',
-    );
-    final Uri telUri = Uri(scheme: 'tel', path: numeroLimpo);
-
-    if (await canLaunchUrl(telUri)) {
-      await launchUrl(telUri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível abrir o discador.')),
-        );
-      }
-    }
-  }
-
-  /// Abre o WhatsApp com o número do cliente
-  Future<void> _abrirWhatsApp() async {
-    if (_clienteExibido.telefone.isEmpty) return;
-
-    // 1. Limpa o número (remove parênteses, traços, espaços)
-    var numeroLimpo = _clienteExibido.telefone.replaceAll(RegExp(r'[^\d]'), '');
-
-    // 2. Verifica se precisa adicionar o código do Brasil (55)
-    // Se o número tiver 10 ou 11 dígitos (DDD + Número), adicionamos 55.
-    if (numeroLimpo.length >= 10 && !numeroLimpo.startsWith('55')) {
-      numeroLimpo = '55$numeroLimpo';
-    }
-
-    // 3. Cria a URL (usando https://wa.me para compatibilidade universal)
-    final Uri whatsappUri = Uri.parse("https://wa.me/$numeroLimpo");
-
-    // 4. Tenta abrir
-    try {
-      if (await canLaunchUrl(whatsappUri)) {
-        await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível abrir o WhatsApp.')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erro: $e')));
       }
     }
   }
@@ -389,7 +333,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                               children: [
                                 // Botão Ligar
                                 IconButton(
-                                  onPressed: _ligarParaCliente,
+                                  onPressed: () => Servicos.fazerLigacao(
+                                    _clienteExibido.telefone,
+                                  ),
                                   tooltip: 'Ligar',
                                   icon: const Icon(
                                     Icons.phone,
@@ -407,7 +353,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                                 const SizedBox(width: 8),
                                 // Botão WhatsApp
                                 IconButton(
-                                  onPressed: _abrirWhatsApp,
+                                  onPressed: () => Servicos.abrirWhatsApp(
+                                    _clienteExibido.telefone,
+                                  ),
                                   tooltip: 'WhatsApp',
                                   icon: const Icon(
                                     Icons.chat, // Ou Icons.message

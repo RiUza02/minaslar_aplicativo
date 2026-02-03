@@ -390,42 +390,45 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                           ),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  Icons.person,
-                                  size: 14,
-                                  color: corTextoCinza,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    bairroCliente.isNotEmpty
-                                        ? '$nomeCliente ($bairroCliente)'
-                                        : nomeCliente,
-                                    style: TextStyle(
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.person,
+                                      size: 14,
                                       color: corTextoCinza,
-                                      fontSize: 14,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      nomeCliente,
+                                      style: TextStyle(
+                                        color: corTextoCinza,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
-
-                                Icon(
-                                  Icons.person,
-                                  size: 14,
-                                  color: corTextoCinza,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    bairroCliente,
-                                    style: TextStyle(
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.location_on,
+                                      size: 14,
                                       color: corTextoCinza,
-                                      fontSize: 14,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      bairroCliente,
+                                      style: TextStyle(
+                                        color: corTextoCinza,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),

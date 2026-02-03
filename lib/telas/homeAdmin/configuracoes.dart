@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../../../modelos/Usuario.dart'; // Importe o seu modelo aqui
+import '../../../servicos/servicos.dart';
+import '../../../modelos/Usuario.dart';
 
 class Configuracoes extends StatefulWidget {
   const Configuracoes({super.key});
@@ -18,12 +18,11 @@ class _ConfiguracoesState extends State<Configuracoes> {
   bool _isLoading = true;
   final String _myUserId = Supabase.instance.client.auth.currentUser!.id;
 
-  // Objetos baseados no seu modelo Usuario
   Usuario? _meuUsuario;
   List<Usuario> _listaAdmins = [];
   List<Usuario> _listaEquipe = [];
 
-  // Cores (Padrão do seu App)
+  // Cores
   final Color corPrincipal = Colors.red[900]!;
   final Color corFundo = const Color(0xFF121212);
   final Color corCard = const Color(0xFF1E1E1E);
@@ -48,19 +47,15 @@ class _ConfiguracoesState extends State<Configuracoes> {
   Future<void> _carregarDados() async {
     setState(() => _isLoading = true);
     try {
-      // ATENÇÃO: Verifique se o nome da sua tabela no Supabase é 'profiles', 'usuarios' ou outro.
-      // Vou usar 'profiles' como padrão comum.
       final response = await Supabase.instance.client
           .from('usuarios')
           .select()
           .order('nome', ascending: true);
 
-      // Converte a resposta (List<Map>) em List<Usuario> usando seu Factory
       final List<Usuario> todosUsuarios = (response as List)
           .map((map) => Usuario.fromMap(map))
           .toList();
 
-      // Encontra o usuário atual
       Usuario? eu;
       try {
         eu = todosUsuarios.firstWhere((u) => u.id == _myUserId);
@@ -68,7 +63,6 @@ class _ConfiguracoesState extends State<Configuracoes> {
         eu = null;
       }
 
-      // Filtra listas (removendo a si mesmo das listas de visualização)
       final admins = todosUsuarios
           .where((u) => u.isAdmin == true && u.id != _myUserId)
           .toList();
@@ -97,13 +91,11 @@ class _ConfiguracoesState extends State<Configuracoes> {
 
   Future<void> _atualizarMeuPerfil(String nome, String telefone) async {
     try {
-      // Atualiza no Supabase
       await Supabase.instance.client
           .from('usuarios')
           .update({'nome': nome, 'telefone': telefone})
           .eq('id', _myUserId);
 
-      // Atualiza estado local
       if (mounted) {
         setState(() {
           if (_meuUsuario != null) {
@@ -118,7 +110,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context); // Fecha o Dialog
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -129,36 +121,6 @@ class _ConfiguracoesState extends State<Configuracoes> {
           ),
         );
       }
-    }
-  }
-
-  // ==================================================
-  // AÇÕES (WHATSAPP E LIGAÇÃO)
-  // ==================================================
-  Future<void> _abrirWhatsApp(String telefone) async {
-    final numeroLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (numeroLimpo.isEmpty) return;
-
-    final url = Uri.parse("https://wa.me/55$numeroLimpo");
-
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível abrir o WhatsApp')),
-        );
-      }
-    }
-  }
-
-  Future<void> _fazerLigacao(String telefone) async {
-    final numeroLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (numeroLimpo.isEmpty) return;
-
-    final url = Uri.parse("tel:$numeroLimpo");
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
     }
   }
 
@@ -265,14 +227,12 @@ class _ConfiguracoesState extends State<Configuracoes> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- SEÇÃO 1: MEU PERFIL ---
                   _buildSectionTitle("MEU PERFIL"),
                   const SizedBox(height: 10),
                   _buildMyProfileCard(),
 
                   const SizedBox(height: 30),
 
-                  // --- SEÇÃO 2: ADMINISTRADORES ---
                   if (_listaAdmins.isNotEmpty) ...[
                     _buildSectionTitle("ADMINISTRADORES"),
                     const SizedBox(height: 10),
@@ -280,27 +240,20 @@ class _ConfiguracoesState extends State<Configuracoes> {
                     const SizedBox(height: 24),
                   ],
 
-                  // --- SEÇÃO 3: EQUIPE / USUÁRIOS ---
                   if (_listaEquipe.isNotEmpty) ...[
                     _buildSectionTitle("EQUIPE"),
                     const SizedBox(height: 10),
                     ..._listaEquipe.map((user) => _buildUserTile(user)),
                   ],
 
-                  // Botão de Logout
                   const SizedBox(height: 40),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        // 1. Executa a ação assíncrona
+                        final navigator = Navigator.of(context);
                         await Supabase.instance.client.auth.signOut();
-
-                        // 2. CORREÇÃO: Verifica se o widget ainda está montado
-                        if (!mounted) return;
-
-                        // 3. Agora é seguro usar o context
-                        Navigator.of(context).pop();
+                        navigator.pop();
                       },
                       icon: const Icon(Icons.logout, color: Colors.redAccent),
                       label: const Text(
@@ -323,7 +276,9 @@ class _ConfiguracoesState extends State<Configuracoes> {
     );
   }
 
-  // --- WIDGETS AUXILIARES ---
+  // ==================================================
+  // WIDGETS AUXILIARES
+  // ==================================================
 
   Widget _buildSectionTitle(String title) {
     return Padding(
@@ -340,7 +295,6 @@ class _ConfiguracoesState extends State<Configuracoes> {
     );
   }
 
-  /// Card destacado para o próprio usuário
   Widget _buildMyProfileCard() {
     if (_meuUsuario == null) return const SizedBox();
 
@@ -412,7 +366,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
     );
   }
 
-  /// Item de lista para outros usuários (Admin ou Equipe)
+  // --- AQUI ESTÁ A IMPLEMENTAÇÃO QUE FALTAVA ---
   Widget _buildUserTile(Usuario user) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -445,22 +399,22 @@ class _ConfiguracoesState extends State<Configuracoes> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Botão Ligar
+            // Botão Ligar (Chama o serviço criado)
             if (user.telefone.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.phone, color: Colors.blueAccent),
-                onPressed: () => _fazerLigacao(user.telefone),
+                onPressed: () => Servicos.fazerLigacao(user.telefone),
                 tooltip: "Ligar",
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
                 ),
               ),
             const SizedBox(width: 8),
-            // Botão WhatsApp
+            // Botão WhatsApp (Chama o serviço criado)
             if (user.telefone.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.chat, color: Colors.greenAccent),
-                onPressed: () => _abrirWhatsApp(user.telefone),
+                onPressed: () => Servicos.abrirWhatsApp(user.telefone),
                 tooltip: "WhatsApp",
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.greenAccent.withValues(alpha: 0.1),

@@ -297,16 +297,17 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                   TextFormField(
                     controller: _tituloController,
                     style: TextStyle(color: corTextoClaro),
-                    decoration: _inputDecoration("Ex: Formatação", Icons.title),
+                    decoration: _inputDecoration("Ex: Limpeza", Icons.title),
                   ),
                   const SizedBox(height: 20),
                   _tituloCampo("Descrição do Serviço"),
                   TextFormField(
                     controller: _descricaoController,
+                    keyboardType: TextInputType.visiblePassword,
                     maxLines: 3,
                     style: TextStyle(color: corTextoClaro),
                     decoration: _inputDecoration(
-                      "Descrição...",
+                      "Descreva o serviço...",
                       Icons.description_outlined,
                     ),
                   ),
@@ -325,7 +326,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
                     ),
                     style: TextStyle(color: corTextoClaro),
                     decoration: _inputDecoration(
-                      "0.00",
+                      "0,00",
                       Icons.monetization_on_outlined,
                     ),
                   ),
@@ -491,6 +492,7 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
   InputDecoration _inputDecoration(String hint, IconData icon) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: const TextStyle(color: Colors.white24),
       prefixIcon: Icon(icon, color: corTextoCinza),
       filled: true,
       fillColor: Colors.black26,
@@ -498,6 +500,11 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,
       ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: corPrincipal, width: 2),
+      ),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
     );
   }
 }

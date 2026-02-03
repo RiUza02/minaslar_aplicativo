@@ -58,6 +58,19 @@ class _EditarClienteState extends State<EditarCliente> {
     type: MaskAutoCompletionType.lazy,
   );
 
+  /// Função para capitalizar a primeira letra de cada palavra
+  String _formatarTexto(String texto) {
+    if (texto.trim().isEmpty) return "";
+    return texto
+        .trim()
+        .split(' ')
+        .map((palavra) {
+          if (palavra.isEmpty) return "";
+          return "${palavra[0].toUpperCase()}${palavra.substring(1).toLowerCase()}";
+        })
+        .join(' ');
+  }
+
   // ==================================================
   // CICLO DE VIDA (INIT & DISPOSE)
   // ==================================================
@@ -110,45 +123,53 @@ class _EditarClienteState extends State<EditarCliente> {
   // ==================================================
 
   Future<void> _salvarAlteracoes() async {
-    // 1. Validação do formulário (Campos obrigatórios)
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 2. Envio dos dados atualizados para o Supabase
+      // 1. APLICA A FORMATAÇÃO AQUI
+      final nomeFormatado = _formatarTexto(_nomeController.text);
+      final ruaFormatada = _formatarTexto(_ruaController.text);
+      final bairroFormatado = _formatarTexto(_bairroController.text);
+
+      // Opcional: Formatar apartamento se existir
+      final aptoFormatado = _apartamentoController.text.isNotEmpty
+          ? _formatarTexto(_apartamentoController.text)
+          : null;
+
+      // 2. Atualiza no Banco de Dados
       await Supabase.instance.client
           .from('clientes')
           .update({
-            'nome': _nomeController.text.trim(),
-            'telefone': _telefoneController.text.trim(),
-            'rua': _ruaController.text.trim(),
+            'nome': nomeFormatado, // <--- Usa a variável formatada
+            'rua': ruaFormatada, // <--- Usa a variável formatada
+            'bairro': bairroFormatado, // <--- Usa a variável formatada
+            'apartamento': aptoFormatado,
             'numero': _numeroController.text.trim(),
-            'bairro': _bairroController.text.trim(),
-            'apartamento': _apartamentoController.text.trim().isEmpty
-                ? null
-                : _apartamentoController.text.trim(),
-            'cpf': _cpfController.text.isEmpty
-                ? null
-                : _cpfController.text.trim(),
-            'cnpj': _cnpjController.text.isEmpty
-                ? null
-                : _cnpjController.text.trim(),
+            'telefone': maskTelefone.getUnmaskedText(),
+            'cpf': _cpfController.text.isEmpty ? null : _cpfController.text,
+            'cnpj': _cnpjController.text.isEmpty ? null : _cnpjController.text,
             'observacao': _obsController.text.trim(),
             'cliente_problematico': _isProblematico,
           })
-          .eq('id', widget.cliente.id as Object);
+          .eq(
+            'id',
+            widget.cliente.id as Object,
+          ); // Garante que atualiza o ID correto
 
       if (mounted) {
-        // 3. Sucesso: Feedback visual e retorno para tela anterior
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cliente atualizado com sucesso!')),
+          const SnackBar(
+            content: Text('Dados atualizados com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
         );
+        // Retorna true para que a tela de Detalhes saiba que houve mudança e recarregue
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        // 4. Erro: Exibe mensagem para o usuário
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao atualizar: $e'),
@@ -213,6 +234,7 @@ class _EditarClienteState extends State<EditarCliente> {
                     // --- RUA (Agora ocupa a largura total) ---
                     _buildTextField(
                       controller: _ruaController,
+                      keyboardType: TextInputType.number,
                       label: 'Rua',
                       icon: Icons.add_road,
                       validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
@@ -228,6 +250,7 @@ class _EditarClienteState extends State<EditarCliente> {
                           flex: 1,
                           child: _buildTextField(
                             controller: _numeroController,
+                            keyboardType: TextInputType.number,
                             label: 'Nº',
                             icon: Icons.home_filled,
                             validator: (v) => v!.isEmpty ? 'Req.' : null,
@@ -240,6 +263,7 @@ class _EditarClienteState extends State<EditarCliente> {
                           flex: 1,
                           child: _buildTextField(
                             controller: _apartamentoController,
+                            keyboardType: TextInputType.number,
                             label: 'Apt/Comp',
                             icon: Icons.apartment,
                             // Sem validador pois é opcional
@@ -313,6 +337,7 @@ class _EditarClienteState extends State<EditarCliente> {
                     const Divider(color: Colors.white24),
                     _buildTextField(
                       controller: _obsController,
+                      keyboardType: TextInputType.visiblePassword,
                       label: "Observações",
                       icon: Icons.note,
                       maxLines: 3,

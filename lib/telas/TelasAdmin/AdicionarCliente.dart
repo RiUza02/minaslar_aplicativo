@@ -57,6 +57,23 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     filter: {"#": RegExp(r'[0-9]')},
   );
 
+  /// Função auxiliar para transformar texto em "Title Case"
+  /// Ex: "rua das flores" -> "Rua Das Flores"
+  String _formatarTexto(String texto) {
+    if (texto.trim().isEmpty) return "";
+
+    // Separa por espaços, capitaliza a primeira letra de cada palavra e junta de volta
+    return texto
+        .trim()
+        .split(' ')
+        .map((palavra) {
+          if (palavra.trim().isEmpty) return "";
+          // Pega a primeira letra maiúscula + o resto minúsculo
+          return "${palavra[0].toUpperCase()}${palavra.substring(1).toLowerCase()}";
+        })
+        .join(' ');
+  }
+
   @override
   void dispose() {
     _nomeController.dispose();
@@ -232,29 +249,38 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   // LÓGICA DE PERSISTÊNCIA (SUPABASE)
   // ==================================================
   Future<void> _salvarCliente() async {
+    // 1. Validação do formulário
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      String? cpfFinal;
-      if (_isPessoaFisica && _cpfController.text.trim().isNotEmpty) {
-        cpfFinal = _cpfController.text.trim();
-      }
+      // Prepara os dados opcionais
+      final String? cpfFinal = _cpfController.text.trim().isEmpty
+          ? null
+          : _cpfController.text.trim();
+      final String? cnpjFinal = _cnpjController.text.trim().isEmpty
+          ? null
+          : _cnpjController.text.trim();
 
-      String? cnpjFinal;
-      if (!_isPessoaFisica && _cnpjController.text.trim().isNotEmpty) {
-        cnpjFinal = _cnpjController.text.trim();
-      }
+      // ============================================================
+      // APLICAÇÃO DA FORMATAÇÃO (CAPITALIZAÇÃO)
+      // ============================================================
+      final String nomeFormatado = _formatarTexto(_nomeController.text);
+      final String ruaFormatada = _formatarTexto(_ruaController.text);
+      final String bairroFormatado = _formatarTexto(_bairroController.text);
+      // Opcional: Se quiser formatar o apartamento também (ex: "bloco a" -> "Bloco A")
+      final String? aptoFormatado = _apartamentoController.text.trim().isEmpty
+          ? null
+          : _formatarTexto(_apartamentoController.text);
 
+      // Criação do objeto Cliente com os textos já formatados
       final novoCliente = Cliente(
-        nome: _nomeController.text.trim(),
-        rua: _ruaController.text.trim(),
+        nome: nomeFormatado, // <--- Usando variável formatada
+        rua: ruaFormatada, // <--- Usando variável formatada
         numero: _numeroController.text.trim(),
-        apartamento: _apartamentoController.text.trim().isEmpty
-            ? null
-            : _apartamentoController.text.trim(),
-        bairro: _bairroController.text.trim(),
+        apartamento: aptoFormatado,
+        bairro: bairroFormatado, // <--- Usando variável formatada
         telefone: maskTelefone.getUnmaskedText(),
         cpf: cpfFinal,
         cnpj: cnpjFinal,
@@ -264,22 +290,31 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         clienteProblematico: _isProblematico,
       );
 
+      // Envio para o Supabase
       await Supabase.instance.client
           .from('clientes')
-          .insert(novoCliente.toMap());
+          .insert(
+            novoCliente.toMap(),
+          ); // O toMap() pega os dados do objeto formatado
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cliente salvo com sucesso!')),
+          const SnackBar(
+            content: Text('Cliente adicionado com sucesso!'),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pop(context);
+        Navigator.pop(
+          context,
+          true,
+        ); // Retorna true para atualizar a lista anterior
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -384,7 +419,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           flex: 1,
                           child: _buildTextField(
                             controller: _numeroController,
-                            keyboardType: TextInputType.text,
+                            keyboardType: TextInputType.number,
                             label: 'Nº',
                             icon: Icons.home_filled,
                             validator: (v) =>
@@ -398,7 +433,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           flex: 1,
                           child: _buildTextField(
                             controller: _apartamentoController,
-                            keyboardType: TextInputType.text,
+                            keyboardType: TextInputType.number,
                             label: 'Apt/Comp', // Label curto para caber
                             icon: Icons.apartment,
                             // Sem validator pois é opcional
@@ -519,6 +554,8 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                       controller: _observacaoController,
                       label: "Observações (Opcional)",
                       icon: Icons.note,
+                      keyboardType: TextInputType.visiblePassword,
+
                       maxLines: 3,
                     ),
                   ],
