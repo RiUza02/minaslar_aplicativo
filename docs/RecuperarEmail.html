@@ -3,280 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MinasLar - Redefinir Senha</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <title>Redefinir Senha - MinasLar</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        /* =========================================
-           ESTÉTICA MINASLAR (DARK MODE)
-           ========================================= */
         body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #000000; /* Fundo preto do App */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #121212;
             color: #ffffff;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
         }
-
-        .container {
+        .card {
+            background-color: #1e1e1e;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             width: 100%;
             max-width: 400px;
             text-align: center;
         }
-
-        /* O Card central */
-        .card {
-            background-color: #1c1c1e; /* Cinza escuro estilo iOS/Material */
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: fadeIn 0.5s ease-in-out;
-        }
-
-        /* Animação suave de entrada */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Títulos */
-        h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-            color: #ffffff;
-            font-weight: 600;
-        }
-
-        p {
-            color: #a0a0a0; /* Cinza claro */
-            font-size: 15px;
-            line-height: 1.5;
-            margin-bottom: 25px;
-        }
-
-        /* Inputs iguais ao Flutter InputDecoration */
-        .input-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-        
-        label {
-            display: block;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 8px;
-            font-size: 14px;
-        }
-
+        h2 { color: #bb86fc; margin-bottom: 1.5rem; }
         input {
             width: 100%;
-            padding: 16px;
-            background-color: #000000;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            background-color: #2c2c2c;
+            border: 1px solid #333;
+            border-radius: 6px;
             color: white;
-            font-size: 16px;
             box-sizing: border-box;
-            outline: none;
-            transition: border-color 0.3s;
         }
-
-        input:focus {
-            border-color: #2196F3; /* Azul MinasLar */
-        }
-
-        /* Botão Principal */
         button {
             width: 100%;
-            padding: 16px;
-            background-color: #1565C0; /* Azul um pouco mais escuro */
-            color: white;
+            padding: 12px;
+            margin-top: 16px;
+            background-color: #bb86fc;
+            color: #000;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
-            letter-spacing: 0.5px;
-            transition: background-color 0.2s, transform 0.1s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.3s;
         }
-
-        button:hover {
-            background-color: #1976D2;
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        button:disabled {
-            background-color: #333;
-            color: #777;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Ícones */
-        .material-icons {
-            font-size: 64px;
-            color: #2196F3;
-            margin-bottom: 20px;
-        }
-
-        /* Utilitários */
+        button:hover { background-color: #9965f4; }
+        .message { margin-top: 15px; font-size: 0.9rem; }
         .hidden { display: none; }
-        .error-msg { color: #ff5252; font-size: 14px; margin-top: 10px; }
-        .logo-text { font-weight: bold; font-size: 18px; color: #fff; margin-bottom: 30px; display: inline-block;}
-        
+        .error { color: #cf6679; }
+        .success { color: #03dac6; }
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="card">
+        <div id="loading">
+            <h3>MinasLar</h3>
+            <p>Verificando link de segurança...</p>
+        </div>
+
+        <div id="form-container" class="hidden">
+            <h2>Nova Senha</h2>
+            <p style="color: #aaa; font-size: 0.9em; margin-bottom: 20px;">Digite sua nova senha abaixo.</p>
+            <input type="password" id="password" placeholder="Nova senha (min. 6 caracteres)">
+            <button onclick="atualizarSenha()">Salvar Nova Senha</button>
+            <p id="msg" class="message"></p>
+        </div>
+
+        <div id="success-container" class="hidden">
+            <h2 style="color: #03dac6;">Sucesso!</h2>
+            <p>Sua senha foi alterada.</p>
+            <p>Volte ao aplicativo para fazer login.</p>
+        </div>
         
-        <div class="logo-text">MINASLAR</div> 
-
-        <div class="card">
-            
-            <div id="view-loading">
-                <div class="material-icons" style="animation: spin 2s infinite linear;">sync</div>
-                <p>Verificando link de segurança...</p>
-            </div>
-
-            <div id="view-recovery" class="hidden">
-                <span class="material-icons">lock_reset</span>
-                <h1>Nova Senha</h1>
-                <p>Crie uma nova senha segura para acessar sua conta.</p>
-                
-                <div class="input-group">
-                    <label>Nova Senha</label>
-                    <input type="password" id="password" placeholder="Mínimo 6 caracteres">
-                </div>
-
-                <button id="btn-save" onclick="updatePassword()">DEFINIR NOVA SENHA</button>
-                <div id="msg-error" class="error-msg hidden"></div>
-            </div>
-
-            <div id="view-success" class="hidden">
-                <span class="material-icons" style="color: #4CAF50;">check_circle</span>
-                <h1 id="success-title">Tudo pronto!</h1>
-                <p id="success-msg">Ação realizada com sucesso.</p>
-                <p style="font-size: 12px; color: #666; margin-top: 30px;">Você já pode fechar esta página e voltar ao aplicativo.</p>
-            </div>
-
-             <div id="view-invalid" class="hidden">
-                <span class="material-icons" style="color: #ff5252;">error_outline</span>
-                <h1>Link Expirado</h1>
-                <p>Este link não é mais válido ou já foi utilizado. Por favor, solicite uma nova recuperação no aplicativo.</p>
-            </div>
-
+        <div id="error-container" class="hidden">
+            <h2 style="color: #cf6679;">Link Inválido</h2>
+            <p id="error-msg">O link expirou ou já foi usado.</p>
         </div>
     </div>
 
     <script>
-        // ============================================================
-        // 1. CONFIGURE SUAS CHAVES AQUI
-        // ============================================================
-        const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co';
-        const supabaseKey = 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8'; // Sua Anon Key
-        
+        // ==========================================
+        // ⚠️ COLOQUE SUA URL E CHAVE DO SUPABASE AQUI
+        // ==========================================
+        const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
+        // ==========================================
+
         const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Referências DOM
-        const views = {
-            loading: document.getElementById('view-loading'),
-            recovery: document.getElementById('view-recovery'),
-            success: document.getElementById('view-success'),
-            invalid: document.getElementById('view-invalid')
-        };
-        const els = {
-            password: document.getElementById('password'),
-            btnSave: document.getElementById('btn-save'),
-            msgError: document.getElementById('msg-error'),
-            successTitle: document.getElementById('success-title'),
-            successMsg: document.getElementById('success-msg')
-        };
+        // Elementos da tela
+        const loadingDiv = document.getElementById('loading');
+        const formDiv = document.getElementById('form-container');
+        const successDiv = document.getElementById('success-container');
+        const errorDiv = document.getElementById('error-container');
+        const errorMsg = document.getElementById('error-msg');
 
-        // Inicialização
-        async function init() {
-            // Verifica hash da URL (#access_token=...)
+        // Ao carregar a página
+        window.onload = async () => {
+            // 1. Verifica se tem o código PKCE na URL (?code=...)
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+
+            // 2. Verifica se tem hash antigo (#access_token=...) - Fallback
             const hash = window.location.hash;
-            
-            // Verifica sessão atual
-            const { data: { session }, error } = await supabase.auth.getSession();
 
-            views.loading.classList.add('hidden');
+            if (code) {
+                // Fluxo novo (PKCE)
+                try {
+                    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+                    if (error) throw error;
+                    mostrarFormulario();
+                } catch (e) {
+                    mostrarErro(e.message);
+                }
+            } else if (hash && hash.includes('type=recovery')) {
+                // Fluxo antigo (Hash)
+                // O cliente JS do Supabase geralmente detecta o hash sozinho, 
+                // mas vamos forçar a verificação de sessão.
+                const { data } = await supabase.auth.getSession();
+                if (data.session) {
+                    mostrarFormulario();
+                } else {
+                    mostrarErro("Não foi possível validar a sessão.");
+                }
+            } else {
+                mostrarErro("Link inválido ou sem código de verificação.");
+            }
+        };
 
-            // Se não tem sessão nem hash válido, mostra erro
-            if (!session && (!hash || !hash.includes('access_token'))) {
-                views.invalid.classList.remove('hidden');
+        function mostrarFormulario() {
+            loadingDiv.classList.add('hidden');
+            formDiv.classList.remove('hidden');
+        }
+
+        function mostrarErro(msg) {
+            loadingDiv.classList.add('hidden');
+            formDiv.classList.add('hidden');
+            errorDiv.classList.remove('hidden');
+            if(msg) errorMsg.innerText = msg;
+        }
+
+        async function atualizarSenha() {
+            const newPassword = document.getElementById('password').value;
+            const msgLabel = document.getElementById('msg');
+
+            if (newPassword.length < 6) {
+                msgLabel.innerText = "A senha deve ter pelo menos 6 caracteres.";
+                msgLabel.className = "message error";
                 return;
             }
 
-            // Lógica de roteamento
-            if (hash && hash.includes('type=recovery')) {
-                // Modo: RECUPERAÇÃO DE SENHA
-                views.recovery.classList.remove('hidden');
-            } else if (hash && hash.includes('type=signup') || session) {
-                // Modo: CONFIRMAÇÃO DE EMAIL (Signup)
-                // Se chegou aqui com sessão válida e não é recovery, é signup confirmation
-                showSuccess("E-mail Confirmado!", "Sua conta foi ativada. Você já pode fazer login no MinasLar.");
-            } else {
-                views.invalid.classList.remove('hidden');
+            msgLabel.innerText = "Atualizando...";
+            msgLabel.className = "message";
+
+            try {
+                const { data, error } = await supabase.auth.updateUser({
+                    password: newPassword
+                });
+
+                if (error) throw error;
+
+                formDiv.classList.add('hidden');
+                successDiv.classList.remove('hidden');
+
+            } catch (e) {
+                msgLabel.innerText = "Erro: " + e.message;
+                msgLabel.className = "message error";
             }
         }
-
-        async function updatePassword() {
-            const password = els.password.value;
-            
-            if (password.length < 6) {
-                els.msgError.textContent = "A senha deve ter pelo menos 6 caracteres.";
-                els.msgError.classList.remove('hidden');
-                return;
-            }
-
-            els.btnSave.disabled = true;
-            els.btnSave.textContent = "Salvando...";
-            els.msgError.classList.add('hidden');
-
-            const { data, error } = await supabase.auth.updateUser({ password: password });
-
-            if (error) {
-                els.msgError.textContent = error.message;
-                els.msgError.classList.remove('hidden');
-                els.btnSave.disabled = false;
-                els.btnSave.textContent = "DEFINIR NOVA SENHA";
-            } else {
-                views.recovery.classList.add('hidden');
-                showSuccess("Senha Redefinida!", "Sua nova senha foi salva com sucesso. Volte ao aplicativo para entrar.");
-            }
-        }
-
-        function showSuccess(title, msg) {
-            views.loading.classList.add('hidden');
-            views.recovery.classList.add('hidden');
-            views.invalid.classList.add('hidden');
-            
-            els.successTitle.textContent = title;
-            els.successMsg.textContent = msg;
-            views.success.classList.remove('hidden');
-        }
-
-        // CSS extra para animação de loading
-        const styleSheet = document.createElement("style");
-        styleSheet.innerText = `
-            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        `;
-        document.head.appendChild(styleSheet);
-
-        // Roda ao carregar
-        init();
-
     </script>
 </body>
 </html>

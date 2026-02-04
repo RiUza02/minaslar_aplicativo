@@ -65,7 +65,8 @@ class AuthService {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'https://github.com/RiUza02/minaslar_aplicativo',
+        redirectTo:
+            'https://riuza02.github.io/minaslar_aplicativo/RecuperarEmail.html',
       );
 
       return null;
