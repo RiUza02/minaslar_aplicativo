@@ -85,13 +85,14 @@
 
     <script>
         // ==========================================
-        // ⚠️ COLOQUE SUA URL E CHAVE DO SUPABASE AQUI
+        // CONFIGURAÇÕES DO SUPABASE
         // ==========================================
         const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
         // ==========================================
 
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        // CORREÇÃO: Usando _supabase para não conflitar com a biblioteca
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         // Elementos da tela
         const loadingDiv = document.getElementById('loading');
@@ -112,17 +113,21 @@
             if (code) {
                 // Fluxo novo (PKCE)
                 try {
-                    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+                    const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
                     if (error) throw error;
                     mostrarFormulario();
                 } catch (e) {
-                    mostrarErro(e.message);
+                    // Às vezes o código já foi trocado automaticamente, então tentamos ver a sessão
+                    const { data: sessionData } = await _supabase.auth.getSession();
+                    if (sessionData.session) {
+                        mostrarFormulario();
+                    } else {
+                        mostrarErro(e.message);
+                    }
                 }
             } else if (hash && hash.includes('type=recovery')) {
-                // Fluxo antigo (Hash)
-                // O cliente JS do Supabase geralmente detecta o hash sozinho, 
-                // mas vamos forçar a verificação de sessão.
-                const { data } = await supabase.auth.getSession();
+                // Fluxo antigo
+                const { data } = await _supabase.auth.getSession();
                 if (data.session) {
                     mostrarFormulario();
                 } else {
@@ -139,10 +144,12 @@
         }
 
         function mostrarErro(msg) {
+            console.error(msg);
             loadingDiv.classList.add('hidden');
             formDiv.classList.add('hidden');
             errorDiv.classList.remove('hidden');
-            if(msg) errorMsg.innerText = msg;
+            // Opcional: mostrar a mensagem técnica se quiser
+            // if(msg) errorMsg.innerText = msg; 
         }
 
         async function atualizarSenha() {
@@ -159,7 +166,7 @@
             msgLabel.className = "message";
 
             try {
-                const { data, error } = await supabase.auth.updateUser({
+                const { data, error } = await _supabase.auth.updateUser({
                     password: newPassword
                 });
 
