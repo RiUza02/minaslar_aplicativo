@@ -22,7 +22,7 @@ class AuthService {
         email: email,
         password: password,
         emailRedirectTo:
-            'https://riuza02.github.io/minaslar_aplicativo/ConfirmarEmail.html',
+            'https://riuza02.github.io/minaslar_aplicativo/VerificaEmail.html',
         data: {
           'nome': nome,
           'telefone': telefone,
