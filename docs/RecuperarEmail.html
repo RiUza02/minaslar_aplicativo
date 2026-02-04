@@ -6,53 +6,13 @@
     <title>Redefinir Senha - MinasLar</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #121212;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .card {
-            background-color: #1e1e1e;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-        h2 { color: #bb86fc; margin-bottom: 1.5rem; }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            background-color: #2c2c2c;
-            border: 1px solid #333;
-            border-radius: 6px;
-            color: white;
-            box-sizing: border-box;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            margin-top: 16px;
-            background-color: #bb86fc;
-            color: #000;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        button:hover { background-color: #9965f4; }
-        .message { margin-top: 15px; font-size: 0.9rem; }
+        body { font-family: sans-serif; background-color: #121212; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background-color: #1e1e1e; padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #bb86fc; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #2c2c2c; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box;}
+        button { width: 100%; padding: 12px; margin-top: 16px; background: #bb86fc; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
         .hidden { display: none; }
         .error { color: #cf6679; }
-        .success { color: #03dac6; }
     </style>
 </head>
 <body>
@@ -60,128 +20,96 @@
     <div class="card">
         <div id="loading">
             <h3>MinasLar</h3>
-            <p>Verificando link de segurança...</p>
+            <p>Validando acesso...</p>
         </div>
 
         <div id="form-container" class="hidden">
             <h2>Nova Senha</h2>
-            <p style="color: #aaa; font-size: 0.9em; margin-bottom: 20px;">Digite sua nova senha abaixo.</p>
-            <input type="password" id="password" placeholder="Nova senha (min. 6 caracteres)">
-            <button onclick="atualizarSenha()">Salvar Nova Senha</button>
-            <p id="msg" class="message"></p>
+            <input type="password" id="password" placeholder="Digite a nova senha">
+            <button onclick="atualizarSenha()">Salvar</button>
+            <p id="msg" style="margin-top:15px;"></p>
         </div>
 
         <div id="success-container" class="hidden">
-            <h2 style="color: #03dac6;">Sucesso!</h2>
-            <p>Sua senha foi alterada.</p>
-            <p>Volte ao aplicativo para fazer login.</p>
+            <h2 style="color: #03dac6;">Senha Alterada!</h2>
+            <p>Volte ao app e faça login.</p>
         </div>
         
         <div id="error-container" class="hidden">
             <h2 style="color: #cf6679;">Link Inválido</h2>
-            <p id="error-msg">O link expirou ou já foi usado.</p>
+            <p>O link expirou. Solicite um novo no App.</p>
         </div>
     </div>
 
     <script>
         // ==========================================
-        // CONFIGURAÇÕES
-        // ==========================================
         const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
         // ==========================================
 
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        // ⚠️ O SEGREDO ESTÁ AQUI: detectSessionInUrl: false
+        // Isso impede que o Supabase tente ler o código sozinho e cause conflito.
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey, {
+            auth: {
+                detectSessionInUrl: false,
+                flowType: 'pkce',
+            }
+        });
 
-        const loadingDiv = document.getElementById('loading');
-        const formDiv = document.getElementById('form-container');
-        const successDiv = document.getElementById('success-container');
-        const errorDiv = document.getElementById('error-container');
-
-        // Função principal de verificação
-        async function verificarSessao() {
-            console.log("Iniciando verificação...");
-
-            // 1. Tenta trocar o código da URL (PKCE)
+        window.onload = async () => {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
 
             if (code) {
-                console.log("Código encontrado. Tentando troca...");
-                // Tentamos trocar. Se der erro, ignoramos por enquanto e checamos a sessão depois.
-                await _supabase.auth.exchangeCodeForSession(code).catch(err => {
-                    console.warn("Aviso: Troca de código falhou (pode já ter sido usado):", err.message);
-                });
-            }
-
-            // 2. A VERDADEIRA PROVA: Temos uma sessão válida?
-            // Isso funciona mesmo se o link foi clicado por um antivírus antes,
-            // desde que o cookie tenha sido salvo ou o hash processado.
-            const { data } = await _supabase.auth.getSession();
-
-            if (data && data.session) {
-                console.log("Sessão válida confirmada!");
-                mostrarFormulario();
+                // Nós trocamos o código manualmente agora
+                try {
+                    const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
+                    if (error) throw error;
+                    // Se deu certo, mostra a tela
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('form-container').classList.remove('hidden');
+                } catch (e) {
+                    console.error("Erro na troca:", e);
+                    // Se falhar, verifica se já não existe uma sessão ativa (cookie antigo)
+                    checkSessionFallback(); 
+                }
             } else {
-                // Última chance: Ouve mudanças de estado (para links do tipo Hash antigo)
-                _supabase.auth.onAuthStateChange((event, session) => {
-                    if (event === 'SIGNED_IN' || session) {
-                        mostrarFormulario();
-                    } else {
-                        // Se depois de tudo não tiver sessão, aí sim é erro.
-                        // Damos um pequeno delay para garantir
-                        setTimeout(() => {
-                            if (document.getElementById('form-container').classList.contains('hidden')) {
-                                mostrarErro();
-                            }
-                        }, 1000);
-                    }
-                });
+                // Se não tem código, talvez seja link antigo ou sessão já aberta
+                checkSessionFallback();
             }
-        }
+        };
 
-        window.onload = verificarSessao;
-
-        function mostrarFormulario() {
-            loadingDiv.classList.add('hidden');
-            errorDiv.classList.add('hidden'); // Garante que erro suma
-            formDiv.classList.remove('hidden');
-        }
-
-        function mostrarErro() {
-            // Só mostra erro se o formulário e o sucesso não estiverem visíveis
-            if (formDiv.classList.contains('hidden') && successDiv.classList.contains('hidden')) {
-                loadingDiv.classList.add('hidden');
-                errorDiv.classList.remove('hidden');
+        async function checkSessionFallback() {
+            const { data } = await _supabase.auth.getSession();
+            if (data.session) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('form-container').classList.remove('hidden');
+            } else {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error-container').classList.remove('hidden');
             }
         }
 
         async function atualizarSenha() {
             const newPassword = document.getElementById('password').value;
-            const msgLabel = document.getElementById('msg');
-
+            const msg = document.getElementById('msg');
+            
             if (newPassword.length < 6) {
-                msgLabel.innerText = "A senha deve ter pelo menos 6 caracteres.";
-                msgLabel.className = "message error";
+                msg.innerText = "Senha muito curta.";
+                msg.className = "error";
                 return;
             }
 
-            msgLabel.innerText = "Atualizando...";
-            msgLabel.className = "message";
+            msg.innerText = "Salvando...";
+            
+            const { error } = await _supabase.auth.updateUser({ password: newPassword });
 
-            try {
-                const { data, error } = await _supabase.auth.updateUser({
-                    password: newPassword
-                });
-
-                if (error) throw error;
-
-                formDiv.classList.add('hidden');
-                successDiv.classList.remove('hidden');
-
-            } catch (e) {
-                msgLabel.innerText = "Erro: " + e.message;
-                msgLabel.className = "message error";
+            if (error) {
+                msg.innerText = "Erro: " + error.message;
+                msg.className = "error";
+            } else {
+                document.getElementById('form-container').classList.add('hidden');
+                document.getElementById('success-container').classList.remove('hidden');
             }
         }
     </script>

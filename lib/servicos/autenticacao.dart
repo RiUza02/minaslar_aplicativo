@@ -96,4 +96,23 @@ class AuthService {
   Future<void> deslogar() async {
     await _supabase.auth.signOut();
   }
+
+  // =====================================================
+  // VERIFICAÇÃO DE E-MAIL (RPC)
+  // =====================================================
+  Future<bool> verificarSeEmailExiste(String email) async {
+    try {
+      // Chama a função SQL 'email_existe' no banco de dados
+      final res = await _supabase.rpc(
+        'email_existe',
+        params: {'email_check': email},
+      );
+      return res as bool;
+    } catch (e) {
+      // Se der erro (ex: função não existe no banco),
+      // retornamos true para não travar o fluxo e deixar o Supabase tentar enviar.
+      print('Erro ao verificar email: $e');
+      return true;
+    }
+  }
 }

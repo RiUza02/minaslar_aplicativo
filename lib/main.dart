@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/date_symbol_data_local.dart'; // Import para initializeDateFormatting
+import 'package:intl/date_symbol_data_local.dart';
 
 // Telas
 import 'servicos/Autenticacao.dart';
@@ -9,13 +9,11 @@ import 'telas/criarConta/Cadastro.dart';
 import 'telas/homeUsuario/HomeUsuario.dart';
 import 'telas/homeAdmin/HomeAdmin.dart';
 
-// Permite navegação global (ainda útil para contextos onde não temos o BuildContext direto)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inicializa Supabase
   await Supabase.initialize(
     url: 'https://uwkxgmmjubpincteqckc.supabase.co',
     anonKey: 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8',
@@ -24,14 +22,11 @@ void main() async {
     ),
   );
 
-  // Inicializa a formatação de data
   await initializeDateFormatting('pt_BR', null);
 
   runApp(const MyApp());
 }
 
-/// Widget principal da aplicação
-/// Simplificado para StatelessWidget pois a lógica de rotas é reativa via StreamBuilder
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -41,8 +36,6 @@ class MyApp extends StatelessWidget {
       title: 'MinasLar',
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-
-      // Configuração do Tema Escuro
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: Colors.black,
@@ -62,14 +55,13 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(),
         ),
       ),
-
       initialRoute: '/',
       routes: {'/': (context) => const RoteadorTelas()},
     );
   }
 }
 
-/// Gerencia o roteamento inicial baseado no estado da sessão do usuário
+/// Gerencia o roteamento inicial
 class RoteadorTelas extends StatelessWidget {
   const RoteadorTelas({super.key});
 
@@ -78,7 +70,7 @@ class RoteadorTelas extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        // Loading inicial enquanto verifica sessão cacheada
+        // 1. Loading enquanto o Supabase conecta
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
@@ -91,30 +83,15 @@ class RoteadorTelas extends StatelessWidget {
         // USUÁRIO LOGADO
         // ==================================================
         if (session != null) {
-          // Verifica se é Admin
-          return FutureBuilder<bool>(
-            future: AuthService().isUsuarioAdmin(),
-            builder: (context, snapshotAdmin) {
-              if (snapshotAdmin.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 10),
-                        Text("Verificando permissões..."),
-                      ],
-                    ),
-                  ),
-                );
-              }
+          // CORREÇÃO AQUI:
+          // Removemos o FutureBuilder. Chamamos a função direto.
+          final bool isAdmin = AuthService().isUsuarioAdmin();
 
-              final bool isAdmin = snapshotAdmin.data ?? false;
-              // Redireciona para a Home correta
-              return isAdmin ? const HomeAdmin() : const HomeUsuario();
-            },
-          );
+          if (isAdmin) {
+            return const HomeAdmin();
+          } else {
+            return const HomeUsuario();
+          }
         }
 
         // ==================================================
@@ -148,8 +125,6 @@ class TelaApresentacao extends StatelessWidget {
                     const Icon(Icons.home_work, size: 150, color: Colors.blue),
               ),
               const Spacer(),
-
-              // Botão de Login
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -175,10 +150,7 @@ class TelaApresentacao extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Botão de Cadastro
               SizedBox(
                 width: double.infinity,
                 height: 55,
