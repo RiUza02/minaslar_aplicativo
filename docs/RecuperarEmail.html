@@ -20,7 +20,7 @@
     <div class="card">
         <div id="loading">
             <h3>MinasLar</h3>
-            <p>Validando acesso...</p>
+            <p>Verificando permissão...</p>
         </div>
 
         <div id="form-container" class="hidden">
@@ -31,13 +31,13 @@
         </div>
 
         <div id="success-container" class="hidden">
-            <h2 style="color: #03dac6;">Senha Alterada!</h2>
-            <p>Volte ao app e faça login.</p>
+            <h2 style="color: #03dac6;">Sucesso!</h2>
+            <p>Senha alterada com sucesso.</p>
         </div>
         
         <div id="error-container" class="hidden">
-            <h2 style="color: #cf6679;">Link Inválido</h2>
-            <p>O link expirou. Solicite um novo no App.</p>
+            <h2 style="color: #cf6679;">Link Expirado</h2>
+            <p>Solicite um novo link no aplicativo.</p>
         </div>
     </div>
 
@@ -47,48 +47,29 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
         // ==========================================
 
-        // ⚠️ O SEGREDO ESTÁ AQUI: detectSessionInUrl: false
-        // Isso impede que o Supabase tente ler o código sozinho e cause conflito.
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey, {
-            auth: {
-                detectSessionInUrl: false,
-                flowType: 'pkce',
-            }
-        });
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        window.onload = async () => {
-            const params = new URLSearchParams(window.location.search);
-            const code = params.get('code');
-
-            if (code) {
-                // Nós trocamos o código manualmente agora
-                try {
-                    const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
-                    if (error) throw error;
-                    // Se deu certo, mostra a tela
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('form-container').classList.remove('hidden');
-                } catch (e) {
-                    console.error("Erro na troca:", e);
-                    // Se falhar, verifica se já não existe uma sessão ativa (cookie antigo)
-                    checkSessionFallback(); 
-                }
-            } else {
-                // Se não tem código, talvez seja link antigo ou sessão já aberta
-                checkSessionFallback();
-            }
-        };
-
-        async function checkSessionFallback() {
-            const { data } = await _supabase.auth.getSession();
-            if (data.session) {
+        // Ouve mudanças de estado. Se o link tiver o #access_token,
+        // o Supabase detecta automaticamente e dispara o evento SIGNED_IN ou PASSWORD_RECOVERY
+        _supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log("Evento Auth:", event);
+            
+            if (event === "PASSWORD_RECOVERY" || session) {
                 document.getElementById('loading').classList.add('hidden');
+                document.getElementById('error-container').classList.add('hidden');
                 document.getElementById('form-container').classList.remove('hidden');
             } else {
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('error-container').classList.remove('hidden');
+                // Pequeno delay para não mostrar erro enquanto carrega
+                setTimeout(() => {
+                    const formHidden = document.getElementById('form-container').classList.contains('hidden');
+                    const successHidden = document.getElementById('success-container').classList.contains('hidden');
+                    if(formHidden && successHidden) {
+                         document.getElementById('loading').classList.add('hidden');
+                         document.getElementById('error-container').classList.remove('hidden');
+                    }
+                }, 2000);
             }
-        }
+        });
 
         async function atualizarSenha() {
             const newPassword = document.getElementById('password').value;
@@ -96,7 +77,6 @@
             
             if (newPassword.length < 6) {
                 msg.innerText = "Senha muito curta.";
-                msg.className = "error";
                 return;
             }
 
@@ -106,7 +86,6 @@
 
             if (error) {
                 msg.innerText = "Erro: " + error.message;
-                msg.className = "error";
             } else {
                 document.getElementById('form-container').classList.add('hidden');
                 document.getElementById('success-container').classList.remove('hidden');

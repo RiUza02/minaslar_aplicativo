@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'CadastroUsuario.dart';
-import 'CadastroAdmin.dart';
+
+import 'CriarConta.dart';
 
 /// Tela responsável por permitir a escolha
 /// do tipo de conta a ser criada
@@ -68,7 +68,13 @@ class Cadastro extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const CadastroAdmin()),
+                  MaterialPageRoute(
+                    builder: (_) => CriarConta(
+                      isAdmin: true,
+                      corPrincipal: Colors.red[900]!,
+                      corSecundaria: Colors.blue[300]!,
+                    ),
+                  ),
                 );
               },
             ),
@@ -88,7 +94,13 @@ class Cadastro extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const CadastroUsuario()),
+                  MaterialPageRoute(
+                    builder: (_) => CriarConta(
+                      isAdmin: false,
+                      corPrincipal: Colors.blue[900]!,
+                      corSecundaria: Colors.cyan[400]!,
+                    ),
+                  ),
                 );
               },
             ),
