@@ -3,7 +3,8 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
-import '../TelasAdmin/ListaOrcamentosDia.dart';
+
+import 'ListaOrcamentosDia.dart';
 import '../TelasAdmin/DetalhesOrcamento.dart';
 
 class AgendaCalendario extends StatefulWidget {
@@ -13,7 +14,10 @@ class AgendaCalendario extends StatefulWidget {
   State<AgendaCalendario> createState() => _AgendaCalendarioState();
 }
 
-class _AgendaCalendarioState extends State<AgendaCalendario> {
+class _AgendaCalendarioState extends State<AgendaCalendario>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   // ==================================================
   // ESTADO E CONFIGURAÇÕES VISUAIS
   // ==================================================
@@ -137,6 +141,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(

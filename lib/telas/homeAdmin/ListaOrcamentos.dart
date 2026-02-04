@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+
 import '../TelasAdmin/DetalhesOrcamento.dart';
 import '../TelasAdmin/AdicionarOrcamento.dart';
 import '../../modelos/Cliente.dart';
 import '../../servicos/ListagemClientes.dart';
 
-/// Define os critérios disponíveis para ordenação da lista
 enum TipoOrdenacaoOrcamento { dataRecente, valorMaior, clienteAZ, atraso }
 
 class ListaOrcamentos extends StatefulWidget {
@@ -16,7 +17,11 @@ class ListaOrcamentos extends StatefulWidget {
   State<ListaOrcamentos> createState() => _ListaOrcamentosState();
 }
 
-class _ListaOrcamentosState extends State<ListaOrcamentos> {
+class _ListaOrcamentosState extends State<ListaOrcamentos>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   // ==================================================
   // CONFIGURAÇÕES VISUAIS E VARIÁVEIS DE ESTADO
   // ==================================================
@@ -28,9 +33,12 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  // Estado da lista e controle de fluxo
-  String _termoBusca = '';
-  List<Map<String, dynamic>> _listaOrcamentos = [];
+  // Armazena TODOS os dados vindos do banco (Cache)
+  List<Map<String, dynamic>> _listaCompleta = [];
+
+  // Armazena a lista filtrada que é exibida na tela
+  List<Map<String, dynamic>> _listaExibida = [];
+
   bool _estaCarregando = true;
   TipoOrdenacaoOrcamento _ordenacaoAtual = TipoOrdenacaoOrcamento.dataRecente;
 
@@ -40,6 +48,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   @override
   void initState() {
     super.initState();
+    // Carrega os dados iniciais sem filtro de busca
     _carregarOrcamentos();
   }
 
@@ -53,43 +62,69 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   // LÓGICA DE DADOS E SUPABASE
   // ==================================================
 
-  /// Busca os orçamentos no banco de dados e faz o join com a tabela de clientes.
-  Future<void> _carregarOrcamentos([bool isRefresh = false]) async {
-    if (!mounted) return;
-    if (!isRefresh) setState(() => _estaCarregando = true);
+  /// Busca TODOS os orçamentos recentes do banco de uma vez só
+  Future<void> _carregarOrcamentos() async {
+    if (mounted) setState(() => _estaCarregando = true);
 
     try {
-      final response = await Supabase.instance.client
+      final query = Supabase.instance.client
           .from('orcamentos')
-          .select('*, clientes(nome, telefone, bairro)');
+          .select('*, clientes!inner(nome, telefone)')
+          .order('created_at', ascending: false)
+          .limit(500); // Limite de segurança para performance
 
-      List<Map<String, dynamic>> dados = List<Map<String, dynamic>>.from(
-        response,
-      );
-
-      _aplicarOrdenacao(dados);
+      final dados = await query;
 
       if (mounted) {
         setState(() {
-          _listaOrcamentos = dados;
+          // Salva na lista completa (backup)
+          _listaCompleta = List<Map<String, dynamic>>.from(dados);
+
+          // Aplica o filtro atual (caso o usuário já tenha digitado algo e puxou refresh)
+          _aplicarFiltrosLocais();
+
           _estaCarregando = false;
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _estaCarregando = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Erro ao carregar: $e"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
+      debugPrint('Erro ao buscar orçamentos: $e');
+      if (mounted) setState(() => _estaCarregando = false);
     }
   }
 
-  /// Aplica a lógica de ordenação na lista local baseada no Enum selecionado.
-  void _aplicarOrdenacao(List<Map<String, dynamic>> lista) {
+  /// Aplica Busca e Ordenação na memória (Muito mais rápido e sem erro de sintaxe)
+  void _aplicarFiltrosLocais() {
+    final termo = _searchController.text.trim().toLowerCase();
+    List<Map<String, dynamic>> temp = List.from(_listaCompleta);
+
+    // 1. FILTRAGEM (Busca)
+    if (termo.isNotEmpty) {
+      temp = temp.where((orcamento) {
+        final titulo = (orcamento['titulo'] ?? '').toString().toLowerCase();
+        final descricao = (orcamento['descricao'] ?? '')
+            .toString()
+            .toLowerCase();
+        // Acesso seguro ao nome do cliente
+        final nomeCliente = (orcamento['clientes']?['nome'] ?? '')
+            .toString()
+            .toLowerCase();
+
+        return titulo.contains(termo) ||
+            descricao.contains(termo) ||
+            nomeCliente.contains(termo);
+      }).toList();
+    }
+
+    // 2. ORDENAÇÃO
+    _ordenarLista(temp);
+
+    setState(() {
+      _listaExibida = temp;
+    });
+  }
+
+  /// Lógica de ordenação extraída para função auxiliar
+  void _ordenarLista(List<Map<String, dynamic>> lista) {
     switch (_ordenacaoAtual) {
       case TipoOrdenacaoOrcamento.atraso:
         lista.sort((a, b) {
@@ -110,9 +145,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                 entrega.month,
                 entrega.day,
               );
-              if (dataEntrega.isBefore(hoje)) {
-                isAtrasado = true;
-              }
+              if (dataEntrega.isBefore(hoje)) isAtrasado = true;
             }
 
             if (isAtrasado) return 1;
@@ -123,7 +156,6 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
 
           int pA = getPrioridade(a);
           int pB = getPrioridade(b);
-
           if (pA != pB) return pA.compareTo(pB);
 
           final dataA =
@@ -172,20 +204,16 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
 
   void _mudarOrdenacao(TipoOrdenacaoOrcamento novaOrdem) {
     if (_ordenacaoAtual != novaOrdem) {
-      setState(() {
-        _ordenacaoAtual = novaOrdem;
-        _aplicarOrdenacao(_listaOrcamentos);
-      });
+      _ordenacaoAtual = novaOrdem;
+      _aplicarFiltrosLocais(); // Reaplica filtro e nova ordem
     }
   }
 
+  // Ao digitar, filtramos a lista localmente. Não precisa de debounce nem chamado ao servidor.
   void _onSearchChanged(String value) {
-    setState(() {
-      _termoBusca = value.toLowerCase();
-    });
+    _aplicarFiltrosLocais();
   }
 
-  /// Navega para seleção de cliente e depois para criação do orçamento.
   void _abrirNovoOrcamento() async {
     final Cliente? clienteEscolhido = await Navigator.push(
       context,
@@ -206,7 +234,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
       ),
     );
 
-    _carregarOrcamentos(true);
+    _carregarOrcamentos();
   }
 
   // ==================================================
@@ -214,20 +242,10 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   // ==================================================
   @override
   Widget build(BuildContext context) {
-    final listaFiltrada = _termoBusca.isEmpty
-        ? _listaOrcamentos
-        : _listaOrcamentos.where((orc) {
-            final titulo = (orc['titulo'] ?? '').toString().toLowerCase();
-            final cliente = (orc['clientes']?['nome'] ?? '')
-                .toString()
-                .toLowerCase();
-            return titulo.contains(_termoBusca) ||
-                cliente.contains(_termoBusca);
-          }).toList();
+    super.build(context);
 
     return Scaffold(
       backgroundColor: corFundo,
-
       // --- APP BAR PADRONIZADA ---
       appBar: AppBar(
         backgroundColor: corPrincipal,
@@ -248,7 +266,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
             style: const TextStyle(color: Colors.white, fontSize: 16),
             cursorColor: Colors.white,
             decoration: InputDecoration(
-              hintText: "Buscar título ou cliente...",
+              hintText: "Título, cliente ou descrição...",
               hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               prefixIcon: const Icon(Icons.search, color: Colors.white70),
               suffixIcon: _searchController.text.isNotEmpty
@@ -305,20 +323,21 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
       ),
 
       // --- CORPO DA LISTA ---
+      // Aqui usamos _listaExibida em vez de _listaOrcamentos
       body: _estaCarregando
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : RefreshIndicator(
               color: corPrincipal,
               backgroundColor: corCard,
-              onRefresh: () async => await _carregarOrcamentos(true),
-              child: listaFiltrada.isEmpty
+              onRefresh: _carregarOrcamentos,
+              child: _listaExibida.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: listaFiltrada.length,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                      itemCount: _listaExibida.length,
                       itemBuilder: (context, index) {
-                        return _buildOrcamentoCard(listaFiltrada[index]);
+                        return _buildOrcamentoCard(_listaExibida[index]);
                       },
                     ),
             ),
@@ -330,16 +349,17 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
   // ==================================================
 
   Widget _buildEmptyState() {
+    String msg = _searchController.text.isNotEmpty
+        ? "Nenhum resultado para \"${_searchController.text}\""
+        : "Nenhum orçamento cadastrado.";
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.assignment_outlined, size: 60, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text(
-            "Nenhum orçamento encontrado.",
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
+          Text(msg, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
         ],
       ),
     );
@@ -378,7 +398,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     final bool ehRetorno = orcamento['eh_retorno'] ?? false;
     final bool isConcluido = orcamento['entregue'] ?? false;
 
-    // Formatação de datas (Apenas Dia/Mês para caber no card)
+    // Formatação de datas
     final dataEntradaFormatada = dataPegaStr != null
         ? DateFormat('dd/MM').format(DateTime.parse(dataPegaStr))
         : '--/--';
@@ -396,7 +416,6 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
     String textoAviso;
     Color corAviso;
 
-    // Lógica de Atraso
     bool isAtrasado = false;
     if (!isConcluido && dataEntregaStr != null) {
       final dataEntrega = DateTime.parse(dataEntregaStr);
@@ -421,7 +440,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
       textoAviso = "GARANTIA";
       corAviso = Colors.green;
     } else if (isAtrasado) {
-      corFaixaLateral = corPrincipal; // Vermelho
+      corFaixaLateral = corPrincipal;
       textoAviso = "ATRASADO";
       corAviso = corPrincipal;
     } else if (dataEntregaStr == null) {
@@ -434,12 +453,11 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
       corAviso = Colors.orange;
     }
 
-    // Cor da data de entrega baseada no status
     final Color corDataEntrega = isAtrasado
         ? corPrincipal
         : (isConcluido ? Colors.blue : Colors.white);
 
-    // 3. Renderização do Card (Design Novo)
+    // 3. Renderização do Card
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -462,27 +480,22 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
               builder: (context) =>
                   DetalhesOrcamento(orcamentoInicial: orcamento),
             ),
-          ).then((_) => _carregarOrcamentos(true));
+          ).then((_) => _carregarOrcamentos());
         },
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- BARRA LATERAL ---
               Container(width: 6, color: corFaixaLateral),
-
-              // --- CONTEÚDO ---
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Cabeçalho: Status Badge e Datas (Entrada -> Entrega)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Status Badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -505,11 +518,8 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                               ),
                             ),
                           ),
-
-                          // Datas: Entrada -> Seta -> Entrega
                           Row(
                             children: [
-                              // Entrada
                               Icon(
                                 Icons.calendar_today,
                                 size: 12,
@@ -523,8 +533,6 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                                   fontSize: 12,
                                 ),
                               ),
-
-                              // Seta
                               const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 6),
                                 child: Icon(
@@ -533,8 +541,6 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                                   color: Colors.grey,
                                 ),
                               ),
-
-                              // Entrega
                               Icon(
                                 Icons.event_available,
                                 size: 12,
@@ -553,10 +559,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 12),
-
-                      // Título do Serviço
                       Text(
                         titulo,
                         style: TextStyle(
@@ -570,10 +573,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-
                       const SizedBox(height: 6),
-
-                      // Nome do Cliente
                       Row(
                         children: [
                           Icon(Icons.person, size: 14, color: corSecundaria),
@@ -590,12 +590,9 @@ class _ListaOrcamentosState extends State<ListaOrcamentos> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 16),
                       const Divider(color: Colors.white10, height: 1),
                       const SizedBox(height: 8),
-
-                      // Valor (Rodapé)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [

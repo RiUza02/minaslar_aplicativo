@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import '../../modelos/Cliente.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+
+import '../../modelos/Cliente.dart';
 import '../TelasAdmin/DetalhesCliente.dart';
 import '../TelasAdmin/AdicionarCliente.dart';
 
@@ -19,12 +20,16 @@ class ListaClientes extends StatefulWidget {
   State<ListaClientes> createState() => _ListaClientesState();
 }
 
-class _ListaClientesState extends State<ListaClientes> {
+class _ListaClientesState extends State<ListaClientes>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   // ==================================================
   // CONFIGURAÇÕES VISUAIS E ESTADO
   // ==================================================
 
-  // Paleta de cores da interface (Mantendo consistência com o resto do App)
+  // Paleta de cores da interface (Admin - Vermelho)
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blue[300]!;
   final Color corComplementar = Colors.green[400]!;
@@ -35,8 +40,12 @@ class _ListaClientesState extends State<ListaClientes> {
 
   // Controladores e variáveis de estado
   final TextEditingController _searchController = TextEditingController();
-  String _termoBuscaNome = '';
-  List<Map<String, dynamic>> _listaClientes = [];
+
+  // CACHE: Armazena todos os clientes vindos do banco
+  List<Map<String, dynamic>> _listaCompleta = [];
+  // TELA: Armazena os clientes filtrados e ordenados para exibição
+  List<Map<String, dynamic>> _listaExibida = [];
+
   bool _estaCarregando = true;
   TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
 
@@ -49,37 +58,45 @@ class _ListaClientesState extends State<ListaClientes> {
   @override
   void initState() {
     super.initState();
+    // Carrega tudo ao iniciar
     _carregarClientes();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   // ==================================================
   // LÓGICA DE DADOS (SUPABASE)
   // ==================================================
 
-  /// Busca os clientes e seus orçamentos vinculados no banco de dados.
-  Future<void> _carregarClientes([bool isRefresh = false]) async {
-    if (!mounted) return;
-
-    if (!isRefresh) setState(() => _estaCarregando = true);
+  /// Busca TODOS os clientes do banco de dados (sem filtro na query)
+  Future<void> _carregarClientes() async {
+    if (mounted) setState(() => _estaCarregando = true);
 
     try {
+      // Busca simples: Traz tudo.
+      // O filtro será feito na memória do celular.
       final response = await Supabase.instance.client
           .from('clientes')
-          .select('*, orcamentos(data_pega)');
-
-      List<Map<String, dynamic>> dados = List<Map<String, dynamic>>.from(
-        response,
-      );
-
-      _aplicarOrdenacao(dados);
+          .select('*, orcamentos(data_pega)')
+          .order('nome', ascending: true); // Ordenação padrão do banco
 
       if (mounted) {
         setState(() {
-          _listaClientes = dados;
+          // Guarda os dados brutos na lista completa
+          _listaCompleta = List<Map<String, dynamic>>.from(response);
+
+          // Aplica o filtro (caso já tenha algo digitado) e ordena
+          _aplicarFiltrosLocais();
+
           _estaCarregando = false;
         });
       }
     } catch (e) {
+      debugPrint('Erro ao buscar clientes: $e');
       if (mounted) {
         setState(() => _estaCarregando = false);
         ScaffoldMessenger.of(
@@ -89,8 +106,38 @@ class _ListaClientesState extends State<ListaClientes> {
     }
   }
 
-  /// Ordena a lista localmente baseada no critério selecionado.
-  void _aplicarOrdenacao(List<Map<String, dynamic>> lista) {
+  /// Filtra a lista completa baseado no texto digitado e aplica ordenação
+  void _aplicarFiltrosLocais() {
+    final termo = _searchController.text.trim().toLowerCase();
+
+    // Começa com uma cópia da lista completa
+    List<Map<String, dynamic>> temp = List.from(_listaCompleta);
+
+    // 1. FILTRAGEM
+    if (termo.isNotEmpty) {
+      temp = temp.where((cliente) {
+        final nome = (cliente['nome'] ?? '').toString().toLowerCase();
+        final bairro = (cliente['bairro'] ?? '').toString().toLowerCase();
+        final telefone = (cliente['telefone'] ?? '').toString().toLowerCase();
+
+        // Verifica se o termo existe em qualquer um dos campos
+        return nome.contains(termo) ||
+            bairro.contains(termo) ||
+            telefone.contains(termo);
+      }).toList();
+    }
+
+    // 2. ORDENAÇÃO
+    _ordenarLista(temp);
+
+    // Atualiza a tela
+    setState(() {
+      _listaExibida = temp;
+    });
+  }
+
+  /// Lógica de ordenação (extraída para ficar mais organizado)
+  void _ordenarLista(List<Map<String, dynamic>> lista) {
     if (_ordenacaoAtual == TipoOrdenacao.alfabetica) {
       lista.sort(
         (a, b) => (a['nome'] as String).toLowerCase().compareTo(
@@ -104,6 +151,7 @@ class _ListaClientesState extends State<ListaClientes> {
         ),
       );
     } else {
+      // Último Serviço (Mais complexo)
       lista.sort(
         (a, b) => _obterUltimaData(
           b['orcamentos'],
@@ -127,24 +175,20 @@ class _ListaClientesState extends State<ListaClientes> {
     return maiorData;
   }
 
-  /// Atualiza o estado de ordenação e reorganiza a lista.
+  // ==================================================
+  // AÇÕES DO USUÁRIO
+  // ==================================================
+
   void _mudarOrdenacao(TipoOrdenacao novaOrdem) {
     if (_ordenacaoAtual != novaOrdem) {
-      setState(() {
-        _ordenacaoAtual = novaOrdem;
-        _aplicarOrdenacao(_listaClientes);
-      });
+      _ordenacaoAtual = novaOrdem;
+      _aplicarFiltrosLocais(); // Reordena a lista atual
     }
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
+  // Busca Instantânea (sem Timer/Debounce)
   void _onSearchChanged(String value) {
-    setState(() => _termoBuscaNome = value.toLowerCase());
+    _aplicarFiltrosLocais();
   }
 
   /// Exibe um diálogo de confirmação antes de excluir um cliente.
@@ -188,7 +232,7 @@ class _ListaClientesState extends State<ListaClientes> {
             .eq('id', cliente.id as Object);
 
         if (!mounted) return;
-        _carregarClientes();
+        _carregarClientes(); // Recarrega do banco para garantir sincronia
 
         scaffoldMessenger.showSnackBar(
           const SnackBar(
@@ -214,16 +258,9 @@ class _ListaClientesState extends State<ListaClientes> {
 
   @override
   Widget build(BuildContext context) {
-    final listaFiltrada = _termoBuscaNome.isEmpty
-        ? _listaClientes
-        : _listaClientes
-              .where(
-                (c) => c['nome'].toString().toLowerCase().contains(
-                  _termoBuscaNome,
-                ),
-              )
-              .toList();
+    super.build(context);
 
+    // Usamos _listaExibida (filtrada localmente)
     return Scaffold(
       backgroundColor: corFundo,
 
@@ -235,18 +272,16 @@ class _ListaClientesState extends State<ListaClientes> {
         title: Container(
           height: 45,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(
-              alpha: 0.3,
-            ), // Fundo escuro translúcido
+            color: Colors.black.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: TextField(
             controller: _searchController,
-            onChanged: _onSearchChanged,
+            onChanged: _onSearchChanged, // Busca instantânea
             style: const TextStyle(color: Colors.white, fontSize: 16),
             cursorColor: Colors.white,
             decoration: InputDecoration(
-              hintText: "Busca por nome...",
+              hintText: "Nome, Bairro ou Telefone...",
               hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
               prefixIcon: const Icon(Icons.search, color: Colors.white70),
               suffixIcon: _searchController.text.isNotEmpty
@@ -300,19 +335,15 @@ class _ListaClientesState extends State<ListaClientes> {
           : RefreshIndicator(
               color: corPrincipal,
               backgroundColor: corCard,
-              onRefresh: () async => await _carregarClientes(true),
-              child: listaFiltrada.isEmpty
+              onRefresh: _carregarClientes,
+              child: _listaExibida.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: listaFiltrada.length,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                      itemCount: _listaExibida.length,
                       itemBuilder: (context, index) {
-                        if (index >= listaFiltrada.length) {
-                          return const SizedBox.shrink();
-                        }
-
-                        final dados = listaFiltrada[index];
+                        final dados = _listaExibida[index];
                         final cliente = Cliente.fromMap(dados);
                         final ultimaData = _obterUltimaData(
                           dados['orcamentos'],
@@ -330,16 +361,17 @@ class _ListaClientesState extends State<ListaClientes> {
   // ==================================================
 
   Widget _buildEmptyState() {
+    String msg = _searchController.text.isNotEmpty
+        ? "Nenhum resultado para \"${_searchController.text}\""
+        : "Nenhum cliente cadastrado.";
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.person_off_outlined, size: 60, color: Colors.grey[800]),
           const SizedBox(height: 16),
-          Text(
-            "Nenhum cliente encontrado.",
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
+          Text(msg, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
         ],
       ),
     );

@@ -3,7 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
-import '../TelasUsuario/ListaOrcamentosDia.dart';
+import 'ListaOrcamentosDia.dart';
 import '../TelasUsuario/DetalhesOrcamento.dart';
 
 class AgendaCalendario extends StatefulWidget {

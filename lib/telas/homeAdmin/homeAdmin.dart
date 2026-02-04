@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'Dashboard.dart';
 import 'ListaClienteAdmin.dart';
 import 'CalendarioAdmin.dart';
 import 'ListaOrcamentos.dart';
-import '../TelasAdmin/ListaOrcamentosDia.dart';
+import 'ListaOrcamentosDia.dart';
 
 class HomeAdmin extends StatefulWidget {
   const HomeAdmin({super.key});
@@ -13,16 +14,16 @@ class HomeAdmin extends StatefulWidget {
 }
 
 class _HomeAdminState extends State<HomeAdmin> {
+  // REMOVIDO: with AutomaticKeepAliveClientMixin (Não vai aqui!)
+
   // ==================================================
   // ESTADO E CONTROLADORES DE NAVEGAÇÃO
   // ==================================================
 
-  // Agora inicia na página 0 (Painel/Dashboard)
   final PageController _pageController = PageController(
-    initialPage: 2,
-  ); // Dashboard continua sendo o primeiro item
+    initialPage: 2, // Começa no Painel
+  );
 
-  // 0: Painel | 1: Agenda | 2: Clientes | 3: Orçamentos
   int _selectedIndex = 2;
 
   void _navegarParaPagina(int index) {
@@ -57,21 +58,27 @@ class _HomeAdminState extends State<HomeAdmin> {
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
+        // IMPORTANTE: Impede que o usuário troque arrastando o dedo (padrão em abas)
+        physics: const NeverScrollableScrollPhysics(),
         children: [
-          // Index 0: Dashboard (Agora à esquerda da agenda)
+          // Index 0: Dashboard
           const Dashboard(),
+
           // Index 1: Visualização do Calendário
           const AgendaCalendario(),
-          // Index 2: Novo Painel (Placeholder)
+
+          // Index 2: Novo Painel (Painel do Dia)
           ListaOrcamentosDia(
             dataSelecionada: DateTime.now(),
-            apenasPendentes: true, // Isso faz o Painel filtrar os entregues
-            mostrarLogout: true, // Mostra o botão de logout na AppBar do Painel
-            mostrarConfiguracoes:
-                true, // Mostra o botão de configurações na AppBar do Painel
-            mostrarTitulo: false, // Não mostra o título na AppBar do Painel
-          ), // Index 3: Gestão de Clientes
+            apenasPendentes: true,
+            mostrarLogout: true,
+            mostrarConfiguracoes: true,
+            mostrarTitulo: false,
+          ),
+
+          // Index 3: Gestão de Clientes
           const ListaClientes(),
+
           // Index 4: Gestão de Orçamentos
           const ListaOrcamentos(),
         ],
@@ -90,27 +97,22 @@ class _HomeAdminState extends State<HomeAdmin> {
           unselectedItemColor: Colors.white60,
           type: BottomNavigationBarType.fixed,
           items: const [
-            // Item 0
             BottomNavigationBarItem(
               icon: Icon(Icons.dashboard),
-              label: 'Dashboard', // Label renomeado
+              label: 'Dashboard',
             ),
-            // Item 1
             BottomNavigationBarItem(
               icon: Icon(Icons.calendar_month),
               label: 'Agenda',
             ),
-            // Item 2: Novo Painel
             BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart), // Ícone diferente para distinção
+              icon: Icon(Icons.bar_chart),
               label: 'Painel',
             ),
-            // Item 3: Clientes (Deslocado)
             BottomNavigationBarItem(
               icon: Icon(Icons.people),
               label: 'Clientes',
             ),
-            // Item 4: Orçamentos (Deslocado)
             BottomNavigationBarItem(
               icon: Icon(Icons.monetization_on),
               label: 'Orçamentos',

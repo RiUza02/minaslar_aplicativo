@@ -3,9 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../servicos/servicos.dart';
-import 'DetalhesOrcamento.dart';
-import 'AdicionarOrcamento.dart';
-import '../homeAdmin/configuracoes.dart';
+import '../TelasAdmin/DetalhesOrcamento.dart';
+import '../TelasAdmin/AdicionarOrcamento.dart';
+import 'configuracoes.dart';
 import '../../modelos/Cliente.dart';
 import '../../servicos/ListagemClientes.dart';
 import '../../servicos/autenticacao.dart';
@@ -31,7 +31,10 @@ class ListaOrcamentosDia extends StatefulWidget {
   State<ListaOrcamentosDia> createState() => _ListaOrcamentosDiaState();
 }
 
-class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
+class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   // ==================================================
   // CONFIGURAÇÕES VISUAIS
   // ==================================================
@@ -191,6 +194,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia> {
   // ==================================================
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(

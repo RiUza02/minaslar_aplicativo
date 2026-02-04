@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../servicos/servicos.dart';
-import 'DetalhesOrcamento.dart';
-import '../homeUsuario/configuracoes.dart';
+import '../TelasUsuario/DetalhesOrcamento.dart';
+import 'configuracoes.dart';
 import '../../servicos/autenticacao.dart';
 import '../../servicos/CalculaRota.dart';
 
