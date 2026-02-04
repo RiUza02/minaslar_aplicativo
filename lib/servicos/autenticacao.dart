@@ -6,7 +6,7 @@ class AuthService {
   User? get usuarioAtual => _supabase.auth.currentUser;
 
   // =====================================================
-  // CADASTRO (Mantive sua lógica de retornar String)
+  // CADASTRO (OTIMIZADO COM TRIGGER)
   // =====================================================
   Future<String?> cadastrarUsuario({
     required String email,
@@ -16,20 +16,21 @@ class AuthService {
     bool isAdmin = false,
   }) async {
     try {
-      final AuthResponse res = await _supabase.auth.signUp(
+      // O "data" envia os dados extras.
+      // A Trigger no banco vai ler isso e criar a linha na tabela 'usuarios' automaticamente.
+      await _supabase.auth.signUp(
         email: email,
         password: password,
-      );
-
-      if (res.user != null) {
-        await _supabase.from('usuarios').insert({
-          'id': res.user!.id,
-          'email': email,
+        data: {
           'nome': nome,
           'telefone': telefone,
-          'is_admin': isAdmin,
-        });
-      }
+          'isAdmin': isAdmin, // A Trigger lerá isso para definir a permissão
+        },
+      );
+
+      // REMOVIDO: O insert manual na tabela 'usuarios'.
+      // Motivo: Evita o risco de "usuário fantasma" se a internet cair aqui.
+
       return null;
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
@@ -47,10 +48,8 @@ class AuthService {
   }
 
   // =====================================================
-  // LOGIN (Ajustado para void)
+  // LOGIN
   // =====================================================
-  // Alterei de Future<String?> para Future<void> pois não retornamos erro aqui,
-  // deixamos ele "subir" para a tela tratar.
   Future<void> loginUsuario({
     required String email,
     required String password,
@@ -68,7 +67,6 @@ class AuthService {
         redirectTo:
             'https://riuza02.github.io/minaslar_aplicativo/RecuperarEmail.html',
       );
-
       return null;
     } on AuthException catch (e) {
       return e.message;
@@ -78,23 +76,18 @@ class AuthService {
   }
 
   // =====================================================
-  // VERIFICAÇÃO DE PERMISSÃO
+  // VERIFICAÇÃO DE PERMISSÃO (SEM AWAIT / CACHE)
   // =====================================================
-  Future<bool> isUsuarioAdmin() async {
+  // Alterei de Future<bool> para bool, pois agora é instantâneo!
+  bool isUsuarioAdmin() {
     final user = _supabase.auth.currentUser;
     if (user == null) return false;
 
-    try {
-      final data = await _supabase
-          .from('usuarios')
-          .select('is_admin')
-          .eq('id', user.id)
-          .single();
+    // Busca direto do Token (JWT), sem ir ao banco de dados.
+    // Isso exige que a Trigger 'sync_admin_status' esteja rodando no banco.
+    final metadata = user.appMetadata;
 
-      return data['is_admin'] ?? false;
-    } catch (e) {
-      return false;
-    }
+    return metadata['admin'] == true || metadata['role'] == 'admin';
   }
 
   // =====================================================
@@ -102,25 +95,5 @@ class AuthService {
   // =====================================================
   Future<void> deslogar() async {
     await _supabase.auth.signOut();
-  }
-
-  // =====================================================
-  // VERIFICAÇÃO DE E-MAIL EXISTENTE
-  // Usa uma função RPC no Supabase (opcional)
-  // =====================================================
-  Future<bool> verificarSeEmailExiste(String email) async {
-    try {
-      // Chama uma função SQL (RPC) chamada 'email_existe'
-      final res = await _supabase.rpc(
-        'email_existe',
-        params: {'email_check': email},
-      );
-
-      return res as bool;
-    } catch (e) {
-      // Se a função não existir ou falhar,
-      // deixamos o Supabase tratar duplicidade no cadastro
-      return false;
-    }
   }
 }

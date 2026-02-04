@@ -85,7 +85,7 @@
 
     <script>
         // ==========================================
-        // CONFIGURAÇÕES (Mantenha as suas chaves aqui)
+        // CONFIGURAÇÕES
         // ==========================================
         const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
@@ -98,60 +98,62 @@
         const successDiv = document.getElementById('success-container');
         const errorDiv = document.getElementById('error-container');
 
-        window.onload = async () => {
-            console.log("Iniciando verificação de recuperação de senha...");
+        // Função principal de verificação
+        async function verificarSessao() {
+            console.log("Iniciando verificação...");
 
-            // 1. Tenta pegar o código da URL (?code=...)
+            // 1. Tenta trocar o código da URL (PKCE)
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
-            
-            // 2. Tenta pegar o hash (#access_token=...)
-            const hash = window.location.hash;
 
-            let sessionFound = false;
-
-            // TENTATIVA A: Troca de Código (PKCE)
             if (code) {
-                console.log("Código detectado. Tentando trocar por sessão...");
-                try {
-                    const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
-                    if (!error && data.session) {
-                        sessionFound = true;
-                    }
-                } catch (e) {
-                    console.warn("Erro na troca do código (pode já ter sido usado):", e);
-                }
+                console.log("Código encontrado. Tentando troca...");
+                // Tentamos trocar. Se der erro, ignoramos por enquanto e checamos a sessão depois.
+                await _supabase.auth.exchangeCodeForSession(code).catch(err => {
+                    console.warn("Aviso: Troca de código falhou (pode já ter sido usado):", err.message);
+                });
             }
 
-            // TENTATIVA B: Verificação de Hash (Link antigo/Legado)
-            if (!sessionFound && hash && hash.includes('type=recovery')) {
-                console.log("Hash de recuperação detectado.");
-                // O cliente JS muitas vezes processa o hash automaticamente
-            }
+            // 2. A VERDADEIRA PROVA: Temos uma sessão válida?
+            // Isso funciona mesmo se o link foi clicado por um antivírus antes,
+            // desde que o cookie tenha sido salvo ou o hash processado.
+            const { data } = await _supabase.auth.getSession();
 
-            // TENTATIVA C (A MAIS IMPORTANTE): Checagem Final de Sessão
-            // Independente se deu erro acima, verificamos: "O usuário está logado?"
-            const { data: sessionData } = await _supabase.auth.getSession();
-            
-            if (sessionData.session) {
-                console.log("Sessão válida encontrada! Mostrando formulário.");
+            if (data && data.session) {
+                console.log("Sessão válida confirmada!");
                 mostrarFormulario();
             } else {
-                console.error("Nenhuma sessão válida encontrada após todas as tentativas.");
-                mostrarErro();
+                // Última chance: Ouve mudanças de estado (para links do tipo Hash antigo)
+                _supabase.auth.onAuthStateChange((event, session) => {
+                    if (event === 'SIGNED_IN' || session) {
+                        mostrarFormulario();
+                    } else {
+                        // Se depois de tudo não tiver sessão, aí sim é erro.
+                        // Damos um pequeno delay para garantir
+                        setTimeout(() => {
+                            if (document.getElementById('form-container').classList.contains('hidden')) {
+                                mostrarErro();
+                            }
+                        }, 1000);
+                    }
+                });
             }
-        };
+        }
+
+        window.onload = verificarSessao;
 
         function mostrarFormulario() {
             loadingDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden'); // Garante que erro suma
             formDiv.classList.remove('hidden');
-            errorDiv.classList.add('hidden');
         }
 
         function mostrarErro() {
-            loadingDiv.classList.add('hidden');
-            formDiv.classList.add('hidden');
-            errorDiv.classList.remove('hidden');
+            // Só mostra erro se o formulário e o sucesso não estiverem visíveis
+            if (formDiv.classList.contains('hidden') && successDiv.classList.contains('hidden')) {
+                loadingDiv.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+            }
         }
 
         async function atualizarSenha() {
