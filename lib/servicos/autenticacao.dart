@@ -21,6 +21,8 @@ class AuthService {
       await _supabase.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo:
+            'https://riuza02.github.io/minaslar_aplicativo/ConfirmarEmail.html',
         data: {
           'nome': nome,
           'telefone': telefone,

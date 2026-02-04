@@ -3,286 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MinasLar - Segurança</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    
+    <title>Confirmar E-mail - MinasLar</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        /* =========================================
-           ESTÉTICA MINASLAR (DARK MODE)
-           ========================================= */
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #000000; /* Fundo preto igual ao Scaffold */
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-
-        .brand-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #ffffff;
-            letter-spacing: 2px;
-            margin-bottom: 25px;
-            text-transform: uppercase;
-        }
-
-        /* O Card Central */
-        .card {
-            background-color: #1E1E1E; /* Cinza escuro (Surface) */
-            padding: 40px 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        h2 {
-            margin-top: 0;
-            font-size: 22px;
-            color: #fff;
-        }
-
-        p {
-            color: #B0B0B0;
-            font-size: 15px;
-            line-height: 1.5;
-            margin-bottom: 30px;
-        }
-
-        /* Input Estilo Flutter */
-        .input-group {
-            text-align: left;
-            margin-bottom: 20px;
-        }
-
-        label {
-            font-size: 13px;
-            color: #909090;
-            margin-bottom: 8px;
-            display: block;
-            margin-left: 4px;
-        }
-
-        input {
-            width: 100%;
-            padding: 16px;
-            background-color: #2C2C2C;
-            border: 1px solid #444;
-            border-radius: 12px;
-            color: white;
-            font-size: 16px;
-            box-sizing: border-box;
-            outline: none;
-            transition: all 0.3s;
-        }
-
-        input:focus {
-            border-color: #2196F3; /* Azul MinasLar */
-            background-color: #333;
-            box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-        }
-
-        /* Botão Principal */
-        button {
-            width: 100%;
-            padding: 16px;
-            background-color: #1565C0; /* Azul 800 */
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        button:hover {
-            background-color: #1976D2;
-        }
-
-        button:disabled {
-            background-color: #444;
-            color: #888;
-            cursor: not-allowed;
-        }
-
-        /* Ícones Grandes */
-        .icon-large {
-            font-size: 64px;
-            color: #2196F3;
-            margin-bottom: 20px;
-            display: block;
-        }
-
-        .success-color { color: #4CAF50; }
-        .error-color { color: #F44336; }
-
+        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background-color: #1e1e1e; padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
         .hidden { display: none; }
-        
-        .message-box {
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            font-size: 14px;
-            display: none;
-        }
-        .msg-error { background: rgba(244, 67, 54, 0.1); color: #FFCDD2; border: 1px solid #E57373; display: block;}
-        
-        /* Loading Spinner */
-        .spinner {
-            animation: rotate 2s linear infinite;
-            font-size: 50px; 
-            color: #2196F3;
-        }
-        @keyframes rotate { 100% { transform: rotate(360deg); } }
+        h2 { margin-bottom: 10px; }
+        p { color: #ccc; }
+        .btn-back { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #bb86fc; color: #000; text-decoration: none; border-radius: 6px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="brand-title">MinasLar</div>
+    <div class="card">
+        <div id="loading">
+            <h3>MinasLar</h3>
+            <p>Verificando seu cadastro...</p>
+        </div>
 
-        <div class="card">
-            
-            <div id="view-loading">
-                <span class="material-icons spinner">sync</span>
-                <p style="margin-top: 20px;">Verificando segurança...</p>
-            </div>
-
-            <div id="view-recovery" class="hidden">
-                <span class="material-icons icon-large">lock_reset</span>
-                <h2>Nova Senha</h2>
-                <p>Digite sua nova senha abaixo para recuperar o acesso.</p>
-
-                <div class="input-group">
-                    <label>NOVA SENHA</label>
-                    <input type="password" id="password" placeholder="Mínimo 6 caracteres">
-                </div>
-
-                <button id="btn-save" onclick="updatePassword()">Salvar Senha</button>
-                <div id="msg-error" class="message-box hidden"></div>
-            </div>
-
-            <div id="view-success" class="hidden">
-                <span class="material-icons icon-large success-color">check_circle</span>
-                <h2 id="success-title">Sucesso!</h2>
-                <p id="success-msg">Operação realizada com sucesso.</p>
-                <div style="margin-top: 30px; font-size: 13px; color: #666;">
-                    Pode fechar esta janela e voltar ao aplicativo.
-                </div>
-            </div>
-
-            <div id="view-invalid" class="hidden">
-                <span class="material-icons icon-large error-color">link_off</span>
-                <h2>Link Expirado</h2>
-                <p>Este link já foi utilizado ou não é mais válido. Solicite uma nova recuperação no app.</p>
-            </div>
-
+        <div id="success" class="hidden">
+            <h2 style="color: #03dac6;">E-mail Confirmado!</h2>
+            <p>Sua conta foi ativada com sucesso.</p>
+            <p>Você já pode fechar esta tela e fazer login no App.</p>
+        </div>
+        
+        <div id="error" class="hidden">
+            <h2 style="color: #cf6679;">Link Expirado</h2>
+            <p>Não foi possível confirmar. O link pode ter vencido ou já foi usado.</p>
         </div>
     </div>
 
     <script>
-        // ======================================================
-        // CONFIGURAÇÃO SUPABASE
-        // ======================================================
-        const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co';
-        const supabaseKey = 'sb_publishable_UxU085kaKfumrH-p6_oI8A_7CSzCJb8'; 
-        
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        // ==========================================
+        // USE AS MESMAS CHAVES DO SEU MAIN.DART
+        const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
+        // ==========================================
 
-        // Elementos da Tela
-        const views = {
-            loading: document.getElementById('view-loading'),
-            recovery: document.getElementById('view-recovery'),
-            success: document.getElementById('view-success'),
-            invalid: document.getElementById('view-invalid')
-        };
-        const els = {
-            password: document.getElementById('password'),
-            btnSave: document.getElementById('btn-save'),
-            msgError: document.getElementById('msg-error'),
-            successTitle: document.getElementById('success-title'),
-            successMsg: document.getElementById('success-msg')
-        };
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        async function init() {
-            // Verifica se existe hash na URL (token do supabase)
-            const hash = window.location.hash;
+        window.onload = async () => {
+            // No fluxo Implícito, ao clicar no link de confirmação, 
+            // o Supabase loga o usuário automaticamente.
             
-            // Tenta pegar a sessão
-            const { data: { session }, error } = await supabase.auth.getSession();
+            // 1. Verifica se já tem sessão ativa (o hash da URL cria a sessão)
+            const { data } = await _supabase.auth.getSession();
 
-            views.loading.classList.add('hidden');
-
-            // Lógica de Decisão
-            if (hash && hash.includes('type=recovery')) {
-                // Cenário: Usuário clicou em "Esqueci a Senha"
-                views.recovery.classList.remove('hidden');
-            } 
-            else if (session || (hash && hash.includes('type=signup'))) {
-                // Cenário: Usuário confirmou o cadastro (Email)
-                showSuccess("Conta Verificada!", "Seu e-mail foi confirmado. Você já pode fazer login no app.");
-            } 
-            else {
-                // Cenário: Link inválido ou acesso direto sem token
-                views.invalid.classList.remove('hidden');
-            }
-        }
-
-        async function updatePassword() {
-            const password = els.password.value;
-
-            if (password.length < 6) {
-                showError("A senha deve ter pelo menos 6 caracteres.");
-                return;
-            }
-
-            // UI Loading state
-            els.btnSave.disabled = true;
-            els.btnSave.textContent = "SALVANDO...";
-            els.msgError.classList.add('hidden');
-
-            // Envia para o Supabase
-            const { data, error } = await supabase.auth.updateUser({ password: password });
-
-            if (error) {
-                showError(error.message);
-                els.btnSave.disabled = false;
-                els.btnSave.textContent = "SALVAR SENHA";
+            if (data.session) {
+                mostrarTela('success');
             } else {
-                views.recovery.classList.add('hidden');
-                showSuccess("Senha Alterada!", "Sua senha foi redefinida com sucesso. Volte ao app para entrar.");
+                // 2. Se não achou de cara, espera o evento de login
+                _supabase.auth.onAuthStateChange((event, session) => {
+                    if (event === 'SIGNED_IN' || session) {
+                        mostrarTela('success');
+                    } else {
+                        // Se passar 3 segundos e nada acontecer...
+                        setTimeout(() => {
+                           if(document.getElementById('success').classList.contains('hidden')){
+                               mostrarTela('error');
+                           }
+                        }, 3000);
+                    }
+                });
             }
-        }
+        };
 
-        function showSuccess(title, msg) {
-            els.successTitle.textContent = title;
-            els.successMsg.textContent = msg;
-            views.success.classList.remove('hidden');
+        function mostrarTela(id) {
+            ['loading', 'success', 'error'].forEach(t => {
+                document.getElementById(t).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
         }
-
-        function showError(msg) {
-            els.msgError.textContent = msg;
-            els.msgError.classList.remove('hidden');
-            els.msgError.classList.add('msg-error');
-        }
-
-        // Inicia o script
-        init();
     </script>
 </body>
 </html>
