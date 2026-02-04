@@ -6,38 +6,46 @@
     <title>Redefinir Senha - MinasLar</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: sans-serif; background-color: #121212; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background-color: #1e1e1e; padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; }
-        h2 { color: #bb86fc; }
-        input { width: 100%; padding: 12px; margin: 8px 0; background: #2c2c2c; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box;}
-        button { width: 100%; padding: 12px; margin-top: 16px; background: #bb86fc; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .hidden { display: none; }
-        .error { color: #cf6679; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background-color: #1e1e1e; padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        h2 { color: #bb86fc; margin-bottom: 20px; }
+        p { color: #ccc; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; background: #2c2c2c; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; outline: none; }
+        input:focus { border-color: #bb86fc; }
+        
+        .btn-action { width: 100%; padding: 12px; margin-top: 10px; background: #bb86fc; color: #000; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 1rem; }
+        .btn-action:hover { background: #9965f4; }
+        
+        .hidden { display: none !important; }
+        .error-msg { color: #cf6679; margin-top: 15px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div id="loading">
-            <h3>MinasLar</h3>
-            <p>Verificando permissão...</p>
+        <div id="step-start">
+            <h3>Segurança MinasLar</h3>
+            <p>Para sua segurança, clique abaixo para validar o link.</p>
+            <button class="btn-action" onclick="validarCodigoManual()">🔓 Validar Meu Acesso</button>
+            <p id="start-msg" class="error-msg"></p>
         </div>
 
-        <div id="form-container" class="hidden">
+        <div id="step-loading" class="hidden">
+            <p>Verificando...</p>
+        </div>
+
+        <div id="step-form" class="hidden">
             <h2>Nova Senha</h2>
-            <input type="password" id="password" placeholder="Digite a nova senha">
-            <button onclick="atualizarSenha()">Salvar</button>
-            <p id="msg" style="margin-top:15px;"></p>
+            <p style="font-size: 0.9em;">Digite sua nova senha abaixo.</p>
+            <input type="password" id="password" placeholder="Mínimo 6 caracteres">
+            <button class="btn-action" onclick="salvarSenha()">Atualizar Senha</button>
+            <p id="form-msg" class="error-msg"></p>
         </div>
 
-        <div id="success-container" class="hidden">
+        <div id="step-success" class="hidden">
             <h2 style="color: #03dac6;">Sucesso!</h2>
-            <p>Senha alterada com sucesso.</p>
-        </div>
-        
-        <div id="error-container" class="hidden">
-            <h2 style="color: #cf6679;">Link Expirado</h2>
-            <p>Solicite um novo link no aplicativo.</p>
+            <p>Sua senha foi alterada.</p>
+            <p>Pode voltar ao aplicativo.</p>
         </div>
     </div>
 
@@ -47,36 +55,69 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
         // ==========================================
 
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-        // Ouve mudanças de estado. Se o link tiver o #access_token,
-        // o Supabase detecta automaticamente e dispara o evento SIGNED_IN ou PASSWORD_RECOVERY
-        _supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log("Evento Auth:", event);
-            
-            if (event === "PASSWORD_RECOVERY" || session) {
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('error-container').classList.add('hidden');
-                document.getElementById('form-container').classList.remove('hidden');
-            } else {
-                // Pequeno delay para não mostrar erro enquanto carrega
-                setTimeout(() => {
-                    const formHidden = document.getElementById('form-container').classList.contains('hidden');
-                    const successHidden = document.getElementById('success-container').classList.contains('hidden');
-                    if(formHidden && successHidden) {
-                         document.getElementById('loading').classList.add('hidden');
-                         document.getElementById('error-container').classList.remove('hidden');
-                    }
-                }, 2000);
+        // Importante: detectSessionInUrl: false impede que o código rode sozinho
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey, {
+            auth: {
+                detectSessionInUrl: false,
+                flowType: 'pkce',
             }
         });
 
-        async function atualizarSenha() {
+        // Pega o código da URL, mas NÃO usa ainda
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+
+        // Se não tiver código na URL, verifica se já tem sessão (hash antigo ou cookie)
+        window.onload = async () => {
+            if (!code) {
+                // Tenta ver se já está logado
+                const { data } = await _supabase.auth.getSession();
+                if (data.session) {
+                    mostrarTela('step-form');
+                } else {
+                    // Sem código e sem sessão
+                    document.getElementById('start-msg').innerText = "Link incompleto. Solicite novo reset.";
+                    document.querySelector('#step-start button').disabled = true;
+                    document.querySelector('#step-start button').style.backgroundColor = "#555";
+                }
+            }
+        };
+
+        // Só roda quando VOCÊ clica no botão (O robô não clica aqui)
+        async function validarCodigoManual() {
+            if (!code) return;
+
+            mostrarTela('step-loading');
+
+            try {
+                // Troca o código pela sessão
+                const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
+                
+                if (error) throw error;
+
+                // Se deu certo, libera o form
+                mostrarTela('step-form');
+
+            } catch (error) {
+                console.error(error);
+                // Se der erro, tenta checar se a sessão foi criada mesmo assim
+                const { data } = await _supabase.auth.getSession();
+                if (data.session) {
+                    mostrarTela('step-form');
+                } else {
+                    alert("Erro: O link expirou ou já foi usado. Por favor, peça um novo no App.");
+                    mostrarTela('step-start');
+                    document.getElementById('start-msg').innerText = "Link expirado.";
+                }
+            }
+        }
+
+        async function salvarSenha() {
             const newPassword = document.getElementById('password').value;
-            const msg = document.getElementById('msg');
+            const msg = document.getElementById('form-msg');
             
             if (newPassword.length < 6) {
-                msg.innerText = "Senha muito curta.";
+                msg.innerText = "A senha deve ter 6 caracteres ou mais.";
                 return;
             }
 
@@ -87,9 +128,15 @@
             if (error) {
                 msg.innerText = "Erro: " + error.message;
             } else {
-                document.getElementById('form-container').classList.add('hidden');
-                document.getElementById('success-container').classList.remove('hidden');
+                mostrarTela('step-success');
             }
+        }
+
+        function mostrarTela(id) {
+            ['step-start', 'step-loading', 'step-form', 'step-success'].forEach(tela => {
+                document.getElementById(tela).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
         }
     </script>
 </body>
