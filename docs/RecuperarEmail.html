@@ -85,71 +85,73 @@
 
     <script>
         // ==========================================
-        // CONFIGURAÇÕES DO SUPABASE
+        // CONFIGURAÇÕES (Mantenha as suas chaves aqui)
         // ==========================================
         const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
         // ==========================================
 
-        // CORREÇÃO: Usando _supabase para não conflitar com a biblioteca
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Elementos da tela
         const loadingDiv = document.getElementById('loading');
         const formDiv = document.getElementById('form-container');
         const successDiv = document.getElementById('success-container');
         const errorDiv = document.getElementById('error-container');
-        const errorMsg = document.getElementById('error-msg');
 
-        // Ao carregar a página
         window.onload = async () => {
-            // 1. Verifica se tem o código PKCE na URL (?code=...)
+            console.log("Iniciando verificação de recuperação de senha...");
+
+            // 1. Tenta pegar o código da URL (?code=...)
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
-
-            // 2. Verifica se tem hash antigo (#access_token=...) - Fallback
+            
+            // 2. Tenta pegar o hash (#access_token=...)
             const hash = window.location.hash;
 
+            let sessionFound = false;
+
+            // TENTATIVA A: Troca de Código (PKCE)
             if (code) {
-                // Fluxo novo (PKCE)
+                console.log("Código detectado. Tentando trocar por sessão...");
                 try {
                     const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
-                    if (error) throw error;
-                    mostrarFormulario();
-                } catch (e) {
-                    // Às vezes o código já foi trocado automaticamente, então tentamos ver a sessão
-                    const { data: sessionData } = await _supabase.auth.getSession();
-                    if (sessionData.session) {
-                        mostrarFormulario();
-                    } else {
-                        mostrarErro(e.message);
+                    if (!error && data.session) {
+                        sessionFound = true;
                     }
+                } catch (e) {
+                    console.warn("Erro na troca do código (pode já ter sido usado):", e);
                 }
-            } else if (hash && hash.includes('type=recovery')) {
-                // Fluxo antigo
-                const { data } = await _supabase.auth.getSession();
-                if (data.session) {
-                    mostrarFormulario();
-                } else {
-                    mostrarErro("Não foi possível validar a sessão.");
-                }
+            }
+
+            // TENTATIVA B: Verificação de Hash (Link antigo/Legado)
+            if (!sessionFound && hash && hash.includes('type=recovery')) {
+                console.log("Hash de recuperação detectado.");
+                // O cliente JS muitas vezes processa o hash automaticamente
+            }
+
+            // TENTATIVA C (A MAIS IMPORTANTE): Checagem Final de Sessão
+            // Independente se deu erro acima, verificamos: "O usuário está logado?"
+            const { data: sessionData } = await _supabase.auth.getSession();
+            
+            if (sessionData.session) {
+                console.log("Sessão válida encontrada! Mostrando formulário.");
+                mostrarFormulario();
             } else {
-                mostrarErro("Link inválido ou sem código de verificação.");
+                console.error("Nenhuma sessão válida encontrada após todas as tentativas.");
+                mostrarErro();
             }
         };
 
         function mostrarFormulario() {
             loadingDiv.classList.add('hidden');
             formDiv.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
         }
 
-        function mostrarErro(msg) {
-            console.error(msg);
+        function mostrarErro() {
             loadingDiv.classList.add('hidden');
             formDiv.classList.add('hidden');
             errorDiv.classList.remove('hidden');
-            // Opcional: mostrar a mensagem técnica se quiser
-            // if(msg) errorMsg.innerText = msg; 
         }
 
         async function atualizarSenha() {
