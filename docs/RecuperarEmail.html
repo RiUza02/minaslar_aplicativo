@@ -51,31 +51,30 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 window.onload = async () => {
     try {
-        // 1. Verifica se existe um 'code' na URL (Fluxo novo do Supabase)
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
 
         if (code) {
-            console.log("Código de recuperação detectado. Validando...");
-            const { error } = await _supabase.auth.exchangeCodeForSession(code);
-            if (!error) {
-                mostrarTela('form-container');
-                return; // Sucesso, para aqui.
+            console.log("Código detectado. Validando...");
+            const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
+            
+            if (error) {
+                // ISSO VAI TE MOSTRAR O ERRO REAL
+                alert("Erro do Supabase: " + error.message); 
+                mostrarTela('error-container');
             } else {
-                console.error("Erro ao validar código:", error.message);
+                mostrarTela('form-container');
+            }
+        } else {
+            const { data } = await _supabase.auth.getSession();
+            if (data.session) {
+                mostrarTela('form-container');
+            } else {
+                mostrarTela('error-container');
             }
         }
-
-        // 2. Fallback: Verifica se já existe uma sessão ativa (caso o navegador já tenha processado)
-        const { data } = await _supabase.auth.getSession();
-        if (data.session) {
-            mostrarTela('form-container');
-        } else {
-            // Se após checar o code e a sessão não houver nada, mostra erro
-            mostrarTela('error-container');
-        }
     } catch (e) {
-        console.error("Erro inesperado:", e);
+        alert("Erro Crítico: " + e.message);
         mostrarTela('error-container');
     }
 };
