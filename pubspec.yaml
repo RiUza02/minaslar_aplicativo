@@ -17,11 +17,15 @@ dependencies:
   supabase_flutter: ^2.8.0
   mask_text_input_formatter: ^2.4.0
   cupertino_icons: ^1.0.8
-  intl: ^0.18.0 # Deixei apenas uma vez. A 0.18.0 funciona bem com o table_calendar
+  intl: ^0.18.0 
   fl_chart: ^0.66.2
   url_launcher: ^6.3.2
-  geolocator: ^13.0.0  # Para pegar a posição atual
-  geocoding: ^3.0.0    # Para transformar endereço em coordenadas
+  geolocator: ^13.0.0 
+  geocoding: ^3.0.0 
+  http: ^1.2.0
+
+  # --- Segurança ---
+  flutter_dotenv: ^5.1.0  # <--- ADICIONADO AQUI
 
 dev_dependencies:
   flutter_test:
@@ -29,7 +33,7 @@ dev_dependencies:
   
   # Ferramentas de desenvolvimento
   flutter_launcher_icons: ^0.13.1 
-  flutter_lints: ^2.0.0 # Atenção: lints 6.0.0 pode pedir SDK mais novo. Se der erro, use 2.0 ou 3.0
+  flutter_lints: ^2.0.0 
 
 # =================================================
 # CONFIGURAÇÃO DOS ÍCONES
@@ -46,3 +50,4 @@ flutter:
   # Configuração de Assets
   assets:
     - assets/
+    - .env  # <--- ADICIONADO AQUI (Isso permite que o app leia o arquivo)

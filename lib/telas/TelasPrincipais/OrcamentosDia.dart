@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../servicos/servicos.dart';
+import '../../servicos/servicosGoogle.dart';
 import '../../servicos/CalculaRota.dart';
 import '../../modelos/Cliente.dart';
 import 'Configuracoes.dart';
@@ -10,14 +10,14 @@ import '../TelasSecundarias/ListagemClientes.dart';
 import '../TelasSecundarias/DetalhesOrcamento.dart';
 import '../TelasSecundarias/AdicionarOrcamento.dart';
 
-class ListaOrcamentosDia extends StatefulWidget {
+class OrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
   final bool apenasPendentes;
   final bool mostrarConfiguracoes;
   final bool mostrarTitulo;
   final bool isAdmin;
 
-  const ListaOrcamentosDia({
+  const OrcamentosDia({
     super.key,
     required this.dataSelecionada,
     this.apenasPendentes = false,
@@ -27,10 +27,10 @@ class ListaOrcamentosDia extends StatefulWidget {
   });
 
   @override
-  State<ListaOrcamentosDia> createState() => _ListaOrcamentosDiaState();
+  State<OrcamentosDia> createState() => _OrcamentosDiaState();
 }
 
-class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia>
+class _OrcamentosDiaState extends State<OrcamentosDia>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;

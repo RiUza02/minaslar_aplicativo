@@ -4,7 +4,7 @@ import '../TelasPrincipais/Dashboard.dart';
 import 'ListaCliente.dart';
 import 'Calendario.dart';
 import 'ListaOrcamentos.dart';
-import 'ListaOrcamentosDia.dart';
+import 'OrcamentosDia.dart';
 
 class HomeAdmin extends StatefulWidget {
   const HomeAdmin({super.key});
@@ -66,7 +66,7 @@ class _HomeAdminState extends State<HomeAdmin> {
           const AgendaCalendario(isAdmin: true),
 
           // Index 2: Novo Painel (Painel do Dia)
-          ListaOrcamentosDia(
+          OrcamentosDia(
             dataSelecionada: DateTime.now(),
             isAdmin: true,
             apenasPendentes: true,

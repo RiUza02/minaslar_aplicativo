@@ -119,8 +119,9 @@ class _LoginState extends State<Login> {
                           Icons.email_outlined,
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Informe o e-mail';
+                          }
                           if (!value.contains('@')) return 'E-mail inválido';
                           return null;
                         },

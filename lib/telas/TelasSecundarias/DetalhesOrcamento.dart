@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:minaslar/modelos/Orcamento.dart';
+import '../../modelos/Orcamento.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
@@ -8,7 +8,7 @@ import 'DetalhesCliente.dart';
 import '../../modelos/Cliente.dart';
 
 // ==================================================
-// TELA DE DETALHES DO ORÇAMENTO
+// TELA DE DETALHES DO ORÇAMENTO (UNIFICADA)
 // ==================================================
 class DetalhesOrcamento extends StatefulWidget {
   final Map<String, dynamic> orcamentoInicial;
@@ -17,8 +17,7 @@ class DetalhesOrcamento extends StatefulWidget {
   const DetalhesOrcamento({
     super.key,
     required this.orcamentoInicial,
-    this.isAdmin =
-        true, // Padrão para admin para não quebrar chamadas existentes
+    required this.isAdmin, // Define se é visão de Admin ou Usuário
   });
 
   @override
@@ -34,18 +33,29 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   String _nomeCliente = 'Cliente desconhecido';
   bool _isLoading = false;
 
-  // Paleta de Cores (será definida no initState)
+  // Cores dinâmicas
   late Color corPrincipal;
+  late Color corSecundaria;
+
+  // Cores fixas
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
+  final Color corComplementar = Colors.green[400]!;
+  final Color corAlerta = Colors.redAccent[400]!;
 
   @override
   void initState() {
     super.initState();
-    // Define a cor principal com base no tipo de usuário
-    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
+    // Configura cores baseadas no tipo de usuário
+    if (widget.isAdmin) {
+      corPrincipal = Colors.red[900]!;
+      corSecundaria = Colors.blue[300]!;
+    } else {
+      corPrincipal = Colors.blue[900]!;
+      corSecundaria = Colors.cyan[400]!;
+    }
 
     _orcamentoObj = Orcamento.fromMap(widget.orcamentoInicial);
     _processarDadosCliente(widget.orcamentoInicial);
@@ -56,10 +66,8 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   // LÓGICA DE DADOS
   // ==================================================
 
-  /// Processa o mapa do cliente com tratamento de tipos seguro
   void _processarDadosCliente(Map<String, dynamic> map) {
     if (map['clientes'] != null && map['clientes'] is Map) {
-      // Cast explícito para Map<String, dynamic> para evitar erro de tipo
       final Map<String, dynamic> dadosCliente = Map<String, dynamic>.from(
         map['clientes'],
       );
@@ -77,7 +85,6 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
     }
   }
 
-  /// Busca dados atualizados no Supabase
   Future<void> _atualizarDados() async {
     setState(() => _isLoading = true);
     try {
@@ -194,9 +201,8 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   // ==================================================
   @override
   Widget build(BuildContext context) {
-    // Tratamento de nulos para campos opcionais
+    // Tratamento de nulos e status
     final bool isConcluido = _orcamentoObj.entregue;
-    // Garante que horário tenha valor padrão se vier nulo
     final String horario = _orcamentoObj.horarioDoDia;
     final bool isTarde = horario.toLowerCase() == 'tarde';
     final bool ehRetorno = _orcamentoObj.ehRetorno;
@@ -221,7 +227,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
       isAtrasado = !isConcluido && dataEntregaApenas.isBefore(dataHojeApenas);
     }
 
-    // Lógica de valor opcional
+    // Formatação do Valor
     final String textoValor = _orcamentoObj.valor != null
         ? NumberFormat.currency(
             locale: 'pt_BR',
@@ -233,24 +239,26 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
         ? Colors.amber
         : Colors.white54;
 
-    // Lógica de Cor da Borda Lateral (Consistente com a Lista)
+    // Lógica da Cor da Borda
     Color corBordaPrincipal;
     if (isConcluido) {
-      corBordaPrincipal = Colors.blue; // Concluído
+      corBordaPrincipal = Colors.blue; // Verde
     } else if (ehRetorno) {
-      corBordaPrincipal = Colors.green; // Garantia/Retorno
+      corBordaPrincipal = Colors.green; // Roxo para retorno
     } else if (isAtrasado) {
-      corBordaPrincipal = Colors.redAccent; // Atrasado
+      corBordaPrincipal = corAlerta; // Vermelho
     } else if (_orcamentoObj.dataEntrega == null) {
-      corBordaPrincipal = Colors.grey; // Sem data definida
+      corBordaPrincipal = Colors.grey;
     } else {
-      corBordaPrincipal = Colors.orange; // Em andamento
+      corBordaPrincipal = Colors.orange; // Azul/Ciano
     }
 
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
-        title: const Text("Detalhes do Orçamento"),
+        title: Text(
+          widget.isAdmin ? "Detalhes do Orçamento" : "Detalhes do Serviço",
+        ),
         backgroundColor: corPrincipal,
         centerTitle: true,
         actions: widget.isAdmin
@@ -276,7 +284,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // CARD PRINCIPAL (Título e Valor)
+                  // 1. CARD PRINCIPAL (Nome + Descrição)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
@@ -286,10 +294,18 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                       border: Border(
                         left: BorderSide(color: corBordaPrincipal, width: 6),
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Título
                         Text(
                           _orcamentoObj.titulo,
                           style: TextStyle(
@@ -301,56 +317,88 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                                 : null,
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        if (widget.isAdmin) ...[
+                        const SizedBox(height: 16),
+                        const Divider(color: Colors.white10),
+                        const SizedBox(height: 16),
+
+                        // Descrição (Agora aqui dentro)
+                        Row(
+                          children: [
+                            Icon(
+                              ehRetorno
+                                  ? Icons.history
+                                  : Icons.description_outlined,
+                              color: ehRetorno ? Colors.amber : corSecundaria,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              ehRetorno ? "GARANTIA/RETORNO" : "DESCRIÇÃO",
+                              style: TextStyle(
+                                color: ehRetorno ? Colors.amber : corSecundaria,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          (_orcamentoObj.descricao != null &&
+                                  _orcamentoObj.descricao!.isNotEmpty)
+                              ? _orcamentoObj.descricao!
+                              : "Sem descrição detalhada.",
+                          style: TextStyle(
+                            fontSize: 16,
+                            height: 1.4,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // 2. PREÇO (NOVO - Abaixo do card de descrição)
+                  if (widget.isAdmin)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 24,
+                      ),
+                      decoration: BoxDecoration(
+                        color: corCard,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           const Text(
-                            "VALOR DO ORÇAMENTO",
+                            "VALOR TOTAL",
                             style: TextStyle(
                               color: Colors.grey,
-                              fontSize: 10,
-                              letterSpacing: 1.5,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
                             ),
                           ),
                           Text(
                             textoValor,
                             style: TextStyle(
-                              fontSize: 32,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: corValor,
                             ),
                           ),
-                        ] else ...[
-                          const Text(
-                            "DESCRIÇÃO DO SERVIÇO",
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 10,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            (_orcamentoObj.descricao != null &&
-                                    _orcamentoObj.descricao!.isNotEmpty)
-                                ? _orcamentoObj.descricao!
-                                : "Nenhuma descrição informada.",
-                            style: TextStyle(
-                              fontSize: 16,
-                              height: 1.4,
-                              color:
-                                  (_orcamentoObj.descricao != null &&
-                                      _orcamentoObj.descricao!.isNotEmpty)
-                                  ? Colors.white70
-                                  : Colors.white24,
-                            ),
-                          ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 20),
 
-                  // BOTÃO CLIENTE E TURNO
+                  // 3. CLIENTE E TURNO
                   Row(
                     children: [
                       Expanded(flex: 3, child: _buildBotaoCliente()),
@@ -368,11 +416,11 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                   ),
                   const SizedBox(height: 12),
 
-                  // STATUS
+                  // 4. STATUS E BOTÃO DE ATUALIZAR
                   _buildStatusCard(isConcluido, ehRetorno),
                   const SizedBox(height: 20),
 
-                  // DATAS
+                  // 5. DATAS
                   Row(
                     children: [
                       Expanded(
@@ -394,11 +442,6 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // DESCRIÇÃO (Agora aceita null e trata corretamente)
-                  if (widget.isAdmin)
-                    _secaoDescricao(_orcamentoObj.descricao, ehRetorno),
 
                   const SizedBox(height: 80),
                 ],
@@ -477,55 +520,6 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
     );
   }
 
-  /// CORREÇÃO: Parâmetro `desc` agora é `String?` para aceitar nulos
-  Widget _secaoDescricao(String? desc, bool ehRetorno) {
-    final temDescricao = desc != null && desc.isNotEmpty;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: corCard,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                ehRetorno ? Icons.history : Icons.description_outlined,
-                color: ehRetorno ? Colors.amber : Colors.blue[300],
-                size: 16,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                ehRetorno
-                    ? "SERVIÇO DE GARANTIA/RETORNO"
-                    : "DESCRIÇÃO DO SERVIÇO",
-                style: TextStyle(
-                  color: ehRetorno ? Colors.amber : Colors.blue[300],
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const Divider(color: Colors.white10, height: 24),
-          Text(
-            temDescricao ? desc : "Nenhuma descrição informada.",
-            style: TextStyle(
-              color: temDescricao ? Colors.white70 : Colors.white24,
-              fontSize: 16,
-              fontStyle: temDescricao ? FontStyle.normal : FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _cardData(String label, DateTime? data, IconData icon, Color cor) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -557,12 +551,12 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
     String statusText;
 
     if (isConcluido) {
-      statusColor = Colors.green;
+      statusColor = corComplementar;
       statusIcon = Icons.check_circle_outline;
       statusText = "CONCLUÍDO";
     } else if (ehRetorno) {
-      statusColor = Colors.amber;
-      statusIcon = Icons.history;
+      statusColor = Colors.orangeAccent;
+      statusIcon = Icons.update;
       statusText = "GARANTIA";
     } else {
       statusColor = Colors.orangeAccent;
@@ -598,21 +592,20 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
             ),
           ),
         ),
-        if (widget.isAdmin) ...[
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: corCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.update, color: Colors.white54),
-              tooltip: "Alterar Status",
-              onPressed: () => _alterarStatusEntrega(isConcluido),
-            ),
+        const SizedBox(width: 12),
+        // Botão de Atualizar Status (Apenas para Admin)
+        Container(
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: statusColor),
           ),
-        ],
+          child: IconButton(
+            icon: Icon(Icons.update, color: statusColor),
+            tooltip: "Alterar Status (Entregue/Pendente)",
+            onPressed: () => _alterarStatusEntrega(isConcluido),
+          ),
+        ),
       ],
     );
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../servicos/ProcessaOrcamentos.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -16,6 +16,12 @@ class _DashboardState extends State<Dashboard>
 
   // Estados
   bool isLoading = true;
+
+  // Instância do Repositório
+  final ProcessaOrcamentos _repo = ProcessaOrcamentos();
+
+  // Dados para o Gráfico de Pizza
+  List<Map<String, dynamic>> statsPizza = [];
 
   // Métricas
   double faturamentoMesAtual = 0;
@@ -40,110 +46,25 @@ class _DashboardState extends State<Dashboard>
   /// Busca e processa os dados do Supabase para alimentar os gráficos
   void _carregarDados() async {
     if (!mounted) return;
-    setState(() => isLoading = true);
 
-    if (!(Supabase
-            .instance
-            .client
-            .auth
-            .currentSession
-            ?.accessToken
-            .isNotEmpty ??
-        false)) {
-      debugPrint(
-        "Supabase client not initialized when _carregarDados (Dashboard) was called.",
-      );
-      if (mounted) setState(() => isLoading = false);
-      return;
-    }
     try {
-      final now = DateTime.now();
-      final sixMonthsAgo = DateTime(now.year, now.month - 6, 1);
+      // 1. Chama o repositório (uma linha!)
+      final dados = await _repo.buscarDadosDashboard();
 
-      final response = await Supabase.instance.client
-          .from('orcamentos')
-          .select(
-            'valor, data_pega, eh_retorno, cliente_id, horario_do_dia, entregue',
-          )
-          .gte('data_pega', sixMonthsAgo.toIso8601String());
-
-      // O 'response' já é uma lista do tipo correto, a conversão é desnecessária.
-      final List<Map<String, dynamic>> orcamentos = response;
-
-      // --- Processamento dos Dados ---
-      double faturadoMesAtualCalculado = 0;
-      Map<String, int> turnos = {'Manhã': 0, 'Tarde': 0};
-      List<Map<String, dynamic>> faturamentoMensal = [];
-      List<Map<String, dynamic>> statsMensal = [];
-
-      for (int i = 5; i >= 0; i--) {
-        final targetMonth = DateTime(now.year, now.month - i, 1);
-        final monthName = monthFormat.format(targetMonth);
-
-        final orcamentosDoMes = orcamentos.where((o) {
-          // Adicionada verificação para datas nulas para maior robustez
-          if (o['data_pega'] == null) return false;
-          final dataPega = DateTime.parse(o['data_pega']);
-          return dataPega.year == targetMonth.year &&
-              dataPega.month == targetMonth.month;
-        }).toList();
-
-        // 1. Faturamento
-        double faturamentoDoMes = orcamentosDoMes
-            .where((o) => o['entregue'] == true) // Filtra apenas os entregues
-            .fold(0.0, (sum, item) {
-              final valor = item['valor'];
-              return sum + (valor is num ? valor : 0.0);
-            });
-        faturamentoMensal.add({'month': monthName, 'value': faturamentoDoMes});
-
-        // 2. Stats para Gráfico de Barras
-        statsMensal.add({
-          'month': monthName,
-          'orcamentos': orcamentosDoMes.length,
-          'clientes': orcamentosDoMes
-              .map((o) => o['cliente_id'])
-              .toSet()
-              .length,
-          'retornos': orcamentosDoMes
-              .where((o) => o['eh_retorno'] == true)
-              .length,
-        });
-
-        // 3. Faturamento do Mês Atual
-        if (targetMonth.year == now.year && targetMonth.month == now.month) {
-          faturadoMesAtualCalculado = faturamentoDoMes;
-        }
-      }
-
-      // 4. Contagem de Turnos
-      for (var o in orcamentos) {
-        final horario = o['horario_do_dia']?.toString() ?? 'Manhã';
-        turnos[horario] = (turnos[horario] ?? 0) + 1;
-      }
-
+      // 2. Atualiza a tela com os dados prontos
       if (mounted) {
         setState(() {
-          faturamentoMesAtual = faturadoMesAtualCalculado;
-          faturamento6Meses = faturamentoMensal;
-          stats6Meses = statsMensal;
-          servicosPorTurno = turnos;
+          faturamentoMesAtual = dados['faturamentoMesAtual'];
+          faturamento6Meses = dados['graficoFaturamento'];
+          statsPizza = dados['graficoStatus'];
+          servicosPorTurno = dados['turnos'];
           isLoading = false;
         });
       }
-    } catch (e, s) {
-      debugPrint("Erro ao carregar dados do Dashboard: $e");
-      debugPrint("Stacktrace: $s");
+    } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Não foi possível carregar os dados do dashboard. Verifique sua conexão e tente novamente.',
-            ),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
         setState(() => isLoading = false);
+        // Opcional: Mostrar erro
       }
     }
   }

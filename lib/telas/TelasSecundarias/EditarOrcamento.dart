@@ -173,7 +173,9 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
       context: context,
       initialDate: initialDate,
       // Impede que a data de entrega seja anterior à data de entrada
-      firstDate: isEntrega ? _dataServico : DateTime(2000),
+      firstDate: isEntrega
+          ? DateTime(_dataServico.year, _dataServico.month, _dataServico.day)
+          : DateTime(2000),
       lastDate: DateTime(2100),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(

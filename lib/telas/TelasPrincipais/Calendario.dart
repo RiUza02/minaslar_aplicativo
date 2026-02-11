@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
-import 'ListaOrcamentosDia.dart';
+import 'OrcamentosDia.dart';
 import '../TelasSecundarias/DetalhesOrcamento.dart';
 
 class AgendaCalendario extends StatefulWidget {
@@ -78,11 +78,12 @@ class _AgendaCalendarioState extends State<AgendaCalendario>
             'id, data_pega, titulo, horario_do_dia, clientes(nome, bairro)',
           );
 
+      final List<dynamic> dados = response;
       final Map<DateTime, List<dynamic>> eventos = {};
 
-      for (var item in response) {
+      for (var item in dados) {
         if (item['data_pega'] != null) {
-          final dataOriginal = DateTime.parse(item['data_pega']);
+          final dataOriginal = DateTime.parse(item['data_pega'] as String);
 
           // Normaliza a data (remove horas/minutos) para usar como chave do Map.
           // Isso é crucial para o TableCalendar encontrar o evento no dia correto.
@@ -137,7 +138,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario>
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ListaOrcamentosDia(
+          builder: (context) => OrcamentosDia(
             dataSelecionada: _selectedDay!,
             isAdmin: widget.isAdmin,
           ),
@@ -348,9 +349,11 @@ class _AgendaCalendarioState extends State<AgendaCalendario>
                       final titulo = item['titulo'] ?? 'Sem Título';
                       String nomeCliente = 'Cliente não identificado';
                       String bairroCliente = '';
-                      if (item['clientes'] != null) {
-                        nomeCliente = item['clientes']['nome'] ?? 'Sem Nome';
-                        bairroCliente = item['clientes']['bairro'] ?? '';
+                      final clienteData = item['clientes'];
+
+                      if (clienteData != null && clienteData is Map) {
+                        nomeCliente = clienteData['nome'] ?? 'Sem Nome';
+                        bairroCliente = clienteData['bairro'] ?? '';
                       }
 
                       final horario = item['horario_do_dia'] ?? 'Manhã';

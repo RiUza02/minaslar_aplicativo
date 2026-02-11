@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../servicos/servicos.dart';
+import '../../servicos/servicosGoogle.dart';
 import '../../modelos/Cliente.dart';
-import '../TelasAdmin/adicionarOrcamento.dart';
+import 'adicionarOrcamento.dart';
 import 'EditarCliente.dart';
 import 'EditarOrcamento.dart';
 
@@ -88,7 +88,10 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text('Excluir', style: TextStyle(color: Colors.redAccent)),
+              child: const Text(
+                'Excluir',
+                style: TextStyle(color: Colors.redAccent),
+              ),
             ),
           ],
         );
@@ -554,7 +557,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     // Definição de status visual (Cliente problemático ou Normal)
     final bool isProblematico = _clienteExibido.clienteProblematico;
     final Color corComplementar = Colors.green[400]!;
-    final Color corAlerta = Colors.redAccent;
+    const Color corAlerta = Colors.redAccent;
     final Color corStatusAtual = isProblematico ? corAlerta : corComplementar;
 
     return Scaffold(

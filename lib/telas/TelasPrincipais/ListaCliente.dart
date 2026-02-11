@@ -89,10 +89,12 @@ class _ListaClientesState extends State<ListaClientes>
           .select('*, orcamentos(data_pega)')
           .order('nome', ascending: true); // Ordenação padrão do banco
 
+      final dados = List<Map<String, dynamic>>.from(response);
+
       if (mounted) {
         setState(() {
           // Guarda os dados brutos na lista completa
-          _listaCompleta = List<Map<String, dynamic>>.from(response);
+          _listaCompleta = dados;
 
           // Aplica o filtro (caso já tenha algo digitado) e ordena
           _aplicarFiltrosLocais();
@@ -229,14 +231,14 @@ class _ListaClientesState extends State<ListaClientes>
     );
 
     if (confirmar == true) {
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
       try {
         await Supabase.instance.client
             .from('clientes')
             .delete()
             .eq('id', cliente.id as Object);
 
-        if (!mounted) return;
+        if (!context.mounted) return;
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
         _carregarClientes(); // Recarrega do banco para garantir sincronia
 
         scaffoldMessenger.showSnackBar(
@@ -246,7 +248,8 @@ class _ListaClientesState extends State<ListaClientes>
           ),
         );
       } catch (e) {
-        if (!mounted) return;
+        if (!context.mounted) return;
+        final scaffoldMessenger = ScaffoldMessenger.of(context);
         scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text("Erro ao excluir cliente: $e"),

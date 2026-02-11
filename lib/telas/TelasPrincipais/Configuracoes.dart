@@ -70,9 +70,8 @@ class _ConfiguracoesState extends State<Configuracoes> {
       // 1. Busca TODOS os usuários ordenados por nome
       final response = await supabase.from('usuarios').select().order('nome');
 
-      final todosUsuarios = (response as List)
-          .map((map) => Usuario.fromMap(map))
-          .toList();
+      final List<dynamic> dados = response;
+      final todosUsuarios = dados.map((map) => Usuario.fromMap(map)).toList();
 
       // 2. Separa "Eu" dos "Outros"
       final meuPerfil = todosUsuarios.firstWhere(
@@ -220,7 +219,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
               collapsedIconColor: corPrincipal,
               iconColor: corPrincipal,
               leading: CircleAvatar(
-                backgroundColor: corPrincipal.withOpacity(0.2),
+                backgroundColor: corPrincipal.withValues(alpha: 0.2),
                 child: Text(
                   _getInitials(_meuUsuario?.nome ?? ""),
                   style: TextStyle(
@@ -344,14 +343,14 @@ class _ConfiguracoesState extends State<Configuracoes> {
       decoration: BoxDecoration(
         color: corCard,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: user.isAdmin
-              ? Colors.amber.withOpacity(0.2) // Destaque se for admin
-              : Colors.blue.withOpacity(0.2),
+              ? Colors.amber.withValues(alpha: 0.2) // Destaque se for admin
+              : Colors.blue.withValues(alpha: 0.2),
           child: Text(
             _getInitials(user.nome),
             style: TextStyle(
@@ -377,9 +376,11 @@ class _ConfiguracoesState extends State<Configuracoes> {
                 margin: const EdgeInsets.only(left: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.1),
+                  color: Colors.amber.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.amber.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: const Text(
                   "ADMIN",
@@ -408,7 +409,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
                 onPressed: () => _fazerLigacao(user.telefone),
                 tooltip: "Ligar",
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                  backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
                 ),
               ),
             const SizedBox(width: 8),
@@ -419,7 +420,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
                 onPressed: () => _abrirWhatsApp(user.telefone),
                 tooltip: "WhatsApp",
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.greenAccent.withOpacity(0.1),
+                  backgroundColor: Colors.greenAccent.withValues(alpha: 0.1),
                 ),
               ),
           ],

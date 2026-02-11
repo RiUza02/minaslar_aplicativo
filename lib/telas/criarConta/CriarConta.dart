@@ -1,7 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../../servicos/autenticacao.dart';
+import '../../servicos/Autenticacao.dart';
 import '../../servicos/VerificacaoEmail.dart';
 
 class CriarConta extends StatefulWidget {
@@ -39,9 +38,9 @@ class _CriarContaState extends State<CriarConta> {
   late final TextEditingController _telefoneController;
   late final TextEditingController _senhaController;
   late final TextEditingController _confirmaSenhaController;
-  late final TextEditingController _codigoSegurancaController;
+  late final TextEditingController _codigoSegurancaController; // Só p/ Admin
 
-  // Máscara
+  // Máscara de Telefone
   final _maskFormatter = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
@@ -69,9 +68,6 @@ class _CriarContaState extends State<CriarConta> {
     _codigoSegurancaController = TextEditingController();
   }
 
-  // ==================================================
-  // DISPOSE (GERENCIAMENTO DE MEMÓRIA)
-  // ==================================================
   @override
   void dispose() {
     _nomeController.dispose();
@@ -84,82 +80,33 @@ class _CriarContaState extends State<CriarConta> {
   }
 
   // ==================================================
-  // LÓGICA DE CADASTRO
+  // AÇÃO DE CADASTRO (LÓGICA REAL)
   // ==================================================
   Future<void> _realizarCadastro() async {
+    // 1. Validação do formulário
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    // Fecha o teclado
     FocusScope.of(context).unfocus();
 
-    try {
-      setState(() {
-        _erroEmailJaCadastrado = null;
-        _isLoading = true;
-      });
+    // 2. Chama o serviço de autenticação
+    final erro = await _authService.cadastrarUsuario(
+      email: _emailController.text.trim(),
+      password: _senhaController.text,
+      nome: _nomeController.text.trim(),
+      telefone: _telefoneController.text, // O Service vai limpar os caracteres
+      isAdmin: widget.isAdmin,
+    );
 
-      // Validação do Form
-      if (!_formKey.currentState!.validate()) {
-        setState(() => _isLoading = false);
-        return;
-      }
+    setState(() => _isLoading = false);
 
-      // Verificação de Internet
-      try {
-        final result = await InternetAddress.lookup(
-          'google.com',
-        ).timeout(const Duration(seconds: 5));
-        if (result.isEmpty || result[0].rawAddress.isEmpty) {
-          throw const SocketException("Sem resposta");
-        }
-      } catch (_) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Sem conexão com a internet."),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Chamada ao Service
-      final erroRetornado = await _authService.cadastrarUsuario(
-        email: _emailController.text.trim(),
-        password: _senhaController.text,
-        nome: _nomeController.text.trim(),
-        telefone: _telefoneController.text.trim(),
-        isAdmin: widget.isAdmin,
-      );
-
-      if (mounted) setState(() => _isLoading = false);
-
-      if (erroRetornado != null) {
-        final msg = erroRetornado.toString();
-        if (msg.contains('23503') ||
-            msg.contains('foreign key') ||
-            msg.contains('already registered') ||
-            msg.contains('violates foreign key constraint')) {
-          if (mounted) {
-            setState(() {
-              _erroEmailJaCadastrado = 'E-mail já cadastrado ou inválido.';
-            });
-            _formKey.currentState!.validate();
-          }
-          return;
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Erro: $erroRetornado"),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-
-      // Sucesso
+    // 3. Tratamento da resposta
+    if (erro == null) {
+      // SUCESSO!
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -168,22 +115,29 @@ class _CriarContaState extends State<CriarConta> {
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Erro inesperado: $e"),
-            backgroundColor: Colors.red,
-          ),
-        );
+    } else {
+      // ERRO
+      if (erro == 'EMAIL_JA_CADASTRADO') {
+        setState(() {
+          _erroEmailJaCadastrado = 'E-mail já está em uso';
+        });
+        _formKey.currentState!
+            .validate(); // Revalida para mostrar o erro no campo
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }
 
+  // ==================================================
+  // CONSTRUÇÃO DA TELA (UI)
+  // ==================================================
   @override
   Widget build(BuildContext context) {
-    // Define textos baseados no tipo de usuário
     final String tituloAppbar = widget.isAdmin
         ? 'Novo Administrador'
         : 'Novo Usuário';
@@ -235,9 +189,7 @@ class _CriarContaState extends State<CriarConta> {
                         ),
                         const SizedBox(height: 24),
 
-                        // ======================
                         // DADOS PESSOAIS
-                        // ======================
                         _buildCardContainer(
                           titulo: "DADOS PESSOAIS",
                           icone: Icons.person,
@@ -270,7 +222,7 @@ class _CriarContaState extends State<CriarConta> {
                               controller: _telefoneController,
                               label: 'Telefone / Celular',
                               icon: Icons.phone_android,
-                              hintText: '(32) 12345-6789',
+                              hintText: '(32) 99999-9999',
                               inputFormatters: [_maskFormatter],
                               keyboardType: TextInputType.phone,
                               onChanged: (v) => setState(
@@ -292,9 +244,7 @@ class _CriarContaState extends State<CriarConta> {
 
                         const SizedBox(height: 20),
 
-                        // ======================
                         // SEGURANÇA
-                        // ======================
                         _buildCardContainer(
                           titulo: "SEGURANÇA",
                           icone: Icons.lock,
@@ -335,9 +285,8 @@ class _CriarContaState extends State<CriarConta> {
                               onChanged: (_) => setState(() {}),
                               validator: (v) {
                                 if (v!.isEmpty) return 'Confirme sua senha';
-                                if (v != _senhaController.text) {
+                                if (v != _senhaController.text)
                                   return 'As senhas não coincidem';
-                                }
                                 return null;
                               },
                               suffixIcon: IconButton(
@@ -353,39 +302,10 @@ class _CriarContaState extends State<CriarConta> {
                                 ),
                               ),
                             ),
-                            if (_confirmaSenhaController.text.isNotEmpty &&
-                                _confirmaSenhaController.text !=
-                                    _senhaController.text)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 8.0,
-                                  left: 4.0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.error_outline,
-                                      color: Colors.red[700],
-                                      size: 14,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      "As senhas não coincidem",
-                                      style: TextStyle(
-                                        color: Colors.red[700],
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                           ],
                         ),
 
-                        // ======================
                         // ÁREA RESTRITA (SÓ ADMIN)
-                        // ======================
                         if (widget.isAdmin) ...[
                           const SizedBox(height: 20),
                           _buildCardContainer(
@@ -406,9 +326,7 @@ class _CriarContaState extends State<CriarConta> {
 
                         const SizedBox(height: 40),
 
-                        // ======================
                         // BOTÃO DE AÇÃO
-                        // ======================
                         SizedBox(
                           width: double.infinity,
                           height: 55,
@@ -454,11 +372,7 @@ class _CriarContaState extends State<CriarConta> {
     );
   }
 
-  // ==================================================
   // HELPER WIDGETS
-  // ==================================================
-
-  // Container estilizado (Card) para evitar repetição no build
   Widget _buildCardContainer({
     required String titulo,
     required IconData icone,
@@ -521,10 +435,7 @@ class _CriarContaState extends State<CriarConta> {
         hintText: hintText,
         hintStyle: TextStyle(color: _corTextoCinza.withValues(alpha: 0.5)),
         labelStyle: TextStyle(color: _corTextoCinza),
-        prefixIcon: Icon(
-          icon,
-          color: widget.corSecundaria,
-        ), // Usa a cor secundária passada
+        prefixIcon: Icon(icon, color: widget.corSecundaria),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.black26,

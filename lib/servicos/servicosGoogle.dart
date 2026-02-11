@@ -104,13 +104,23 @@ class Servicos {
         Supabase.instance.client.from('usuarios').select(), // Index 2
       ]);
 
-      // Conversão segura com 'as List' para evitar erros de tipagem
-      clientesComOrcamentos = List<Cliente>.from(responses[0] as List);
-      orcamentosComClientes = List<Cliente>.from(responses[1] as List);
+      // Extrai os dados da resposta, tratando casos de nulo
+      final clientesData = responses[0] as List? ?? [];
+      final orcamentosData = responses[1] as List? ?? [];
+      final usuariosData = responses[2] as List? ?? [];
 
-      usuarios = (responses[2] as List)
-          .map((map) => Usuario.fromMap(map))
+      // Converte os mapas em objetos
+      clientesComOrcamentos = clientesData
+          .map((map) => Cliente.fromMap(map))
           .toList();
+
+      // Para orcamentosComClientes, extraímos o cliente aninhado
+      orcamentosComClientes = orcamentosData
+          .where((map) => map['clientes'] != null)
+          .map((map) => Cliente.fromMap(map['clientes']))
+          .toList();
+
+      usuarios = usuariosData.map((map) => Usuario.fromMap(map)).toList();
 
       isDataLoaded.value = true;
       debugPrint("Cache Global: Dados carregados com sucesso.");

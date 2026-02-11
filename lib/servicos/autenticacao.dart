@@ -1,19 +1,16 @@
-import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../modelos/Usuario.dart';
 
 class AuthService {
-  // Instância do Supabase
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // Getter para o usuário atual
   User? get usuarioAtual => _supabase.auth.currentUser;
 
   // =====================================================
-  // LOGIN (COM CACHE DE PERMISSÃO)
+  // LOGIN
   // =====================================================
   Future<void> login(String email, String password) async {
-    // 1. Faz o login no Supabase
     final response = await _supabase.auth.signInWithPassword(
       email: email,
       password: password,
@@ -23,43 +20,22 @@ class AuthService {
       throw const AuthException('Erro ao realizar login.');
     }
 
-    // 2. Verifica se é Admin olhando os metadados do token
-    final metadata = response.user!.appMetadata;
-    final bool isAdmin =
-        metadata['role'] == 'admin' ||
-        metadata['admin'] == true ||
-        metadata['is_admin'] == true;
+    final appMetadata = response.user!.appMetadata;
+    final userMetadata = response.user!.userMetadata;
 
-    // 3. Salva essa informação no celular (Cache)
-    // Isso permite que o Roteador saiba quem é o usuário rapidamente
+    final bool isAdmin =
+        (appMetadata['role'] == 'admin') ||
+        (appMetadata['is_admin'] == true) ||
+        (userMetadata?['is_admin'] == true);
+
     await _salvarDadosLocais(isAdmin);
   }
 
   // =====================================================
-  // GERENCIAMENTO DE CACHE (SharedPreferences)
+  // CADASTRO (Lógica Limpa)
   // =====================================================
-
-  /// Salva a permissão localmente para acesso rápido
-  Future<void> _salvarDadosLocais(bool isAdmin) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('IS_ADMIN', isAdmin);
-  }
-
-  /// Lê do disco (Método que estava faltando!)
-  Future<bool> isUsuarioAdminLocal() async {
-    final prefs = await SharedPreferences.getInstance();
-    // Se não tiver nada salvo, assume false (Usuário comum) por segurança
-    return prefs.getBool('IS_ADMIN') ?? false;
-  }
-
-  /// Limpa os dados ao sair
-  Future<void> _limparDadosLocais() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('IS_ADMIN');
-  }
-
   // =====================================================
-  // CADASTRO
+  // CADASTRO (Versão Corrigida)
   // =====================================================
   Future<String?> cadastrarUsuario({
     required String email,
@@ -69,40 +45,75 @@ class AuthService {
     bool isAdmin = false,
   }) async {
     try {
+      // 1. Sanitização (Limpeza) dos dados
+      // Remove tudo que não for número do telefone para evitar erros no banco
+      final telefoneLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
+
+      print("📤 Enviando cadastro...");
+      print("Dados: Nome=$nome, Tel=$telefoneLimpo, Admin=$isAdmin");
+
+      // 2. Chamada ao Supabase
       await _supabase.auth.signUp(
         email: email,
         password: password,
         data: {
           'nome': nome,
-          'telefone': telefone,
-          'isAdmin': isAdmin, // A Trigger no banco lerá isso
+          'telefone': telefoneLimpo, // Envia limpo: "32999999999"
+          'is_admin': isAdmin, // Envia boolean real: true/false
         },
       );
-      return null;
+
+      print("✅ Cadastro realizado no Auth com sucesso!");
+      return null; // Sucesso
     } on AuthException catch (e) {
+      print("❌ Erro de Auth: ${e.message} (Code: ${e.statusCode})");
+
+      // Tratamento de erros conhecidos
+      if (e.message.toLowerCase().contains('already registered') ||
+          e.message.toLowerCase().contains('unique constraint') ||
+          e.statusCode == '422') {
+        return 'EMAIL_JA_CADASTRADO';
+      }
       return e.message;
     } catch (e) {
-      return "Erro inesperado ao criar conta.";
+      print("❌ Erro Genérico/Decode: $e");
+
+      // Se o erro for de decodificação, geralmente é porque o servidor
+      // respondeu com algo que não é JSON (crash do trigger ou timeout).
+      // Mas como já arrumamos o trigger, deve ser apenas instabilidade.
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('23505') || msg.contains('duplicate')) {
+        return 'EMAIL_JA_CADASTRADO';
+      }
+      return "Erro de conexão ou servidor. Tente novamente.";
     }
   }
 
   // =====================================================
-  // LOGOUT
+  // CACHE LOCAL (Persistência, não UI)
+  // =====================================================
+  Future<void> _salvarDadosLocais(bool isAdmin) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('IS_ADMIN', isAdmin);
+  }
+
+  Future<void> _limparDadosLocais() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('IS_ADMIN');
+  }
+
+  // =====================================================
+  // OUTROS MÉTODOS
   // =====================================================
   Future<void> deslogar() async {
-    // Limpa o cache antes de sair para o próximo usuário não herdar permissões
     await _limparDadosLocais();
     await _supabase.auth.signOut();
   }
 
-  // =====================================================
-  // RECUPERAÇÃO DE SENHA
-  // =====================================================
   Future<String?> recuperarSenha({required String email}) async {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email,
-        // Ajuste a URL se necessário
         redirectTo:
             'https://riuza02.github.io/minaslar_aplicativo/RecuperarEmail.html',
       );
@@ -110,23 +121,19 @@ class AuthService {
     } on AuthException catch (e) {
       return e.message;
     } catch (e) {
-      return "Erro ao enviar e-mail de recuperação.";
+      return "Erro ao enviar e-mail.";
     }
   }
 
-  // =====================================================
-  // UTILITÁRIOS
-  // =====================================================
-
-  // Verificação instantânea baseada no Token atual (Backup de segurança)
+  // Apenas lógica booleana, sem UI
   bool isUsuarioAdmin() {
     final user = _supabase.auth.currentUser;
     if (user == null) return false;
-
-    final metadata = user.appMetadata;
-    return metadata['role'] == 'admin' ||
-        metadata['admin'] == true ||
-        metadata['is_admin'] == true;
+    final appMetadata = user.appMetadata;
+    final userMetadata = user.userMetadata;
+    return (appMetadata['role'] == 'admin') ||
+        (appMetadata['is_admin'] == true) ||
+        (userMetadata?['is_admin'] == true);
   }
 
   Future<bool> verificarSeEmailExiste(String email) async {
@@ -137,9 +144,27 @@ class AuthService {
       );
       return res as bool;
     } catch (e) {
-      debugPrint('Erro RPC email_existe: $e');
-      // Na dúvida, retorna false para não travar o fluxo
       return false;
+    }
+  }
+
+  Future<Usuario?> recuperarDadosUsuario() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      // ATENÇÃO: Confirme se o nome da sua tabela no Supabase é 'usuarios' ou 'profiles'
+      final data = await _supabase
+          .from('usuarios') // <--- NOME DA TABELA
+          .select()
+          .eq('id', user.id) // O ID da tabela deve bater com o ID do Auth
+          .single();
+
+      // Usa o seu Modelo para converter os dados
+      return Usuario.fromMap(data);
+    } catch (e) {
+      // Se der erro (ex: usuário não existe na tabela ainda), retorna null
+      return null;
     }
   }
 }

@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../../modelos/Cliente.dart';
 import 'DetalhesCliente.dart';
-import '../telasAdmin/AdicionarCliente.dart';
+import 'AdicionarCliente.dart';
 
 /// Define os critérios de ordenação da lista de clientes.
 enum TipoOrdenacao { alfabetica, ultimoServico, bairro }

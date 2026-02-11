@@ -11,9 +11,10 @@ import '../TelasSecundarias/ListagemClientes.dart';
 enum TipoOrdenacaoOrcamento { dataRecente, valorMaior, clienteAZ, atraso }
 
 class ListaOrcamentos extends StatefulWidget {
+  // VOLTAMOS A RECEBER O ISADMIN AQUI
   final bool isAdmin;
 
-  const ListaOrcamentos({super.key, this.isAdmin = false});
+  const ListaOrcamentos({super.key, required this.isAdmin});
 
   @override
   State<ListaOrcamentos> createState() => _ListaOrcamentosState();
@@ -35,13 +36,15 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
 
   final TextEditingController _searchController = TextEditingController();
 
-  // Armazena TODOS os dados vindos do banco (Cache)
+  // Armazena TODOS os dados vindos do banco
   List<Map<String, dynamic>> _listaCompleta = [];
 
   // Armazena a lista filtrada que é exibida na tela
   List<Map<String, dynamic>> _listaExibida = [];
 
-  bool _estaCarregando = true;
+  // Variável de controle de carregamento
+  bool _isLoading = true;
+
   TipoOrdenacaoOrcamento _ordenacaoAtual = TipoOrdenacaoOrcamento.dataRecente;
 
   // ==================================================
@@ -50,10 +53,10 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   @override
   void initState() {
     super.initState();
-    // Define as cores com base no perfil do usuário
+    // Define as cores com base no parâmetro do widget
     corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
     corSecundaria = widget.isAdmin ? Colors.blue[300]! : Colors.cyan[400]!;
-    // Carrega os dados iniciais sem filtro de busca
+
     _carregarOrcamentos();
   }
 
@@ -64,52 +67,55 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   }
 
   // ==================================================
-  // LÓGICA DE DADOS E SUPABASE
+  // LÓGICA DE DADOS (DIRETO NO ARQUIVO)
   // ==================================================
 
-  /// Busca TODOS os orçamentos recentes do banco de uma vez só
   Future<void> _carregarOrcamentos() async {
-    if (mounted) setState(() => _estaCarregando = true);
+    final client = Supabase.instance.client;
+    final userId = client.auth.currentUser?.id;
 
     try {
-      final query = Supabase.instance.client
-          .from('orcamentos')
-          .select('*, clientes!inner(nome, telefone)')
-          .order('created_at', ascending: false)
-          .limit(500); // Limite de segurança para performance
+      if (mounted) setState(() => _isLoading = true);
 
-      final dados = await query;
+      // Query Base
+      dynamic query = client
+          .from('orcamentos')
+          .select('*, clientes(nome, telefone, endereco)')
+          .order('created_at', ascending: false);
+
+      // Se NÃO for admin, filtra apenas os do usuário logado
+      if (!widget.isAdmin && userId != null) {
+        query = query.eq('user_id', userId);
+      }
+
+      final response = await query;
+      final dados = List<Map<String, dynamic>>.from(response.data ?? []);
 
       if (mounted) {
         setState(() {
-          // Salva na lista completa (backup)
-          _listaCompleta = List<Map<String, dynamic>>.from(dados);
-
-          // Aplica o filtro atual (caso o usuário já tenha digitado algo e puxou refresh)
-          _aplicarFiltrosLocais();
-
-          _estaCarregando = false;
+          _listaCompleta = dados;
+          _filtrarOrcamentos(); // Aplica o filtro inicial
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Erro ao buscar orçamentos: $e');
-      if (mounted) setState(() => _estaCarregando = false);
+      if (mounted) setState(() => _isLoading = false);
+      debugPrint("Erro ao carregar: $e");
     }
   }
 
-  /// Aplica Busca e Ordenação na memória (Muito mais rápido e sem erro de sintaxe)
-  void _aplicarFiltrosLocais() {
+  /// Filtra e Ordena a lista localmente
+  void _filtrarOrcamentos() {
     final termo = _searchController.text.trim().toLowerCase();
     List<Map<String, dynamic>> temp = List.from(_listaCompleta);
 
-    // 1. FILTRAGEM (Busca)
+    // 1. BUSCA
     if (termo.isNotEmpty) {
       temp = temp.where((orcamento) {
         final titulo = (orcamento['titulo'] ?? '').toString().toLowerCase();
         final descricao = (orcamento['descricao'] ?? '')
             .toString()
             .toLowerCase();
-        // Acesso seguro ao nome do cliente
         final nomeCliente = (orcamento['clientes']?['nome'] ?? '')
             .toString()
             .toLowerCase();
@@ -121,86 +127,67 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
     }
 
     // 2. ORDENAÇÃO
-    _ordenarLista(temp);
+    switch (_ordenacaoAtual) {
+      case TipoOrdenacaoOrcamento.atraso:
+        temp.sort((a, b) => _compararPorAtraso(a, b));
+        break;
+      case TipoOrdenacaoOrcamento.clienteAZ:
+        temp.sort((a, b) {
+          final cA = (a['clientes']?['nome'] ?? '').toString().toLowerCase();
+          final cB = (b['clientes']?['nome'] ?? '').toString().toLowerCase();
+          return cA.compareTo(cB);
+        });
+        break;
+      case TipoOrdenacaoOrcamento.valorMaior:
+        temp.sort((a, b) {
+          final vA = (a['valor'] as num?) ?? 0;
+          final vB = (b['valor'] as num?) ?? 0;
+          return vB.compareTo(vA);
+        });
+        break;
+      case TipoOrdenacaoOrcamento.dataRecente:
+        temp.sort((a, b) {
+          final dA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime(2000);
+          final dB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime(2000);
+          return dB.compareTo(dA);
+        });
+        break;
+    }
 
     setState(() {
       _listaExibida = temp;
     });
   }
 
-  /// Lógica de ordenação extraída para função auxiliar
-  void _ordenarLista(List<Map<String, dynamic>> lista) {
-    switch (_ordenacaoAtual) {
-      case TipoOrdenacaoOrcamento.atraso:
-        lista.sort((a, b) {
-          int getPrioridade(Map<String, dynamic> item) {
-            final bool isConcluido = item['entregue'] ?? false;
-            final bool ehRetorno = item['eh_retorno'] ?? false;
-            final dataStr = item['data_entrega'];
+  // Lógica auxiliar de ordenação por atraso
+  int _compararPorAtraso(Map<String, dynamic> a, Map<String, dynamic> b) {
+    int getPrioridade(Map<String, dynamic> item) {
+      final bool isConcluido = item['entregue'] ?? false;
+      final bool ehRetorno = item['eh_retorno'] ?? false;
+      final dataStr = item['data_entrega'];
 
-            if (isConcluido) return 5;
+      if (isConcluido) return 5; // Menor prioridade
 
-            bool isAtrasado = false;
-            if (dataStr != null) {
-              final entrega = DateTime.parse(dataStr);
-              final agora = DateTime.now();
-              final hoje = DateTime(agora.year, agora.month, agora.day);
-              final dataEntrega = DateTime(
-                entrega.year,
-                entrega.month,
-                entrega.day,
-              );
-              if (dataEntrega.isBefore(hoje)) isAtrasado = true;
-            }
+      bool isAtrasado = false;
+      if (dataStr != null) {
+        final entrega = DateTime.parse(dataStr);
+        final hoje = DateTime.now();
+        // Remove horas para comparar apenas datas
+        final dataEntrega = DateTime(entrega.year, entrega.month, entrega.day);
+        final dataHoje = DateTime(hoje.year, hoje.month, hoje.day);
 
-            if (isAtrasado) return 1;
-            if (ehRetorno) return 2;
-            if (dataStr == null) return 3;
-            return 4;
-          }
+        if (dataEntrega.isBefore(dataHoje)) isAtrasado = true;
+      }
 
-          int pA = getPrioridade(a);
-          int pB = getPrioridade(b);
-          if (pA != pB) return pA.compareTo(pB);
-
-          final dataA =
-              DateTime.tryParse(a['data_pega'] ?? '') ?? DateTime(1900);
-          final dataB =
-              DateTime.tryParse(b['data_pega'] ?? '') ?? DateTime(1900);
-          return dataB.compareTo(dataA);
-        });
-        break;
-
-      case TipoOrdenacaoOrcamento.clienteAZ:
-        lista.sort((a, b) {
-          final clienteA = (a['clientes']?['nome'] ?? '')
-              .toString()
-              .toLowerCase();
-          final clienteB = (b['clientes']?['nome'] ?? '')
-              .toString()
-              .toLowerCase();
-          return clienteA.compareTo(clienteB);
-        });
-        break;
-
-      case TipoOrdenacaoOrcamento.valorMaior:
-        lista.sort((a, b) {
-          final valorA = (a['valor'] as num?) ?? 0;
-          final valorB = (b['valor'] as num?) ?? 0;
-          return valorB.compareTo(valorA);
-        });
-        break;
-
-      case TipoOrdenacaoOrcamento.dataRecente:
-        lista.sort((a, b) {
-          final dataA =
-              DateTime.tryParse(a['data_pega'] ?? '') ?? DateTime(1900);
-          final dataB =
-              DateTime.tryParse(b['data_pega'] ?? '') ?? DateTime(1900);
-          return dataB.compareTo(dataA);
-        });
-        break;
+      if (isAtrasado) return 1; // Máxima prioridade
+      if (ehRetorno) return 2;
+      if (dataStr == null) return 3;
+      return 4;
     }
+
+    int pA = getPrioridade(a);
+    int pB = getPrioridade(b);
+    return pA.compareTo(pB);
   }
 
   // ==================================================
@@ -210,13 +197,12 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   void _mudarOrdenacao(TipoOrdenacaoOrcamento novaOrdem) {
     if (_ordenacaoAtual != novaOrdem) {
       _ordenacaoAtual = novaOrdem;
-      _aplicarFiltrosLocais(); // Reaplica filtro e nova ordem
+      _filtrarOrcamentos();
     }
   }
 
-  // Ao digitar, filtramos a lista localmente. Não precisa de debounce nem chamado ao servidor.
   void _onSearchChanged(String value) {
-    _aplicarFiltrosLocais();
+    _filtrarOrcamentos();
   }
 
   void _abrirNovoOrcamento() async {
@@ -336,8 +322,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
           : null,
 
       // --- CORPO DA LISTA ---
-      // Aqui usamos _listaExibida em vez de _listaOrcamentos
-      body: _estaCarregando
+      body: _isLoading
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : RefreshIndicator(
               color: corPrincipal,
@@ -432,16 +417,14 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
     bool isAtrasado = false;
     if (!isConcluido && dataEntregaStr != null) {
       final dataEntrega = DateTime.parse(dataEntregaStr);
-      final agora = DateTime.now();
-      final hoje = DateTime(agora.year, agora.month, agora.day);
-      final entrega = DateTime(
+      final hoje = DateTime.now();
+      final dataE = DateTime(
         dataEntrega.year,
         dataEntrega.month,
         dataEntrega.day,
       );
-      if (entrega.isBefore(hoje)) {
-        isAtrasado = true;
-      }
+      final dataH = DateTime(hoje.year, hoje.month, hoje.day);
+      if (dataE.isBefore(dataH)) isAtrasado = true;
     }
 
     if (isConcluido) {

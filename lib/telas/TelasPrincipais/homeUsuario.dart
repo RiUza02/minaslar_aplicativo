@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'ListaCliente.dart';
 import 'ListaOrcamentos.dart';
 import 'Calendario.dart';
-import 'ListaOrcamentosDia.dart'; // Import unificado
+import 'OrcamentosDia.dart'; // Import unificado
 
 class HomeUsuario extends StatefulWidget {
   const HomeUsuario({super.key});
@@ -60,7 +60,7 @@ class _HomeUsuarioState extends State<HomeUsuario> {
           // Index 0: Visualização do Calendário
           const AgendaCalendario(isAdmin: false),
           // Index 1: Novo Painel (Placeholder)
-          ListaOrcamentosDia(
+          OrcamentosDia(
             dataSelecionada: DateTime.now(),
             isAdmin: false,
             apenasPendentes: true, // Isso faz o Painel filtrar os entregues
