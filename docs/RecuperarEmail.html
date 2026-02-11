@@ -42,66 +42,74 @@
     </div>
 
     <script>
-        // ==========================================
-        const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
-        // ==========================================
+// ==========================================
+const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
+// ==========================================
 
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Verifica a sessão assim que carrega
-        window.onload = async () => {
-            // O cliente JS do Supabase detecta automaticamente o hash (#access_token=...)
-            // e restaura a sessão. Só precisamos verificar se deu certo.
-            
-            const { data } = await _supabase.auth.getSession();
+window.onload = async () => {
+    try {
+        // 1. Verifica se existe um 'code' na URL (Fluxo novo do Supabase)
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
 
-            if (data.session) {
+        if (code) {
+            console.log("Código de recuperação detectado. Validando...");
+            const { error } = await _supabase.auth.exchangeCodeForSession(code);
+            if (!error) {
                 mostrarTela('form-container');
+                return; // Sucesso, para aqui.
             } else {
-                // Tenta ouvir a mudança (as vezes demora alguns milissegundos para processar o Hash)
-                _supabase.auth.onAuthStateChange((event, session) => {
-                    if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || session) {
-                        mostrarTela('form-container');
-                    } else {
-                        // Se demorar e não achar nada...
-                        setTimeout(() => {
-                           if(document.getElementById('form-container').classList.contains('hidden')){
-                               mostrarTela('error-container');
-                           }
-                        }, 2000);
-                    }
-                });
-            }
-        };
-
-        async function atualizarSenha() {
-            const newPassword = document.getElementById('password').value;
-            const msg = document.getElementById('msg');
-            
-            if (newPassword.length < 6) {
-                msg.innerText = "Senha muito curta.";
-                msg.className = "error";
-                return;
-            }
-            msg.innerText = "Salvando...";
-            
-            const { error } = await _supabase.auth.updateUser({ password: newPassword });
-
-            if (error) {
-                msg.innerText = "Erro: " + error.message;
-                msg.className = "error";
-            } else {
-                mostrarTela('success-container');
+                console.error("Erro ao validar código:", error.message);
             }
         }
 
-        function mostrarTela(id) {
-            ['loading', 'form-container', 'success-container', 'error-container'].forEach(t => {
-                document.getElementById(t).classList.add('hidden');
-            });
-            document.getElementById(id).classList.remove('hidden');
+        // 2. Fallback: Verifica se já existe uma sessão ativa (caso o navegador já tenha processado)
+        const { data } = await _supabase.auth.getSession();
+        if (data.session) {
+            mostrarTela('form-container');
+        } else {
+            // Se após checar o code e a sessão não houver nada, mostra erro
+            mostrarTela('error-container');
         }
+    } catch (e) {
+        console.error("Erro inesperado:", e);
+        mostrarTela('error-container');
+    }
+};
+
+async function atualizarSenha() {
+    const newPassword = document.getElementById('password').value;
+    const msg = document.getElementById('msg');
+    
+    if (newPassword.length < 6) {
+        msg.innerText = "A senha deve ter no mínimo 6 caracteres.";
+        msg.className = "error";
+        return;
+    }
+    
+    msg.innerText = "Salvando nova senha...";
+    msg.className = ""; // limpa classe de erro
+    
+    // Como o exchangeCodeForSession já nos logou, updateUser funcionará
+    const { error } = await _supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+        msg.innerText = "Erro ao salvar: " + error.message;
+        msg.className = "error";
+    } else {
+        mostrarTela('success-container');
+    }
+}
+
+function mostrarTela(id) {
+    ['loading', 'form-container', 'success-container', 'error-container'].forEach(t => {
+        document.getElementById(t).classList.add('hidden');
+    });
+    document.getElementById(id).classList.remove('hidden');
+}
     </script>
 </body>
 </html>

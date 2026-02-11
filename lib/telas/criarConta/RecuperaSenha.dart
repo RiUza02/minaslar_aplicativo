@@ -56,15 +56,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
 
       final email = _emailController.text.trim();
 
-      // 3. VERIFICAÇÃO SE O E-MAIL EXISTE NO BANCO
-      // Usamos aquela função RPC do seu AuthService
-      final bool existe = await _authService.verificarSeEmailExiste(email);
-
-      if (!existe) {
-        // Se cair aqui, interrompemos o processo
-        throw "Este e-mail não está cadastrado no sistema.";
-      }
-
       // 4. ENVIA O E-MAIL DE RECUPERAÇÃO
       // Agora sabemos que tem internet e o usuário existe
       String? erro = await _authService.recuperarSenha(email: email);
