@@ -67,11 +67,11 @@ class _DashboardState extends State<Dashboard>
           )
           .gte('data_pega', sixMonthsAgo.toIso8601String());
 
-      final List<Map<String, dynamic>> orcamentos =
-          List<Map<String, dynamic>>.from(response);
+      // O 'response' já é uma lista do tipo correto, a conversão é desnecessária.
+      final List<Map<String, dynamic>> orcamentos = response;
 
       // --- Processamento dos Dados ---
-      double faturadoMes = 0;
+      double faturadoMesAtualCalculado = 0;
       Map<String, int> turnos = {'Manhã': 0, 'Tarde': 0};
       List<Map<String, dynamic>> faturamentoMensal = [];
       List<Map<String, dynamic>> statsMensal = [];
@@ -81,6 +81,8 @@ class _DashboardState extends State<Dashboard>
         final monthName = monthFormat.format(targetMonth);
 
         final orcamentosDoMes = orcamentos.where((o) {
+          // Adicionada verificação para datas nulas para maior robustez
+          if (o['data_pega'] == null) return false;
           final dataPega = DateTime.parse(o['data_pega']);
           return dataPega.year == targetMonth.year &&
               dataPega.month == targetMonth.month;
@@ -110,7 +112,7 @@ class _DashboardState extends State<Dashboard>
 
         // 3. Faturamento do Mês Atual
         if (targetMonth.year == now.year && targetMonth.month == now.month) {
-          faturadoMes = faturamentoDoMes;
+          faturadoMesAtualCalculado = faturamentoDoMes;
         }
       }
 
@@ -122,15 +124,27 @@ class _DashboardState extends State<Dashboard>
 
       if (mounted) {
         setState(() {
-          faturamentoMesAtual = faturadoMes;
+          faturamentoMesAtual = faturadoMesAtualCalculado;
           faturamento6Meses = faturamentoMensal;
           stats6Meses = statsMensal;
           servicosPorTurno = turnos;
           isLoading = false;
         });
       }
-    } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+    } catch (e, s) {
+      debugPrint("Erro ao carregar dados do Dashboard: $e");
+      debugPrint("Stacktrace: $s");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível carregar os dados do dashboard. Verifique sua conexão e tente novamente.',
+            ),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        setState(() => isLoading = false);
+      }
     }
   }
 

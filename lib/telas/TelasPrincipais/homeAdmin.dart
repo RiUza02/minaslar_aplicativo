@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'Dashboard.dart';
-import 'ListaClienteAdmin.dart';
-import 'CalendarioAdmin.dart';
+import '../TelasPrincipais/Dashboard.dart';
+import 'ListaCliente.dart';
+import 'Calendario.dart';
 import 'ListaOrcamentos.dart';
 import 'ListaOrcamentosDia.dart';
 
@@ -14,8 +14,6 @@ class HomeAdmin extends StatefulWidget {
 }
 
 class _HomeAdminState extends State<HomeAdmin> {
-  // REMOVIDO: with AutomaticKeepAliveClientMixin (Não vai aqui!)
-
   // ==================================================
   // ESTADO E CONTROLADORES DE NAVEGAÇÃO
   // ==================================================
@@ -65,22 +63,22 @@ class _HomeAdminState extends State<HomeAdmin> {
           const Dashboard(),
 
           // Index 1: Visualização do Calendário
-          const AgendaCalendario(),
+          const AgendaCalendario(isAdmin: true),
 
           // Index 2: Novo Painel (Painel do Dia)
           ListaOrcamentosDia(
             dataSelecionada: DateTime.now(),
+            isAdmin: true,
             apenasPendentes: true,
-            mostrarLogout: true,
             mostrarConfiguracoes: true,
             mostrarTitulo: false,
           ),
 
           // Index 3: Gestão de Clientes
-          const ListaClientes(),
+          const ListaClientes(isAdmin: true),
 
           // Index 4: Gestão de Orçamentos
-          const ListaOrcamentos(),
+          const ListaOrcamentos(isAdmin: true),
         ],
       ),
 

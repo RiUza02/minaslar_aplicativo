@@ -335,8 +335,9 @@ class _CriarContaState extends State<CriarConta> {
                               onChanged: (_) => setState(() {}),
                               validator: (v) {
                                 if (v!.isEmpty) return 'Confirme sua senha';
-                                if (v != _senhaController.text)
+                                if (v != _senhaController.text) {
                                   return 'As senhas não coincidem';
+                                }
                                 return null;
                               },
                               suffixIcon: IconButton(

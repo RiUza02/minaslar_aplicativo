@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
-import '../../modelos/Cliente.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import '../telas/telasAdmin/DetalhesCliente.dart';
-import '../telas/telasAdmin/AdicionarCliente.dart';
+import '../../../modelos/Cliente.dart';
+import 'DetalhesCliente.dart';
+import '../telasAdmin/AdicionarCliente.dart';
 
 /// Define os critérios de ordenação da lista de clientes.
 enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
@@ -13,13 +13,9 @@ enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
 // TELA DE LISTAGEM DE CLIENTES
 // ==================================================
 class ListaClientes extends StatefulWidget {
-  // --- MUDANÇA 1: Adicionado parâmetro para controle de seleção ---
   final bool isSelecao;
 
-  const ListaClientes({
-    super.key,
-    this.isSelecao = false, // Padrão é falso (modo visualização)
-  });
+  const ListaClientes({super.key, this.isSelecao = false});
 
   @override
   State<ListaClientes> createState() => _ListaClientesState();
@@ -29,24 +25,27 @@ class _ListaClientesState extends State<ListaClientes> {
   // ==================================================
   // CONFIGURAÇÕES VISUAIS E ESTADO
   // ==================================================
-
-  // Paleta de cores da interface (Novo Padrão)
   final Color corPrincipal = Colors.red[900]!;
   final Color corSecundaria = Colors.blueAccent;
   final Color corComplementar = Colors.green[600]!;
   final Color corAlerta = Colors.redAccent;
-  final Color corFundo = const Color(0xFF121212); // Preto suave (Material Dark)
+  final Color corFundo = const Color(0xFF121212);
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoCinza = Colors.grey[400]!;
 
-  // Controladores e variáveis de estado
   final TextEditingController _searchController = TextEditingController();
+
+  // MUDANÇA 1: Lista tipada com o Objeto
+  List<Cliente> _listaClientes = [];
+
+  // AUXILIAR: Guarda a data do último serviço vinculada ao ID do cliente
+  // Isso permite ordenar sem sujar o Model Cliente com dados de relatório
+  final Map<String, DateTime> _cacheUltimasDatas = {};
+
   String _termoBuscaNome = '';
-  List<Map<String, dynamic>> _listaClientes = [];
   bool _estaCarregando = true;
   TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
 
-  // Formatador para exibir o telefone
   final maskTelefone = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
@@ -68,19 +67,40 @@ class _ListaClientesState extends State<ListaClientes> {
     if (!isRefresh) setState(() => _estaCarregando = true);
 
     try {
+      // Busca dados brutos (Maps)
       final response = await Supabase.instance.client
           .from('clientes')
           .select('*, orcamentos(data_pega)');
 
-      List<Map<String, dynamic>> dados = List<Map<String, dynamic>>.from(
-        response,
-      );
+      final List<Map<String, dynamic>> dadosBrutos =
+          List<Map<String, dynamic>>.from(response);
 
-      _aplicarOrdenacao(dados);
+      // Limpa listas atuais
+      final List<Cliente> novosClientes = [];
+      _cacheUltimasDatas.clear();
+
+      // Processa os dados: Converte Map -> Cliente e extrai a Data
+      for (var json in dadosBrutos) {
+        // 1. Cria o objeto
+        final cliente = Cliente.fromMap(json);
+
+        // 2. Calcula a data (Lógica extraída para manter o Model limpo)
+        final dataUltimoServico = _calcularUltimaData(json['orcamentos']);
+
+        // 3. Guarda no cache se o cliente tiver ID
+        if (cliente.id != null) {
+          _cacheUltimasDatas[cliente.id!] = dataUltimoServico;
+        }
+
+        novosClientes.add(cliente);
+      }
+
+      // Aplica ordenação na lista de Objetos
+      _aplicarOrdenacao(novosClientes);
 
       if (mounted) {
         setState(() {
-          _listaClientes = dados;
+          _listaClientes = novosClientes;
           _estaCarregando = false;
         });
       }
@@ -94,29 +114,8 @@ class _ListaClientesState extends State<ListaClientes> {
     }
   }
 
-  void _aplicarOrdenacao(List<Map<String, dynamic>> lista) {
-    if (_ordenacaoAtual == TipoOrdenacao.alfabetica) {
-      lista.sort(
-        (a, b) => (a['nome'] as String).toLowerCase().compareTo(
-          (b['nome'] as String).toLowerCase(),
-        ),
-      );
-    } else if (_ordenacaoAtual == TipoOrdenacao.bairro) {
-      lista.sort(
-        (a, b) => (a['bairro'] ?? '').toString().toLowerCase().compareTo(
-          (b['bairro'] ?? '').toString().toLowerCase(),
-        ),
-      );
-    } else {
-      lista.sort(
-        (a, b) => _obterUltimaData(
-          b['orcamentos'],
-        ).compareTo(_obterUltimaData(a['orcamentos'])),
-      );
-    }
-  }
-
-  DateTime _obterUltimaData(dynamic orcamentos) {
+  // Helper para extrair data do JSON bruto
+  DateTime _calcularUltimaData(dynamic orcamentos) {
     if (orcamentos == null || (orcamentos as List).isEmpty) {
       return DateTime(1900);
     }
@@ -128,6 +127,25 @@ class _ListaClientesState extends State<ListaClientes> {
       }
     }
     return maiorData;
+  }
+
+  void _aplicarOrdenacao(List<Cliente> lista) {
+    if (_ordenacaoAtual == TipoOrdenacao.alfabetica) {
+      lista.sort(
+        (a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()),
+      );
+    } else if (_ordenacaoAtual == TipoOrdenacao.bairro) {
+      lista.sort(
+        (a, b) => a.bairro.toLowerCase().compareTo(b.bairro.toLowerCase()),
+      );
+    } else {
+      // Ordenação por data usando o Cache Auxiliar
+      lista.sort((a, b) {
+        final dataA = _cacheUltimasDatas[a.id] ?? DateTime(1900);
+        final dataB = _cacheUltimasDatas[b.id] ?? DateTime(1900);
+        return dataB.compareTo(dataA); // Mais recente primeiro
+      });
+    }
   }
 
   void _mudarOrdenacao(TipoOrdenacao novaOrdem) {
@@ -155,15 +173,12 @@ class _ListaClientesState extends State<ListaClientes> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF2C2C2C),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           title: const Text(
             'Confirmar Exclusão',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(color: Colors.white),
           ),
           content: Text(
-            'Tem certeza que deseja excluir o cliente "${cliente.nome}"? Esta ação não pode ser desfeita.',
+            'Tem certeza que deseja excluir o cliente "${cliente.nome}"?',
             style: const TextStyle(color: Colors.white70),
           ),
           actions: <Widget>[
@@ -175,12 +190,7 @@ class _ListaClientesState extends State<ListaClientes> {
               ),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[900],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red[900]),
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text(
                 'EXCLUIR',
@@ -192,54 +202,42 @@ class _ListaClientesState extends State<ListaClientes> {
       },
     );
 
-    if (confirmar == true) {
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
+    if (confirmar == true && cliente.id != null) {
       try {
         await Supabase.instance.client
             .from('clientes')
             .delete()
-            .eq('id', cliente.id as Object);
+            .eq('id', cliente.id!); // MUDANÇA: Acesso seguro ao ID
 
         if (!mounted) return;
         _carregarClientes();
-
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text("Cliente excluído com sucesso!"),
-            backgroundColor: Colors.green,
-          ),
-        );
       } catch (e) {
         if (!mounted) return;
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text("Erro ao excluir cliente: $e"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Erro ao excluir: $e")));
       }
     }
   }
 
   // ==================================================
-  // CONSTRUÇÃO DA INTERFACE (UI)
+  // UI
   // ==================================================
 
   @override
   Widget build(BuildContext context) {
+    // Filtragem agora usa as propriedades do objeto Cliente
     final listaFiltrada = _termoBuscaNome.isEmpty
         ? _listaClientes
         : _listaClientes
               .where(
-                (c) => c['nome'].toString().toLowerCase().contains(
-                  _termoBuscaNome,
-                ),
+                (cliente) =>
+                    cliente.nome.toLowerCase().contains(_termoBuscaNome),
               )
               .toList();
 
     return Scaffold(
       backgroundColor: corFundo,
-
       appBar: AppBar(
         backgroundColor: corPrincipal,
         elevation: 0,
@@ -247,9 +245,7 @@ class _ListaClientesState extends State<ListaClientes> {
         title: Container(
           height: 45,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(
-              alpha: 0.3,
-            ), // Fundo escuro translúcido
+            color: Colors.black.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(12),
           ),
           child: TextField(
@@ -292,21 +288,16 @@ class _ListaClientesState extends State<ListaClientes> {
           const SizedBox(width: 8),
         ],
       ),
-
-      // --- BOTÃO FLUTUANTE ---
       floatingActionButton: FloatingActionButton(
         backgroundColor: corPrincipal,
         foregroundColor: Colors.white,
         elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const AdicionarCliente()),
         ).then((_) => _carregarClientes()),
         child: const Icon(Icons.person_add, size: 28),
       ),
-
-      // --- LISTA DE CLIENTES ---
       body: _estaCarregando
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : RefreshIndicator(
@@ -320,11 +311,10 @@ class _ListaClientesState extends State<ListaClientes> {
                       padding: const EdgeInsets.fromLTRB(16, 24, 16, 90),
                       itemCount: listaFiltrada.length,
                       itemBuilder: (context, index) {
-                        final dados = listaFiltrada[index];
-                        final cliente = Cliente.fromMap(dados);
-                        final ultimaData = _obterUltimaData(
-                          dados['orcamentos'],
-                        );
+                        final cliente = listaFiltrada[index];
+                        // Recupera a data do cache auxiliar
+                        final ultimaData =
+                            _cacheUltimasDatas[cliente.id] ?? DateTime(1900);
 
                         return _buildClienteCard(cliente, ultimaData);
                       },
@@ -332,10 +322,6 @@ class _ListaClientesState extends State<ListaClientes> {
             ),
     );
   }
-
-  // ==================================================
-  // WIDGETS AUXILIARES
-  // ==================================================
 
   Widget _buildEmptyState() {
     return Center(
@@ -353,25 +339,20 @@ class _ListaClientesState extends State<ListaClientes> {
     );
   }
 
-  /// Constrói o cartão do cliente com o visual Gradient e faixa lateral
   Widget _buildClienteCard(Cliente cliente, DateTime ultimaData) {
     final temServico = ultimaData.year > 1900;
     final dataFormatada = temServico
         ? DateFormat('dd/MM/yyyy').format(ultimaData)
         : "Sem serviços";
 
-    // Define cor baseada no status
     final Color corStatus = cliente.clienteProblematico
         ? corAlerta
         : corComplementar;
 
-    // --- MUDANÇA 2: Função centralizada para decidir clique ---
     void handleCardTap() {
       if (widget.isSelecao) {
-        // Se estiver selecionando, devolve o cliente para a tela anterior
         Navigator.pop(context, cliente);
       } else {
-        // Se não, abre os detalhes normalmente
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -386,7 +367,6 @@ class _ListaClientesState extends State<ListaClientes> {
       decoration: BoxDecoration(
         color: corCard,
         borderRadius: BorderRadius.circular(16),
-        // Sombra suave
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.3),
@@ -394,39 +374,31 @@ class _ListaClientesState extends State<ListaClientes> {
             offset: const Offset(0, 4),
           ),
         ],
-        // Gradiente Sutil
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            corCard,
-            const Color(0xFF252525), // Um tom levemente mais claro
-          ],
+          colors: [corCard, const Color(0xFF252525)],
         ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: handleCardTap, // Usa a função nova
+        onTap: handleCardTap,
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Barra Lateral Colorida (Indicador Visual)
               Container(width: 6, color: corStatus),
-
-              // 2. Conteúdo do Card
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- CABEÇALHO DO CARD ---
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              cliente.nome,
+                              cliente.nome, // MUDANÇA: Acesso via propriedade
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -448,7 +420,6 @@ class _ListaClientesState extends State<ListaClientes> {
                                 ),
                               ),
                             ),
-                          // Botão de Excluir (Só exibe se NÃO for seleção)
                           if (!widget.isSelecao)
                             IconButton(
                               icon: Icon(
@@ -460,13 +431,12 @@ class _ListaClientesState extends State<ListaClientes> {
                             ),
                         ],
                       ),
-
                       const SizedBox(height: 12),
-
-                      // --- INFORMAÇÕES SECUNDÁRIAS ---
                       _buildInfoRow(
                         Icons.phone_iphone,
-                        maskTelefone.maskText(cliente.telefone),
+                        maskTelefone.maskText(
+                          cliente.telefone,
+                        ), // MUDANÇA: Propriedade
                       ),
                       const SizedBox(height: 6),
                       _buildInfoRow(
@@ -475,10 +445,7 @@ class _ListaClientesState extends State<ListaClientes> {
                             ? "Bairro não informado"
                             : cliente.bairro,
                       ),
-
                       const SizedBox(height: 8),
-
-                      // --- DATA ÚLTIMO SERVIÇO ---
                       Row(
                         children: [
                           Icon(
@@ -506,10 +473,7 @@ class _ListaClientesState extends State<ListaClientes> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 16),
-
-                      // --- BOTÃO DE AÇÃO ---
                       Align(
                         alignment: Alignment.centerRight,
                         child: OutlinedButton.icon(
@@ -522,7 +486,6 @@ class _ListaClientesState extends State<ListaClientes> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          // MUDANÇA 3: Ícone e Texto mudam conforme contexto
                           icon: Icon(
                             widget.isSelecao
                                 ? Icons.check
@@ -532,7 +495,7 @@ class _ListaClientesState extends State<ListaClientes> {
                           label: Text(
                             widget.isSelecao ? "SELECIONAR" : "Detalhes",
                           ),
-                          onPressed: handleCardTap, // Mesma lógica
+                          onPressed: handleCardTap,
                         ),
                       ),
                     ],

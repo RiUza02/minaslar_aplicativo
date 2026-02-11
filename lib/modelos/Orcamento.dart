@@ -1,34 +1,34 @@
 /// Modelo que representa um orçamento no sistema
 class Orcamento {
   /// ID do registro no Supabase (nulo durante a criação)
-  String? id;
+  final String? id;
 
   /// ID do cliente relacionado ao orçamento (chave estrangeira)
-  String clienteId;
+  final String clienteId;
 
   /// Título do serviço (Ex: "Formatação PC", "Troca de Tela")
-  String titulo;
+  final String titulo;
 
   /// Descrição detalhada do serviço realizado (Antigo oQueFoiFeito)
-  String? descricao;
+  final String? descricao;
 
   /// Data em que o serviço foi iniciado
-  DateTime dataPega;
+  final DateTime dataPega;
 
   /// Data prevista ou efetiva de entrega do serviço
-  DateTime? dataEntrega;
+  final DateTime? dataEntrega;
 
   /// Valor do orçamento
-  double? valor;
+  final double? valor;
 
   /// Turno do agendamento ('Manhã' ou 'Tarde')
-  String horarioDoDia;
+  final String horarioDoDia;
 
   /// Indica se o serviço foi concluído/entregue
-  bool entregue;
+  final bool entregue;
 
   /// Indica se o serviço é um retorno de garantia/revisão
-  bool ehRetorno;
+  final bool ehRetorno;
 
   /// Construtor do modelo
   Orcamento({
@@ -84,6 +84,41 @@ class Orcamento {
 
       // Recupera do banco. Se for nulo, assume false
       ehRetorno: map['eh_retorno'] ?? false,
+    );
+  }
+  // ==================================================
+  // COMPARAÇÃO DE OBJETOS
+  // ==================================================
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Orcamento &&
+        other.id == id &&
+        other.clienteId == clienteId &&
+        other.titulo == titulo &&
+        other.descricao == descricao &&
+        other.dataPega == dataPega &&
+        other.dataEntrega == dataEntrega &&
+        other.valor == valor &&
+        other.horarioDoDia == horarioDoDia &&
+        other.entregue == entregue &&
+        other.ehRetorno == ehRetorno;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      id,
+      clienteId,
+      titulo,
+      descricao,
+      dataPega,
+      dataEntrega,
+      valor,
+      horarioDoDia,
+      entregue,
+      ehRetorno,
     );
   }
 }

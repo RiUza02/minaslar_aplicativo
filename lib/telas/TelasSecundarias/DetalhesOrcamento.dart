@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:minaslar/modelos/Orcamento.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+
 import 'EditarOrcamento.dart';
 import 'DetalhesCliente.dart';
 import '../../modelos/Cliente.dart';
@@ -11,8 +12,14 @@ import '../../modelos/Cliente.dart';
 // ==================================================
 class DetalhesOrcamento extends StatefulWidget {
   final Map<String, dynamic> orcamentoInicial;
+  final bool isAdmin;
 
-  const DetalhesOrcamento({super.key, required this.orcamentoInicial});
+  const DetalhesOrcamento({
+    super.key,
+    required this.orcamentoInicial,
+    this.isAdmin =
+        true, // Padrão para admin para não quebrar chamadas existentes
+  });
 
   @override
   State<DetalhesOrcamento> createState() => _DetalhesOrcamentoState();
@@ -27,11 +34,8 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   String _nomeCliente = 'Cliente desconhecido';
   bool _isLoading = false;
 
-  // Paleta de Cores
-  final Color corPrincipal = Colors.red[900]!;
-  final Color corSecundaria = Colors.blue[300]!;
-  final Color corComplementar = Colors.green[400]!;
-  final Color corAlerta = Colors.redAccent;
+  // Paleta de Cores (será definida no initState)
+  late Color corPrincipal;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoClaro = Colors.white;
@@ -40,6 +44,9 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   @override
   void initState() {
     super.initState();
+    // Define a cor principal com base no tipo de usuário
+    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
+
     _orcamentoObj = Orcamento.fromMap(widget.orcamentoInicial);
     _processarDadosCliente(widget.orcamentoInicial);
     _atualizarDados();
@@ -169,7 +176,10 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => DetalhesCliente(cliente: _clienteCompleto!),
+          builder: (context) => DetalhesCliente(
+            cliente: _clienteCompleto!,
+            isAdmin: widget.isAdmin,
+          ),
         ),
       ).then((_) => _atualizarDados());
     } else {
@@ -223,18 +233,18 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
         ? Colors.amber
         : Colors.white54;
 
-    // NOVA LÓGICA DE COR DA BORDA
+    // Lógica de Cor da Borda Lateral (Consistente com a Lista)
     Color corBordaPrincipal;
     if (isConcluido) {
-      corBordaPrincipal = corSecundaria; // Azul
+      corBordaPrincipal = Colors.blue; // Concluído
     } else if (ehRetorno) {
-      corBordaPrincipal = corComplementar; // Verde
+      corBordaPrincipal = Colors.green; // Garantia/Retorno
     } else if (isAtrasado) {
-      corBordaPrincipal = corAlerta; // Vermelho
+      corBordaPrincipal = Colors.redAccent; // Atrasado
     } else if (_orcamentoObj.dataEntrega == null) {
-      corBordaPrincipal = Colors.white; // Branco
+      corBordaPrincipal = Colors.grey; // Sem data definida
     } else {
-      corBordaPrincipal = corSecundaria; // Azul (Em prazo)
+      corBordaPrincipal = Colors.orange; // Em andamento
     }
 
     return Scaffold(
@@ -243,19 +253,23 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
         title: const Text("Detalhes do Orçamento"),
         backgroundColor: corPrincipal,
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _excluirOrcamento,
-          ),
-        ],
+        actions: widget.isAdmin
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _excluirOrcamento,
+                ),
+              ]
+            : [],
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: corPrincipal,
-        foregroundColor: Colors.white,
-        onPressed: _navegarEditar,
-        child: const Icon(Icons.edit),
-      ),
+      floatingActionButton: widget.isAdmin
+          ? FloatingActionButton(
+              backgroundColor: corPrincipal,
+              foregroundColor: Colors.white,
+              onPressed: _navegarEditar,
+              child: const Icon(Icons.edit),
+            )
+          : null,
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
           : SingleChildScrollView(
@@ -288,22 +302,49 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
-                          "VALOR DO ORÇAMENTO",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 10,
-                            letterSpacing: 1.5,
+                        if (widget.isAdmin) ...[
+                          const Text(
+                            "VALOR DO ORÇAMENTO",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 10,
+                              letterSpacing: 1.5,
+                            ),
                           ),
-                        ),
-                        Text(
-                          textoValor,
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: corValor,
+                          Text(
+                            textoValor,
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: corValor,
+                            ),
                           ),
-                        ),
+                        ] else ...[
+                          const Text(
+                            "DESCRIÇÃO DO SERVIÇO",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 10,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            (_orcamentoObj.descricao != null &&
+                                    _orcamentoObj.descricao!.isNotEmpty)
+                                ? _orcamentoObj.descricao!
+                                : "Nenhuma descrição informada.",
+                            style: TextStyle(
+                              fontSize: 16,
+                              height: 1.4,
+                              color:
+                                  (_orcamentoObj.descricao != null &&
+                                      _orcamentoObj.descricao!.isNotEmpty)
+                                  ? Colors.white70
+                                  : Colors.white24,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -328,7 +369,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                   const SizedBox(height: 12),
 
                   // STATUS
-                  _buildStatusCard(isConcluido),
+                  _buildStatusCard(isConcluido, ehRetorno),
                   const SizedBox(height: 20),
 
                   // DATAS
@@ -356,7 +397,8 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
                   const SizedBox(height: 20),
 
                   // DESCRIÇÃO (Agora aceita null e trata corretamente)
-                  _secaoDescricao(_orcamentoObj.descricao),
+                  if (widget.isAdmin)
+                    _secaoDescricao(_orcamentoObj.descricao, ehRetorno),
 
                   const SizedBox(height: 80),
                 ],
@@ -382,7 +424,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.person, color: Colors.blue),
+            Icon(Icons.person, color: corPrincipal),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -436,7 +478,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   }
 
   /// CORREÇÃO: Parâmetro `desc` agora é `String?` para aceitar nulos
-  Widget _secaoDescricao(String? desc) {
+  Widget _secaoDescricao(String? desc, bool ehRetorno) {
     final temDescricao = desc != null && desc.isNotEmpty;
 
     return Container(
@@ -449,13 +491,26 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "DESCRIÇÃO DO SERVIÇO",
-            style: TextStyle(
-              color: corSecundaria,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
+          Row(
+            children: [
+              Icon(
+                ehRetorno ? Icons.history : Icons.description_outlined,
+                color: ehRetorno ? Colors.amber : Colors.blue[300],
+                size: 16,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                ehRetorno
+                    ? "SERVIÇO DE GARANTIA/RETORNO"
+                    : "DESCRIÇÃO DO SERVIÇO",
+                style: TextStyle(
+                  color: ehRetorno ? Colors.amber : Colors.blue[300],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
           ),
           const Divider(color: Colors.white10, height: 24),
           Text(
@@ -496,20 +551,27 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
     );
   }
 
-  Widget _buildStatusCard(bool isConcluido) {
-    final Color statusColor = isConcluido
-        ? corComplementar // Certifique-se que essa variável existe no escopo
-        : Colors.orangeAccent;
+  Widget _buildStatusCard(bool isConcluido, bool ehRetorno) {
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
 
-    final IconData statusIcon = isConcluido
-        ? Icons.check_circle_outline
-        : Icons.hourglass_top;
-
-    final String statusText = isConcluido ? "CONCLUÍDO" : "PENDENTE";
+    if (isConcluido) {
+      statusColor = Colors.green;
+      statusIcon = Icons.check_circle_outline;
+      statusText = "CONCLUÍDO";
+    } else if (ehRetorno) {
+      statusColor = Colors.amber;
+      statusIcon = Icons.history;
+      statusText = "GARANTIA";
+    } else {
+      statusColor = Colors.orangeAccent;
+      statusIcon = Icons.hourglass_top;
+      statusText = "PENDENTE";
+    }
 
     return Row(
       children: [
-        // PARTE 1: O Card com a informação (ocupa o espaço disponível)
         Expanded(
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -519,8 +581,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
               border: Border.all(color: statusColor),
             ),
             child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.center, // Centraliza o conteúdo no card
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(statusIcon, color: statusColor, size: 24),
                 const SizedBox(width: 12),
@@ -537,21 +598,21 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
             ),
           ),
         ),
-
-        const SizedBox(width: 12), // Espaçamento entre o card e o botão
-        // PARTE 2: O botão de atualizar (ao lado de fora)
-        Container(
-          decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: statusColor),
+        if (widget.isAdmin) ...[
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: corCard,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.update, color: Colors.white54),
+              tooltip: "Alterar Status",
+              onPressed: () => _alterarStatusEntrega(isConcluido),
+            ),
           ),
-          child: IconButton(
-            icon: const Icon(Icons.update, color: Colors.white54),
-            tooltip: "Alterar Status",
-            onPressed: () => _alterarStatusEntrega(isConcluido),
-          ),
-        ),
+        ],
       ],
     );
   }

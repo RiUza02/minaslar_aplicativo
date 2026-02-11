@@ -3,28 +3,27 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../servicos/servicos.dart';
-import '../TelasAdmin/DetalhesOrcamento.dart';
-import '../TelasAdmin/AdicionarOrcamento.dart';
-import 'configuracoes.dart';
-import '../../modelos/Cliente.dart';
-import '../../servicos/ListagemClientes.dart';
-import '../../servicos/autenticacao.dart';
 import '../../servicos/CalculaRota.dart';
+import '../../modelos/Cliente.dart';
+import 'Configuracoes.dart';
+import '../TelasSecundarias/ListagemClientes.dart';
+import '../TelasSecundarias/DetalhesOrcamento.dart';
+import '../TelasSecundarias/AdicionarOrcamento.dart';
 
 class ListaOrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
   final bool apenasPendentes;
-  final bool mostrarLogout;
   final bool mostrarConfiguracoes;
   final bool mostrarTitulo;
+  final bool isAdmin;
 
   const ListaOrcamentosDia({
     super.key,
     required this.dataSelecionada,
     this.apenasPendentes = false,
-    this.mostrarLogout = false,
     this.mostrarConfiguracoes = false,
     this.mostrarTitulo = true,
+    this.isAdmin = false, // Padrão admin
   });
 
   @override
@@ -38,9 +37,9 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia>
   // ==================================================
   // CONFIGURAÇÕES VISUAIS
   // ==================================================
+  late Color corPrincipal;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
-  final Color corPrincipal = Colors.red[900]!;
   final Color corTextoCinza = Colors.grey[500]!;
 
   late Future<List<Map<String, dynamic>>> _futureOrcamentos;
@@ -49,6 +48,7 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia>
   @override
   void initState() {
     super.initState();
+    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
     _futureOrcamentos = _buscarOrcamentosDoDia();
   }
 
@@ -214,41 +214,36 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia>
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const Configuracoes(),
+                    builder: (context) =>
+                        Configuracoes(isAdmin: widget.isAdmin),
                   ),
                 ),
                 tooltip: 'Configurações',
               )
             : null,
-        actions: [
-          if (widget.mostrarLogout)
-            IconButton(
-              icon: const Icon(Icons.exit_to_app),
-              onPressed: () => AuthService().deslogar(),
-              tooltip: 'Sair',
-            ),
-        ],
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          FloatingActionButton(
-            heroTag: "btnRota",
-            onPressed: _gerarRota,
-            backgroundColor: Colors.blue[800],
-            foregroundColor: Colors.white,
-            elevation: 6,
-            child: const Icon(Icons.map),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            heroTag: "btnAdd",
-            onPressed: _abrirNovoOrcamento,
-            backgroundColor: corPrincipal,
-            foregroundColor: Colors.white,
-            elevation: 6,
-            child: const Icon(Icons.post_add),
-          ),
+          if (widget.isAdmin)
+            FloatingActionButton(
+              heroTag: "btnRota",
+              onPressed: _gerarRota,
+              backgroundColor: Colors.blue[800],
+              foregroundColor: Colors.white,
+              elevation: 6,
+              child: const Icon(Icons.map),
+            ),
+          if (widget.isAdmin) const SizedBox(height: 16),
+          if (widget.isAdmin)
+            FloatingActionButton(
+              heroTag: "btnAdd",
+              onPressed: _abrirNovoOrcamento,
+              backgroundColor: corPrincipal,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              child: const Icon(Icons.post_add),
+            ),
         ],
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -359,8 +354,10 @@ class _ListaOrcamentosDiaState extends State<ListaOrcamentosDia>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  DetalhesOrcamento(orcamentoInicial: orcamento),
+              builder: (context) => DetalhesOrcamento(
+                orcamentoInicial: orcamento,
+                isAdmin: widget.isAdmin,
+              ),
             ),
           ).then((_) => _atualizarLista());
         },

@@ -76,8 +76,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   Future<void> _selecionarData({required bool isEntrega}) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isEntrega ? (_dataEntrega ?? DateTime.now()) : _dataPega,
-      firstDate: DateTime(2020),
+      initialDate: isEntrega ? (_dataEntrega ?? _dataPega) : _dataPega,
+      // Impede que a data de entrega seja anterior à data de entrada
+      firstDate: isEntrega ? _dataPega : DateTime(2020),
       lastDate: DateTime(2030),
       builder: (context, child) {
         // Personalização do tema do DatePicker
@@ -110,6 +111,21 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   /// Valida o formulário e persiste o orçamento no Supabase.
   Future<void> _salvarOrcamento() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validação extra: Data de entrega não pode ser anterior à de entrada
+    if (_dataEntrega != null &&
+        _dataEntrega!.isBefore(DateUtils.dateOnly(_dataPega))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'A data de entrega não pode ser anterior à de entrada.',
+          ),
+          backgroundColor: Colors.orangeAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {

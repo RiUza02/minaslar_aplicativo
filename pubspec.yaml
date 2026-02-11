@@ -22,6 +22,7 @@ dependencies:
   url_launcher: ^6.3.2
   geolocator: ^13.0.0  # Para pegar a posição atual
   geocoding: ^3.0.0    # Para transformar endereço em coordenadas
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

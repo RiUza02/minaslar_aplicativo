@@ -255,14 +255,6 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     setState(() => _isLoading = true);
 
     try {
-      // Prepara os dados opcionais
-      final String? cpfFinal = _cpfController.text.trim().isEmpty
-          ? null
-          : _cpfController.text.trim();
-      final String? cnpjFinal = _cnpjController.text.trim().isEmpty
-          ? null
-          : _cnpjController.text.trim();
-
       // ============================================================
       // APLICAÇÃO DA FORMATAÇÃO (CAPITALIZAÇÃO)
       // ============================================================
@@ -281,9 +273,13 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
         numero: _numeroController.text.trim(),
         apartamento: aptoFormatado,
         bairro: bairroFormatado, // <--- Usando variável formatada
-        telefone: maskTelefone.getUnmaskedText(),
-        cpf: cpfFinal,
-        cnpj: cnpjFinal,
+        telefone: maskTelefone.unmaskText(_telefoneController.text),
+        cpf: _cpfController.text.isEmpty
+            ? null
+            : maskCPF.unmaskText(_cpfController.text),
+        cnpj: _cnpjController.text.isEmpty
+            ? null
+            : maskCNPJ.unmaskText(_cnpjController.text),
         observacao: _observacaoController.text.trim().isEmpty
             ? null
             : _observacaoController.text.trim(),

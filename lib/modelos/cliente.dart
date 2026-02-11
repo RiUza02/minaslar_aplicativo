@@ -2,29 +2,29 @@
 class Cliente {
   /// ID do registro no Supabase
   /// (nulo durante a criação)
-  String? id;
+  final String? id;
 
   /// Nome completo do cliente
-  String nome;
+  final String nome;
 
   /// Rua do cliente
-  String rua;
+  final String rua;
 
   /// Número do endereço
-  String numero;
+  final String numero;
 
   /// Apartamento ou complemento
-  String? apartamento;
+  final String? apartamento;
 
   /// Bairro do cliente
-  String bairro;
+  final String bairro;
 
   /// Telefone para contato
-  String telefone;
+  final String telefone;
 
   /// CPF do cliente (pessoa física)
   /// Pode ser nulo se for pessoa jurídica
-  String? cpf;
+  final String? cpf;
 
   /// CNPJ do cliente (pessoa jurídica)
   /// Pode ser nulo se for pessoa física
@@ -83,6 +83,44 @@ class Cliente {
       cnpj: map['cnpj'],
       clienteProblematico: map['cliente_problematico'] ?? false,
       observacao: map['observacao'],
+    );
+  }
+
+  // ==================================================
+  // COMPARAÇÃO DE OBJETOS (EQUATABLE MANUAL)
+  // ==================================================
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Cliente &&
+        other.id == id &&
+        other.nome == nome &&
+        other.rua == rua &&
+        other.numero == numero &&
+        other.apartamento == apartamento &&
+        other.bairro == bairro &&
+        other.telefone == telefone &&
+        other.cpf == cpf &&
+        other.cnpj == cnpj &&
+        other.clienteProblematico == clienteProblematico &&
+        other.observacao == observacao;
+  }
+
+  @override
+  int get hashCode {
+    return Object.hash(
+      id,
+      nome,
+      rua,
+      numero,
+      apartamento,
+      bairro,
+      telefone,
+      cpf,
+      cnpj,
+      clienteProblematico,
+      observacao,
     );
   }
 }

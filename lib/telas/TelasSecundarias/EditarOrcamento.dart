@@ -99,6 +99,22 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     // 1. Validação do formulário
     if (!_formKey.currentState!.validate()) return;
 
+    // Validação extra: Data de entrega não pode ser anterior à de entrada
+    if (_dataEntrega != null &&
+        _dataEntrega!.isBefore(DateUtils.dateOnly(_dataServico))) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'A data de entrega não pode ser anterior à de entrada.',
+            ),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -150,13 +166,14 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
   /// Abre o seletor de data para entrada ou entrega
   Future<void> _selecionarData({required bool isEntrega}) async {
     final initialDate = isEntrega
-        ? (_dataEntrega ?? DateTime.now())
+        ? (_dataEntrega ?? _dataServico)
         : _dataServico;
 
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime(2000),
+      // Impede que a data de entrega seja anterior à data de entrada
+      firstDate: isEntrega ? _dataServico : DateTime(2000),
       lastDate: DateTime(2100),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(

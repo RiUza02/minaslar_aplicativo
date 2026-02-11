@@ -4,8 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../../modelos/Cliente.dart';
-import '../TelasAdmin/DetalhesCliente.dart';
-import '../TelasAdmin/AdicionarCliente.dart';
+import '../TelasSecundarias/DetalhesCliente.dart';
+import '../TelasSecundarias/AdicionarCliente.dart';
 
 /// Define os critérios de ordenação da lista de clientes.
 enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
@@ -14,7 +14,9 @@ enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
 // TELA DE LISTAGEM DE CLIENTES
 // ==================================================
 class ListaClientes extends StatefulWidget {
-  const ListaClientes({super.key});
+  final bool isAdmin;
+
+  const ListaClientes({super.key, this.isAdmin = false});
 
   @override
   State<ListaClientes> createState() => _ListaClientesState();
@@ -30,8 +32,8 @@ class _ListaClientesState extends State<ListaClientes>
   // ==================================================
 
   // Paleta de cores da interface (Admin - Vermelho)
-  final Color corPrincipal = Colors.red[900]!;
-  final Color corSecundaria = Colors.blue[300]!;
+  late Color corPrincipal;
+  late Color corSecundaria;
   final Color corComplementar = Colors.green[400]!;
   final Color corAlerta = Colors.redAccent;
   final Color corFundo = Colors.black;
@@ -58,6 +60,9 @@ class _ListaClientesState extends State<ListaClientes>
   @override
   void initState() {
     super.initState();
+    // Define as cores com base no perfil
+    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
+    corSecundaria = widget.isAdmin ? Colors.blue[300]! : Colors.cyan[400]!;
     // Carrega tudo ao iniciar
     _carregarClientes();
   }
@@ -317,17 +322,23 @@ class _ListaClientesState extends State<ListaClientes>
       ),
 
       // --- BOTÃO FLUTUANTE ---
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: corPrincipal,
-        foregroundColor: Colors.white,
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AdicionarCliente()),
-        ).then((_) => _carregarClientes()),
-        child: const Icon(Icons.person_add, size: 28),
-      ),
+      floatingActionButton: widget.isAdmin
+          ? FloatingActionButton(
+              backgroundColor: corPrincipal,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdicionarCliente(),
+                ),
+              ).then((_) => _carregarClientes()),
+              child: const Icon(Icons.person_add, size: 28),
+            )
+          : null,
 
       // --- LISTA DE CLIENTES ---
       body: _estaCarregando
@@ -410,7 +421,8 @@ class _ListaClientesState extends State<ListaClientes>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => DetalhesCliente(cliente: cliente),
+              builder: (context) =>
+                  DetalhesCliente(cliente: cliente, isAdmin: widget.isAdmin),
             ),
           );
         },
@@ -476,19 +488,20 @@ class _ListaClientesState extends State<ListaClientes>
                               ],
                             ),
                           ),
-                          // Botão de Excluir Discreto
-                          InkWell(
-                            onTap: () => _confirmarExclusao(cliente),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.delete_outline,
-                                color: Colors.grey[700],
-                                size: 22,
+                          if (widget.isAdmin)
+                            // Botão de Excluir Discreto
+                            InkWell(
+                              onTap: () => _confirmarExclusao(cliente),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.grey[700],
+                                  size: 22,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
 

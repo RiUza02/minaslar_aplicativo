@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'ListaClienteUsuario.dart';
-import 'CalendarioUsuario.dart';
+import 'ListaCliente.dart';
 import 'ListaOrcamentos.dart';
-import 'ListaOrcamentosDia.dart';
+import 'Calendario.dart';
+import 'ListaOrcamentosDia.dart'; // Import unificado
 
 class HomeUsuario extends StatefulWidget {
   const HomeUsuario({super.key});
@@ -58,19 +58,19 @@ class _HomeUsuarioState extends State<HomeUsuario> {
         onPageChanged: _onPageChanged,
         children: [
           // Index 0: Visualização do Calendário
-          const AgendaCalendario(),
+          const AgendaCalendario(isAdmin: false),
           // Index 1: Novo Painel (Placeholder)
           ListaOrcamentosDia(
             dataSelecionada: DateTime.now(),
+            isAdmin: false,
             apenasPendentes: true, // Isso faz o Painel filtrar os entregues
-            mostrarLogout: true, // Mostra o botão de logout na AppBar do Painel
             mostrarConfiguracoes:
                 true, // Mostra o botão de configurações na AppBar do Painel
             mostrarTitulo: false, // Não mostra o título na AppBar do Painel
           ), // Index 2: Gestão de Clientes
-          const ListaClientes(),
+          const ListaClientes(isAdmin: false),
           // Index 3: Gestão de Orçamentos
-          const ListaOrcamentos(),
+          const ListaOrcamentos(isAdmin: false),
         ],
       ),
 

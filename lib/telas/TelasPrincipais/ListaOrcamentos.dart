@@ -3,15 +3,17 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../TelasAdmin/DetalhesOrcamento.dart';
-import '../TelasAdmin/AdicionarOrcamento.dart';
 import '../../modelos/Cliente.dart';
-import '../../servicos/ListagemClientes.dart';
+import '../TelasSecundarias/DetalhesOrcamento.dart';
+import '../TelasSecundarias/AdicionarOrcamento.dart';
+import '../TelasSecundarias/ListagemClientes.dart';
 
 enum TipoOrdenacaoOrcamento { dataRecente, valorMaior, clienteAZ, atraso }
 
 class ListaOrcamentos extends StatefulWidget {
-  const ListaOrcamentos({super.key});
+  final bool isAdmin;
+
+  const ListaOrcamentos({super.key, this.isAdmin = false});
 
   @override
   State<ListaOrcamentos> createState() => _ListaOrcamentosState();
@@ -25,8 +27,8 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   // ==================================================
   // CONFIGURAÇÕES VISUAIS E VARIÁVEIS DE ESTADO
   // ==================================================
-  final Color corPrincipal = Colors.red[900]!;
-  final Color corSecundaria = Colors.blue[300]!;
+  late Color corPrincipal;
+  late Color corSecundaria;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoCinza = Colors.grey[500]!;
@@ -48,6 +50,9 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   @override
   void initState() {
     super.initState();
+    // Define as cores com base no perfil do usuário
+    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
+    corSecundaria = widget.isAdmin ? Colors.blue[300]! : Colors.cyan[400]!;
     // Carrega os dados iniciais sem filtro de busca
     _carregarOrcamentos();
   }
@@ -301,7 +306,11 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
                 TipoOrdenacaoOrcamento.atraso,
                 "Atraso (Urgente)",
               ),
-              _buildPopupItem(TipoOrdenacaoOrcamento.valorMaior, "Maior Valor"),
+              if (widget.isAdmin)
+                _buildPopupItem(
+                  TipoOrdenacaoOrcamento.valorMaior,
+                  "Maior Valor",
+                ),
               _buildPopupItem(
                 TipoOrdenacaoOrcamento.clienteAZ,
                 "Cliente (A-Z)",
@@ -313,14 +322,18 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
       ),
 
       // --- BOTÃO FLUTUANTE ---
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: corPrincipal,
-        foregroundColor: Colors.white,
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        onPressed: _abrirNovoOrcamento,
-        child: const Icon(Icons.post_add, size: 28),
-      ),
+      floatingActionButton: widget.isAdmin
+          ? FloatingActionButton(
+              backgroundColor: corPrincipal,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              onPressed: _abrirNovoOrcamento,
+              child: const Icon(Icons.post_add, size: 28),
+            )
+          : null,
 
       // --- CORPO DA LISTA ---
       // Aqui usamos _listaExibida em vez de _listaOrcamentos
@@ -477,8 +490,10 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  DetalhesOrcamento(orcamentoInicial: orcamento),
+              builder: (context) => DetalhesOrcamento(
+                orcamentoInicial: orcamento,
+                isAdmin: widget.isAdmin,
+              ),
             ),
           ).then((_) => _carregarOrcamentos());
         },

@@ -58,7 +58,7 @@ class Servicos {
   }
 
   // ===========================================================================
-  // SERVIÇO DE GOOGLE MAPS [CORRIGIDO]
+  // SERVIÇO DE GOOGLE MAPS
   // ===========================================================================
   static Future<void> abrirGoogleMaps(String endereco) async {
     if (endereco.trim().isEmpty) return;
@@ -84,8 +84,8 @@ class Servicos {
   // ===========================================================================
   // SERVIÇO DE CACHE DE DADOS GLOBAIS
   // ===========================================================================
-  static List<Map<String, dynamic>> clientesComOrcamentos = [];
-  static List<Map<String, dynamic>> orcamentosComClientes = [];
+  static List<Cliente> clientesComOrcamentos = [];
+  static List<Cliente> orcamentosComClientes = [];
   static List<Usuario> usuarios = [];
   static final ValueNotifier<bool> isDataLoaded = ValueNotifier(false);
 
@@ -105,12 +105,8 @@ class Servicos {
       ]);
 
       // Conversão segura com 'as List' para evitar erros de tipagem
-      clientesComOrcamentos = List<Map<String, dynamic>>.from(
-        responses[0] as List,
-      );
-      orcamentosComClientes = List<Map<String, dynamic>>.from(
-        responses[1] as List,
-      );
+      clientesComOrcamentos = List<Cliente>.from(responses[0] as List);
+      orcamentosComClientes = List<Cliente>.from(responses[1] as List);
 
       usuarios = (responses[2] as List)
           .map((map) => Usuario.fromMap(map))

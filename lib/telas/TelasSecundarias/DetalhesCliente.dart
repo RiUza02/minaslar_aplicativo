@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../servicos/servicos.dart';
+import '../../servicos/servicos.dart';
 import '../../modelos/Cliente.dart';
-import 'adicionarOrcamento.dart';
+import '../TelasAdmin/adicionarOrcamento.dart';
 import 'EditarCliente.dart';
 import 'EditarOrcamento.dart';
 
@@ -16,8 +16,13 @@ import 'EditarOrcamento.dart';
 // ===========================================================================
 class DetalhesCliente extends StatefulWidget {
   final Cliente cliente;
+  final bool isAdmin;
 
-  const DetalhesCliente({super.key, required this.cliente});
+  const DetalhesCliente({
+    super.key,
+    required this.cliente,
+    this.isAdmin = false, // Padrão admin
+  });
 
   @override
   State<DetalhesCliente> createState() => _DetalhesClienteState();
@@ -29,14 +34,12 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   // ===========================================================================
   // PALETA DE CORES E ESTILOS
   // ===========================================================================
-  final Color corPrincipal = Colors.red[900]!;
-  final Color corSecundaria = Colors.blue[300]!;
-  final Color corComplementar = Colors.green[400]!;
-  final Color corAlerta = Colors.redAccent;
+  late Color corPrincipal;
   final Color corFundo = Colors.black;
   final Color corCard = const Color(0xFF1E1E1E);
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
+  late Color corSecundaria;
 
   // Adiciona o formatador de máscara para exibir o telefone formatado
   final maskTelefone = MaskTextInputFormatter(
@@ -50,6 +53,8 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   @override
   void initState() {
     super.initState();
+    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
+    corSecundaria = widget.isAdmin ? Colors.blue[300]! : Colors.cyan[400]!;
     _clienteExibido = widget.cliente;
   }
 
@@ -57,6 +62,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   // LÓGICA DE NEGÓCIO E SUPABASE
   // ===========================================================================
 
+  /// Exclui o cliente e todos os seus dados associados.
   /// Exclui o cliente e todos os seus dados associados.
   Future<void> _excluirCliente() async {
     final bool? confirmar = await showDialog<bool>(
@@ -82,7 +88,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text('Excluir', style: TextStyle(color: corAlerta)),
+              child: Text('Excluir', style: TextStyle(color: Colors.redAccent)),
             ),
           ],
         );
@@ -308,42 +314,43 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 ),
               ),
             ),
-            PopupMenuButton<String>(
-              icon: Icon(Icons.more_vert, color: corTextoCinza),
-              color: corCard,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+            if (widget.isAdmin)
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: corTextoCinza),
+                color: corCard,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                onSelected: (String choice) {
+                  if (choice == 'editar') {
+                    _editarOrcamento(orcamento);
+                  } else if (choice == 'excluir') {
+                    _confirmarExclusao(context, orcamento);
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem(
+                    value: 'editar',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit, color: Colors.blue, size: 18),
+                        SizedBox(width: 8),
+                        Text('Editar', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'excluir',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red, size: 18),
+                        SizedBox(width: 8),
+                        Text('Excluir', style: TextStyle(color: Colors.white)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              onSelected: (String choice) {
-                if (choice == 'editar') {
-                  _editarOrcamento(orcamento);
-                } else if (choice == 'excluir') {
-                  _confirmarExclusao(context, orcamento);
-                }
-              },
-              itemBuilder: (BuildContext context) => [
-                const PopupMenuItem(
-                  value: 'editar',
-                  child: Row(
-                    children: [
-                      Icon(Icons.edit, color: Colors.blue, size: 18),
-                      SizedBox(width: 8),
-                      Text('Editar', style: TextStyle(color: Colors.white)),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'excluir',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete, color: Colors.red, size: 18),
-                      SizedBox(width: 8),
-                      Text('Excluir', style: TextStyle(color: Colors.white)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
 
@@ -402,22 +409,24 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
 
                 const Spacer(), // Empurra o valor para a direita
                 // 3. Valor
-                Icon(
-                  Icons.monetization_on_outlined,
-                  size: 14,
-                  color: valor != null ? Colors.amber : corTextoCinza,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  valor != null
-                      ? "R\$ ${NumberFormat.currency(locale: 'pt_BR', symbol: '').format(valor)}"
-                      : "A combinar",
-                  style: TextStyle(
+                if (widget.isAdmin) ...[
+                  Icon(
+                    Icons.monetization_on_outlined,
+                    size: 14,
                     color: valor != null ? Colors.amber : corTextoCinza,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
                   ),
-                ),
+                  const SizedBox(width: 4),
+                  Text(
+                    valor != null
+                        ? "R\$ ${NumberFormat.currency(locale: 'pt_BR', symbol: '').format(valor)}"
+                        : "A combinar",
+                    style: TextStyle(
+                      color: valor != null ? Colors.amber : corTextoCinza,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -544,6 +553,8 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   Widget build(BuildContext context) {
     // Definição de status visual (Cliente problemático ou Normal)
     final bool isProblematico = _clienteExibido.clienteProblematico;
+    final Color corComplementar = Colors.green[400]!;
+    final Color corAlerta = Colors.redAccent;
     final Color corStatusAtual = isProblematico ? corAlerta : corComplementar;
 
     return Scaffold(
@@ -558,42 +569,49 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
         foregroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'Editar Cliente',
-            onPressed: () async {
-              final bool? atualizou = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditarCliente(cliente: _clienteExibido),
+        actions: widget.isAdmin
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Editar Cliente',
+                  onPressed: () async {
+                    final bool? atualizou = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            EditarCliente(cliente: _clienteExibido),
+                      ),
+                    );
+                    if (atualizou == true) _atualizarTela();
+                  },
                 ),
-              );
-              if (atualizou == true) _atualizarTela();
-            },
-          ),
-        ],
+              ]
+            : [],
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
         ),
       ),
       // -- BOTÃO FLUTUANTE (ADICIONAR) --
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: corPrincipal,
-        foregroundColor: Colors.white,
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: const Icon(Icons.post_add, size: 28),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  AdicionarOrcamento(cliente: _clienteExibido),
-            ),
-          );
-        },
-      ),
+      floatingActionButton: widget.isAdmin
+          ? FloatingActionButton(
+              backgroundColor: corPrincipal,
+              foregroundColor: Colors.white,
+              elevation: 6,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(Icons.post_add, size: 28),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AdicionarOrcamento(cliente: _clienteExibido),
+                  ),
+                );
+              },
+            )
+          : null,
       body: RefreshIndicator(
         color: corPrincipal,
         backgroundColor: corCard,
@@ -691,13 +709,14 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_forever_outlined),
-                          color: corAlerta,
-                          iconSize: 28,
-                          tooltip: 'Excluir Cliente',
-                          onPressed: _excluirCliente,
-                        ),
+                        if (widget.isAdmin)
+                          IconButton(
+                            icon: const Icon(Icons.delete_forever_outlined),
+                            color: corAlerta,
+                            iconSize: 28,
+                            tooltip: 'Excluir Cliente',
+                            onPressed: _excluirCliente,
+                          ),
                       ],
                     ),
                   ],

@@ -10,28 +10,35 @@ class Roteador extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
+      // Escuta as mudanças de estado (Login/Logout) em tempo real
       stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
+        // 1. Carregando...
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
+            backgroundColor: Colors.black,
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
         final session = snapshot.data?.session;
 
-        // 1. Se não tem sessão, vai para Login
+        // 2. Se não tem sessão (Usuário não logado), manda pro Login
         if (session == null) {
           return const Login();
         }
 
-        // 2. Se tem sessão, verifica a role nos metadados (SEM AWAIT)
-        // Isso assume que você configurou uma Trigger no Supabase para injetar
-        // 'role': 'admin' dentro de app_metadata ou user_metadata
-        final metadata = session.user.appMetadata; // ou userMetadata
-        final bool isAdmin =
-            metadata['role'] == 'admin' || metadata['admin'] == true;
+        // 3. Se tem sessão, verifica se é ADMIN
+        // Usamos os metadados do token (JWT) que é rápido e seguro
+        final metadata = session.user.appMetadata;
 
+        // Verifica diferentes variações possíveis da flag de admin
+        final bool isAdmin =
+            metadata['role'] == 'admin' ||
+            metadata['admin'] == true ||
+            metadata['is_admin'] == true;
+
+        // 4. Direciona para a tela correta
         if (isAdmin) {
           return const HomeAdmin();
         }

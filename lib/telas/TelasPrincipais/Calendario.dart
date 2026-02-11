@@ -3,17 +3,25 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
+
 import 'ListaOrcamentosDia.dart';
-import '../TelasUsuario/DetalhesOrcamento.dart';
+import '../TelasSecundarias/DetalhesOrcamento.dart';
 
 class AgendaCalendario extends StatefulWidget {
-  const AgendaCalendario({super.key});
+  final bool isAdmin;
 
+  const AgendaCalendario({
+    super.key,
+    this.isAdmin = false, // Padrão admin
+  });
   @override
   State<AgendaCalendario> createState() => _AgendaCalendarioState();
 }
 
-class _AgendaCalendarioState extends State<AgendaCalendario> {
+class _AgendaCalendarioState extends State<AgendaCalendario>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   // ==================================================
   // ESTADO E CONFIGURAÇÕES VISUAIS
   // ==================================================
@@ -30,8 +38,8 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
   bool _isLoading = true;
 
   // Paleta de cores local
+  late Color corPrincipal;
   final Color corFundo = Colors.black;
-  final Color corPrincipal = Colors.blue[900]!;
   final Color corTextoClaro = Colors.white;
   final Color corTextoCinza = Colors.grey[400]!;
   final Color corHoje = Colors.amber;
@@ -40,6 +48,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
     // Inicializa a formatação de data para Português antes de carregar os dados
     initializeDateFormatting('pt_BR', null).then((_) {
       _carregarEventosDoMes();
@@ -128,8 +137,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              ListaOrcamentosDia(dataSelecionada: _selectedDay!),
+          builder: (context) => ListaOrcamentosDia(
+            dataSelecionada: _selectedDay!,
+            isAdmin: widget.isAdmin,
+          ),
         ),
       ).then((_) => _carregarEventosDoMes()); // Recarrega ao voltar
     }
@@ -137,6 +148,7 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
@@ -391,8 +403,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment
+                                  .start, // Alinha os itens à esquerda
                               children: [
+                                // Linha do Nome
                                 Row(
                                   children: [
                                     Icon(
@@ -411,11 +425,14 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                                     ),
                                   ],
                                 ),
+
                                 const SizedBox(height: 8),
+
                                 Row(
                                   children: [
                                     Icon(
-                                      Icons.location_on,
+                                      Icons
+                                          .location_on, // Troquei para ícone de localização, faz mais sentido para bairro!
                                       size: 14,
                                       color: corTextoCinza,
                                     ),
@@ -458,8 +475,10 @@ class _AgendaCalendarioState extends State<AgendaCalendario> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) =>
-                                    DetalhesOrcamento(orcamentoInicial: item),
+                                builder: (context) => DetalhesOrcamento(
+                                  orcamentoInicial: item,
+                                  isAdmin: widget.isAdmin,
+                                ),
                               ),
                             ).then((_) {
                               _carregarEventosDoMes();

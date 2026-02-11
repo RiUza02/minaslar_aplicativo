@@ -74,7 +74,6 @@ class _EditarClienteState extends State<EditarCliente> {
   // ==================================================
   // CICLO DE VIDA (INIT & DISPOSE)
   // ==================================================
-
   @override
   void initState() {
     super.initState();
@@ -91,16 +90,10 @@ class _EditarClienteState extends State<EditarCliente> {
     );
     _isProblematico = widget.cliente.clienteProblematico;
 
-    // Aplica a formatação da máscara aos dados vindos do banco
-    _telefoneController = TextEditingController(
-      text: maskTelefone.maskText(widget.cliente.telefone),
-    );
-    _cpfController = TextEditingController(
-      text: maskCPF.maskText(widget.cliente.cpf ?? ''),
-    );
-    _cnpjController = TextEditingController(
-      text: maskCNPJ.maskText(widget.cliente.cnpj ?? ''),
-    );
+    // Inicializa os controllers com os dados PUROS. O Formatter na UI vai aplicar a máscara.
+    _telefoneController = TextEditingController(text: widget.cliente.telefone);
+    _cpfController = TextEditingController(text: widget.cliente.cpf ?? '');
+    _cnpjController = TextEditingController(text: widget.cliente.cnpj ?? '');
   }
 
   @override
@@ -123,40 +116,46 @@ class _EditarClienteState extends State<EditarCliente> {
   // ==================================================
 
   Future<void> _salvarAlteracoes() async {
+    // Valida o formulário antes de qualquer coisa
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // 1. APLICA A FORMATAÇÃO AQUI
+      // 1. PREPARAÇÃO DOS DADOS
       final nomeFormatado = _formatarTexto(_nomeController.text);
       final ruaFormatada = _formatarTexto(_ruaController.text);
       final bairroFormatado = _formatarTexto(_bairroController.text);
+
+      // Garante que o número não vá com espaços vazios
+      final numeroFormatado = _numeroController.text.trim();
 
       // Opcional: Formatar apartamento se existir
       final aptoFormatado = _apartamentoController.text.isNotEmpty
           ? _formatarTexto(_apartamentoController.text)
           : null;
 
-      // 2. Atualiza no Banco de Dados
+      // 2. ATUALIZA NO BANCO DE DADOS
       await Supabase.instance.client
           .from('clientes')
           .update({
-            'nome': nomeFormatado, // <--- Usa a variável formatada
-            'rua': ruaFormatada, // <--- Usa a variável formatada
-            'bairro': bairroFormatado, // <--- Usa a variável formatada
+            'nome': nomeFormatado,
+            'rua': ruaFormatada,
+            'bairro': bairroFormatado,
+            'numero':
+                numeroFormatado, // <--- CORREÇÃO: Usando a variável tratada
             'apartamento': aptoFormatado,
-            'numero': _numeroController.text.trim(),
-            'telefone': maskTelefone.getUnmaskedText(),
-            'cpf': _cpfController.text.isEmpty ? null : _cpfController.text,
-            'cnpj': _cnpjController.text.isEmpty ? null : _cnpjController.text,
+            'telefone': maskTelefone.unmaskText(_telefoneController.text),
+            'cpf': _cpfController.text.isEmpty
+                ? null
+                : maskCPF.unmaskText(_cpfController.text),
+            'cnpj': _cnpjController.text.isEmpty
+                ? null
+                : maskCNPJ.unmaskText(_cnpjController.text),
             'observacao': _obsController.text.trim(),
             'cliente_problematico': _isProblematico,
           })
-          .eq(
-            'id',
-            widget.cliente.id as Object,
-          ); // Garante que atualiza o ID correto
+          .eq('id', widget.cliente.id as Object);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -165,7 +164,7 @@ class _EditarClienteState extends State<EditarCliente> {
             backgroundColor: Colors.green,
           ),
         );
-        // Retorna true para que a tela de Detalhes saiba que houve mudança e recarregue
+        // Retorna true para a tela anterior recarregar a lista
         Navigator.pop(context, true);
       }
     } catch (e) {
