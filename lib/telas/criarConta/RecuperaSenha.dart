@@ -1,8 +1,8 @@
-import 'dart:io'; // Importante para checar conexão (SocketException)
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
+import 'ValidarCodigo.dart';
 
-/// Tela responsável pela recuperação de senha via e-mail
 class RecuperarSenha extends StatefulWidget {
   const RecuperarSenha({super.key});
 
@@ -11,19 +11,11 @@ class RecuperarSenha extends StatefulWidget {
 }
 
 class _RecuperarSenhaState extends State<RecuperarSenha> {
-  /// Controller do campo de e-mail
   final _emailController = TextEditingController();
-
-  /// Chave do formulário para validação
   final _formKey = GlobalKey<FormState>();
-
-  /// Serviço de autenticação (Supabase)
   final AuthService _authService = AuthService();
-
-  /// Controla o estado de carregamento da tela
   bool _isLoading = false;
 
-  /// Cores do tema
   final Color _corFundo = Colors.black;
   final Color _corCard = const Color(0xFF1E1E1E);
   final Color _corInput = Colors.black26;
@@ -32,17 +24,12 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
   // LÓGICA DE ENVIO COM VALIDAÇÕES
   // ============================================================
   Future<void> _enviarEmailRecuperacao() async {
-    // 1. Validação do formulário
     if (!_formKey.currentState!.validate()) return;
 
-    // Fecha o teclado para melhor UX
     FocusScope.of(context).unfocus();
-
     setState(() => _isLoading = true);
 
     try {
-      // 2. VERIFICAÇÃO DE CONEXÃO COM A INTERNET
-      // Tentamos buscar o endereço do Google. Se falhar, não tem internet.
       try {
         final result = await InternetAddress.lookup(
           'google.com',
@@ -56,31 +43,22 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
 
       final email = _emailController.text.trim();
 
-      // 4. ENVIA O E-MAIL DE RECUPERAÇÃO
-      // Agora sabemos que tem internet e o usuário existe
-      String? erro = await _authService.recuperarSenha(email: email);
+      // CORREÇÃO AQUI: Removemos o "email: " pois o parâmetro é posicional
+      String? erro = await _authService.enviarTokenRecuperacao(email);
 
-      if (erro != null) {
-        throw erro; // Repassa o erro do Supabase se houver
-      }
+      if (erro != null) throw erro;
 
       if (!mounted) return;
 
-      // 5. SUCESSO
-      _showSnackBar(
-        'E-mail enviado! Verifique sua caixa de entrada.',
-        isError: false,
-      );
+      _showSnackBar('Código enviado! Verifique seu e-mail.', isError: false);
 
-      // Aguarda um pouco para o usuário ler e volta para o login
-      await Future.delayed(const Duration(seconds: 2));
-      if (mounted) Navigator.pop(context);
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => ValidarCodigo(email: email)),
+      );
     } on SocketException {
-      // TRATAMENTO: Sem Internet
       _showSnackBar("Sem conexão com a internet.", isError: true);
     } catch (e) {
-      // TRATAMENTO: E-mail não cadastrado ou Erro Genérico
-      // Removemos o "Exception:" da mensagem se houver
       String msg = e.toString().replaceAll("Exception: ", "");
       _showSnackBar(msg, isError: true);
     } finally {
@@ -90,9 +68,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
     }
   }
 
-  // ============================================================
-  // HELPER PARA EXIBIR MENSAGENS (SnackBar Bonito)
-  // ============================================================
   void _showSnackBar(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -122,9 +97,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
     );
   }
 
-  // ============================================================
-  // PADRONIZA A DECORAÇÃO DOS CAMPOS DE TEXTO
-  // ============================================================
   InputDecoration _buildInputDecoration(String label) {
     return InputDecoration(
       labelText: label,
@@ -182,8 +154,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Spacer(),
-
-                      // Container Principal (Card)
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
@@ -204,7 +174,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                           key: _formKey,
                           child: Column(
                             children: [
-                              /// Ícone ilustrativo
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
@@ -217,10 +186,7 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                   color: Colors.blue[700],
                                 ),
                               ),
-
                               const SizedBox(height: 20),
-
-                              /// Título da tela
                               const Text(
                                 "Esqueceu a senha?",
                                 style: TextStyle(
@@ -229,12 +195,11 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                   color: Colors.white,
                                 ),
                               ),
-
                               const SizedBox(height: 10),
 
-                              /// Texto explicativo
+                              // ATUALIZADO: Texto mudado de "link" para "código"
                               Text(
-                                "Não se preocupe. Digite seu e-mail abaixo e enviaremos um link para redefinir sua senha.",
+                                "Não se preocupe. Digite seu e-mail abaixo e enviaremos um código de verificação.",
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 14,
@@ -242,10 +207,7 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                   height: 1.5,
                                 ),
                               ),
-
                               const SizedBox(height: 32),
-
-                              /// Campo de entrada do e-mail
                               TextFormField(
                                 cursorColor: Colors.blue,
                                 controller: _emailController,
@@ -259,16 +221,12 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
                                   if (v!.isEmpty) return 'Informe o e-mail';
-                                  if (!v.contains('@')) {
+                                  if (!v.contains('@'))
                                     return 'E-mail inválido';
-                                  }
                                   return null;
                                 },
                               ),
-
                               const SizedBox(height: 24),
-
-                              /// Botão ou indicador de carregamento
                               _isLoading
                                   ? const CircularProgressIndicator(
                                       color: Colors.blue,
@@ -288,8 +246,9 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                           ),
                                         ),
                                         onPressed: _enviarEmailRecuperacao,
+                                        // ATUALIZADO: Texto do botão
                                         child: const Text(
-                                          'ENVIAR LINK',
+                                          'ENVIAR CÓDIGO',
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
@@ -302,7 +261,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                           ),
                         ),
                       ),
-
                       const Spacer(flex: 2),
                     ],
                   ),

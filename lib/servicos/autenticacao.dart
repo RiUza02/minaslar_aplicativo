@@ -32,10 +32,7 @@ class AuthService {
   }
 
   // =====================================================
-  // CADASTRO (Lógica Limpa)
-  // =====================================================
-  // =====================================================
-  // CADASTRO (Versão Corrigida)
+  // CADASTRO
   // =====================================================
   Future<String?> cadastrarUsuario({
     required String email,
@@ -45,47 +42,26 @@ class AuthService {
     bool isAdmin = false,
   }) async {
     try {
-      // 1. Sanitização (Limpeza) dos dados
-      // Remove tudo que não for número do telefone para evitar erros no banco
-      final telefoneLimpo = telefone.replaceAll(RegExp(r'[^0-9]'), '');
+      print("🚀 Iniciando Teste de Cadastro Limpo...");
 
-      print("📤 Enviando cadastro...");
-      print("Dados: Nome=$nome, Tel=$telefoneLimpo, Admin=$isAdmin");
-
-      // 2. Chamada ao Supabase
+      // 1. Chamada Direta (Sem regex, sem tratamentos extras)
+      // Estamos enviando as VARIÁVEIS reais agora, não strings fixas.
       await _supabase.auth.signUp(
         email: email,
         password: password,
         data: {
-          'nome': nome,
-          'telefone': telefoneLimpo, // Envia limpo: "32999999999"
-          'is_admin': isAdmin, // Envia boolean real: true/false
+          'nome': nome, // Envia o valor da variável nome
+          'telefone': telefone, // Envia o valor da variável telefone
+          'is_admin': isAdmin, // Envia o boolean real (true/false)
         },
       );
 
-      print("✅ Cadastro realizado no Auth com sucesso!");
-      return null; // Sucesso
-    } on AuthException catch (e) {
-      print("❌ Erro de Auth: ${e.message} (Code: ${e.statusCode})");
-
-      // Tratamento de erros conhecidos
-      if (e.message.toLowerCase().contains('already registered') ||
-          e.message.toLowerCase().contains('unique constraint') ||
-          e.statusCode == '422') {
-        return 'EMAIL_JA_CADASTRADO';
-      }
-      return e.message;
+      print("✅ Sucesso! O usuário foi criado (O erro não está no Flutter).");
+      return null;
     } catch (e) {
-      print("❌ Erro Genérico/Decode: $e");
-
-      // Se o erro for de decodificação, geralmente é porque o servidor
-      // respondeu com algo que não é JSON (crash do trigger ou timeout).
-      // Mas como já arrumamos o trigger, deve ser apenas instabilidade.
-      final msg = e.toString().toLowerCase();
-      if (msg.contains('23505') || msg.contains('duplicate')) {
-        return 'EMAIL_JA_CADASTRADO';
-      }
-      return "Erro de conexão ou servidor. Tente novamente.";
+      // Log do erro cru para diagnóstico
+      print("❌ O Erro Persiste: $e");
+      return e.toString();
     }
   }
 

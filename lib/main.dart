@@ -9,15 +9,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
-    url: 'https://uwkxgmmjubpincteqckc.supabase.co',
+    url: 'https://gbarzppsqohsmzjdoryo.supabase.co',
     anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck',
-
-    // Altere para este formato:
-    headers: {
-      'User-Agent':
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-    },
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiYXJ6cHBzcW9oc216amRvcnlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4Mzg3NDMsImV4cCI6MjA4NjQxNDc0M30.P8fUfLJebWr6YytwDmnimYOepChgCM5uU0t02W6W9DU',
   );
 
   runApp(const MyApp());
