@@ -54,30 +54,52 @@ window.onload = async () => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
 
+        // Se tiver código na URL
         if (code) {
-            console.log("Código detectado. Validando...");
+            console.log("Código detectado. Tentando trocar...");
+            
+            // Tenta trocar o código pela sessão
             const { data, error } = await _supabase.auth.exchangeCodeForSession(code);
             
             if (error) {
-                // ISSO VAI TE MOSTRAR O ERRO REAL
-                alert("Erro do Supabase: " + error.message); 
-                mostrarTela('error-container');
+                console.log("Erro na troca (pode já ter sido usado):", error.message);
+                // TRUQUE DO MESTRE:
+                // Se der erro (link consumido), verificamos se JÁ existe uma sessão ativa.
+                // Isso salva casos de refresh ou duplo clique.
+                await verificarSessaoExistente(); 
             } else {
+                console.log("Troca realizada com sucesso!");
+                limparUrl(); // Remove o código da barra de endereço para evitar erro no F5
                 mostrarTela('form-container');
             }
         } else {
-            const { data } = await _supabase.auth.getSession();
-            if (data.session) {
-                mostrarTela('form-container');
-            } else {
-                mostrarTela('error-container');
-            }
+            // Se não tem código, verifica se já está logado
+            await verificarSessaoExistente();
         }
     } catch (e) {
-        alert("Erro Crítico: " + e.message);
+        console.error("Erro Crítico:", e);
         mostrarTela('error-container');
     }
 };
+
+// Função auxiliar para verificar sessão sem depender do código da URL
+async function verificarSessaoExistente() {
+    const { data } = await _supabase.auth.getSession();
+    if (data.session) {
+        console.log("Sessão válida encontrada! Permitindo alteração.");
+        mostrarTela('form-container');
+    } else {
+        console.log("Nenhuma sessão encontrada. O link realmente expirou.");
+        mostrarTela('error-container');
+    }
+}
+
+// Limpa o ?code=... da URL para que se o usuário der F5, não tente processar de novo
+function limparUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('code');
+    window.history.replaceState({}, document.title, url.toString());
+}
 
 async function atualizarSenha() {
     const newPassword = document.getElementById('password').value;

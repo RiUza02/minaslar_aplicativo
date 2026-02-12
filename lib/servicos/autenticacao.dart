@@ -167,4 +167,43 @@ class AuthService {
       return null;
     }
   }
+
+  // No AuthService.dart
+
+  Future<String?> enviarTokenRecuperacao(String email) async {
+    try {
+      await _supabase.auth.signInWithOtp(
+        email: email,
+        // Isso envia um código de 6 dígitos (Token) em vez de um Magic Link
+        // Nota: Configure o template de e-mail no Supabase para mostrar {{ .Token }}
+      );
+      return null;
+    } catch (e) {
+      return "Erro ao enviar código: $e";
+    }
+  }
+
+  Future<String?> validarTokenEAtualizarSenha(
+    String email,
+    String token,
+    String novaSenha,
+  ) async {
+    try {
+      // 1. Valida o token (código de 6 dígitos)
+      final res = await _supabase.auth.verifyOTP(
+        token: token,
+        type: OtpType.email,
+        email: email,
+      );
+
+      if (res.session == null) return "Código inválido ou expirado.";
+
+      // 2. Atualiza a senha
+      await _supabase.auth.updateUser(UserAttributes(password: novaSenha));
+
+      return null; // Sucesso
+    } catch (e) {
+      return "Erro ao atualizar senha: $e";
+    }
+  }
 }
