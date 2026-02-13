@@ -137,7 +137,13 @@ class TelaApresentacao extends StatelessWidget {
                       ),
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const Cadastro()),
+                          MaterialPageRoute(
+                            builder: (_) => CriarConta(
+                              isAdmin: false,
+                              corPrincipal: Colors.blue[900]!,
+                              corSecundaria: Colors.cyan[400]!,
+                            ),
+                          ),
                         );
                       },
                       child: const Text(

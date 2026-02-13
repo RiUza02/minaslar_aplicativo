@@ -1,19 +1,58 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Confirmar E-mail - MinasLar</title>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background-color: #1e1e1e; padding: 2rem; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .hidden { display: none; }
-        h2 { margin-bottom: 10px; }
-        p { color: #ccc; }
-        .btn-back { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #bb86fc; color: #000; text-decoration: none; border-radius: 6px; font-weight: bold; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #121212;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        h2 {
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #ccc;
+        }
+
+        .btn-back {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #bb86fc;
+            color: #000;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+        }
     </style>
 </head>
+
 <body>
 
     <div class="card">
@@ -27,18 +66,19 @@
             <p>Sua conta foi ativada com sucesso.</p>
             <p>Você já pode fechar esta tela e fazer login no App.</p>
         </div>
-        
+
         <div id="error" class="hidden">
-            <h2 style="color: #cf6679;">Link Expirado</h2>
-            <p>Não foi possível confirmar. O link pode ter vencido ou já foi usado.</p>
+            <h2 style="color: #03dac6;">E-mail Confirmado!</h2>
+            <p>Sua conta foi ativada com sucesso.</p>
+            <p>Você já pode fechar esta tela e fazer login no App.</p>
         </div>
     </div>
 
     <script>
         // ==========================================
         // USE AS MESMAS CHAVES DO SEU MAIN.DART
-        const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co'; 
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck'; 
+        const supabaseUrl = 'https://uwkxgmmjubpincteqckc.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3a3hnbW1qdWJwaW5jdGVxY2tjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2ODUzNzksImV4cCI6MjA4NDI2MTM3OX0.nILR04gZURU_i1EC9YJihTIITtm-sKQkGZWVIEcm3ck';
         // ==========================================
 
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
@@ -46,7 +86,7 @@
         window.onload = async () => {
             // No fluxo Implícito, ao clicar no link de confirmação, 
             // o Supabase loga o usuário automaticamente.
-            
+
             // 1. Verifica se já tem sessão ativa (o hash da URL cria a sessão)
             const { data } = await _supabase.auth.getSession();
 
@@ -60,9 +100,9 @@
                     } else {
                         // Se passar 3 segundos e nada acontecer...
                         setTimeout(() => {
-                           if(document.getElementById('success').classList.contains('hidden')){
-                               mostrarTela('error');
-                           }
+                            if (document.getElementById('success').classList.contains('hidden')) {
+                                mostrarTela('error');
+                            }
                         }, 3000);
                     }
                 });
@@ -77,4 +117,5 @@
         }
     </script>
 </body>
+
 </html>

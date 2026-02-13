@@ -1,200 +1,489 @@
 import 'package:flutter/material.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+import '../../servicos/Autenticacao.dart';
+import '../../servicos/VerificacaoEmail.dart';
 
-import 'CriarConta.dart';
+class CriarConta extends StatefulWidget {
+  final bool isAdmin;
+  final Color corPrincipal;
+  final Color corSecundaria;
 
-/// Tela responsável por permitir a escolha
-/// do tipo de conta a ser criada
-class Cadastro extends StatelessWidget {
-  const Cadastro({super.key});
+  const CriarConta({
+    super.key,
+    required this.isAdmin,
+    required this.corPrincipal,
+    required this.corSecundaria,
+  });
 
   @override
+  State<CriarConta> createState() => _CriarContaState();
+}
+
+class _CriarContaState extends State<CriarConta> {
+  // ==================================================
+  // CONSTANTES VISUAIS
+  // ==================================================
+  final Color _corFundo = Colors.black;
+  final Color _corCard = const Color(0xFF1E1E1E);
+  final Color _corTextoCinza = Colors.grey[500]!;
+  final Color _corTextoBranco = Colors.white;
+
+  final _formKey = GlobalKey<FormState>();
+
+  // ==================================================
+  // CONTROLADORES
+  // ==================================================
+  late final TextEditingController _nomeController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _telefoneController;
+  late final TextEditingController _senhaController;
+  late final TextEditingController _confirmaSenhaController;
+  late final TextEditingController _codigoSegurancaController; // Só p/ Admin
+
+  // Máscara de Telefone
+  final _maskFormatter = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: {"#": RegExp(r'[0-9]')},
+    type: MaskAutoCompletionType.lazy,
+  );
+
+  // Estados
+  String? _erroEmailJaCadastrado;
+  bool _isLoading = false;
+  bool _senhaValida = false;
+  bool _telefoneValido = false;
+  bool _mostrarSenha = false;
+  bool _mostrarConfirmaSenha = false;
+
+  final AuthService _authService = AuthService();
+
+  @override
+  void initState() {
+    super.initState();
+    _nomeController = TextEditingController();
+    _emailController = TextEditingController();
+    _telefoneController = TextEditingController();
+    _senhaController = TextEditingController();
+    _confirmaSenhaController = TextEditingController();
+    _codigoSegurancaController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _emailController.dispose();
+    _telefoneController.dispose();
+    _senhaController.dispose();
+    _confirmaSenhaController.dispose();
+    _codigoSegurancaController.dispose();
+    super.dispose();
+  }
+
+  // ==================================================
+  // AÇÃO DE CADASTRO (LÓGICA REAL)
+  // ==================================================
+  Future<void> _realizarCadastro() async {
+    // 1. Validação do formulário
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    // Fecha o teclado
+    FocusScope.of(context).unfocus();
+
+    // 2. Chama o serviço de autenticação
+    final erro = await _authService.cadastrarUsuario(
+      email: _emailController.text.trim(),
+      password: _senhaController.text,
+      nome: _nomeController.text.trim(),
+      telefone: _telefoneController.text, // O Service vai limpar os caracteres
+      isAdmin: widget.isAdmin,
+    );
+
+    setState(() => _isLoading = false);
+
+    // 3. Tratamento da resposta
+    if (erro == null) {
+      // SUCESSO!
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) =>
+                VerificacaoEmail(email: _emailController.text.trim()),
+          ),
+        );
+      }
+    } else {
+      // ERRO
+      if (erro == 'EMAIL_JA_CADASTRADO') {
+        setState(() {
+          _erroEmailJaCadastrado = 'E-mail já está em uso';
+        });
+        _formKey.currentState!
+            .validate(); // Revalida para mostrar o erro no campo
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Erro: $erro"), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  // ==================================================
+  // CONSTRUÇÃO DA TELA (UI)
+  // ==================================================
+  @override
   Widget build(BuildContext context) {
-    // Cores do padrão visual
-    const Color corFundo = Colors.black;
-    const Color corCard = Color(0xFF1E1E1E);
-    final Color corTextoCinza = Colors.grey[500]!;
+    final String tituloAppbar = widget.isAdmin
+        ? 'Novo Administrador'
+        : 'Novo Usuário';
+    final String textoHeader = widget.isAdmin
+        ? "DADOS DO ADMINISTRADOR"
+        : "CRIE SUA CONTA";
+    final IconData iconeHeader = widget.isAdmin
+        ? Icons.admin_panel_settings
+        : Icons.person_add_outlined;
 
     return Scaffold(
-      backgroundColor: corFundo,
+      backgroundColor: _corFundo,
       appBar: AppBar(
-        title: const Text(
-          'TIPO DE CONTA',
-          style: TextStyle(
-            fontSize: 14,
-            letterSpacing: 1.5,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Text(
+          tituloAppbar,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
+        backgroundColor: widget.corPrincipal,
         foregroundColor: Colors.white,
         elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Spacer(flex: 1),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        Icon(iconeHeader, size: 50, color: widget.corPrincipal),
+                        const SizedBox(height: 8),
+                        Text(
+                          textoHeader,
+                          style: TextStyle(
+                            color: _corTextoCinza,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
 
-            // Título e Subtítulo
-            const Text(
-              'Vamos começar',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
+                        // DADOS PESSOAIS
+                        _buildCardContainer(
+                          titulo: "DADOS PESSOAIS",
+                          icone: Icons.person,
+                          children: [
+                            _buildTextField(
+                              controller: _nomeController,
+                              label: 'Nome Completo',
+                              icon: Icons.person_outline,
+                              validator: (v) =>
+                                  v!.isEmpty ? 'Informe o nome' : null,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _emailController,
+                              label: 'E-mail',
+                              icon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
+                              onChanged: (_) {
+                                if (_erroEmailJaCadastrado != null) {
+                                  setState(() => _erroEmailJaCadastrado = null);
+                                }
+                              },
+                              validator: (v) {
+                                if (!v!.contains('@')) return 'E-mail inválido';
+                                return _erroEmailJaCadastrado;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _telefoneController,
+                              label: 'Telefone / Celular',
+                              icon: Icons.phone_android,
+                              hintText: '(32) 99999-9999',
+                              inputFormatters: [_maskFormatter],
+                              keyboardType: TextInputType.phone,
+                              onChanged: (v) => setState(
+                                () => _telefoneValido = v.length >= 15,
+                              ),
+                              validator: (v) {
+                                if (v!.isEmpty) return 'Informe o telefone';
+                                if (v.length < 15) return 'Telefone incompleto';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            _buildValidationIndicator(
+                              isValid: _telefoneValido,
+                              text: 'Mínimo de 11 dígitos',
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // SEGURANÇA
+                        _buildCardContainer(
+                          titulo: "SEGURANÇA",
+                          icone: Icons.lock,
+                          children: [
+                            _buildTextField(
+                              controller: _senhaController,
+                              label: 'Senha',
+                              icon: Icons.lock_outline,
+                              obscureText: !_mostrarSenha,
+                              onChanged: (v) =>
+                                  setState(() => _senhaValida = v.length >= 6),
+                              validator: (v) => v!.length < 6
+                                  ? 'Mínimo de 6 caracteres'
+                                  : null,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _mostrarSenha
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                  color: _corTextoCinza,
+                                ),
+                                onPressed: () => setState(
+                                  () => _mostrarSenha = !_mostrarSenha,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildValidationIndicator(
+                              isValid: _senhaValida,
+                              text: 'Mínimo de 6 caracteres',
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _confirmaSenhaController,
+                              label: 'Confirmar Senha',
+                              icon: Icons.lock_reset,
+                              obscureText: !_mostrarConfirmaSenha,
+                              onChanged: (_) => setState(() {}),
+                              validator: (v) {
+                                if (v!.isEmpty) return 'Confirme sua senha';
+                                if (v != _senhaController.text)
+                                  return 'As senhas não coincidem';
+                                return null;
+                              },
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _mostrarConfirmaSenha
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                  color: _corTextoCinza,
+                                ),
+                                onPressed: () => setState(
+                                  () => _mostrarConfirmaSenha =
+                                      !_mostrarConfirmaSenha,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // ÁREA RESTRITA (SÓ ADMIN)
+                        if (widget.isAdmin) ...[
+                          const SizedBox(height: 20),
+                          _buildCardContainer(
+                            titulo: "ÁREA RESTRITA",
+                            icone: Icons.vpn_key,
+                            children: [
+                              _buildTextField(
+                                controller: _codigoSegurancaController,
+                                label: 'Código da Empresa',
+                                icon: Icons.security,
+                                obscureText: true,
+                                validator: (v) =>
+                                    v != '123456' ? 'Código incorreto' : null,
+                              ),
+                            ],
+                          ),
+                        ],
+
+                        const SizedBox(height: 40),
+
+                        // BOTÃO DE AÇÃO
+                        SizedBox(
+                          width: double.infinity,
+                          height: 55,
+                          child: _isLoading
+                              ? Center(
+                                  child: CircularProgressIndicator(
+                                    color: widget.corPrincipal,
+                                  ),
+                                )
+                              : ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: widget.corPrincipal,
+                                    foregroundColor: Colors.white,
+                                    elevation: 8,
+                                    shadowColor: widget.corPrincipal.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: _realizarCadastro,
+                                  child: const Text(
+                                    'CRIAR CONTA',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Escolha como você deseja se cadastrar no sistema.',
-              style: TextStyle(color: corTextoCinza, fontSize: 16),
-            ),
+          );
+        },
+      ),
+    );
+  }
 
-            const SizedBox(height: 40),
+  // HELPER WIDGETS
+  Widget _buildCardContainer({
+    required String titulo,
+    required IconData icone,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _corCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icone, color: _corTextoCinza, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                titulo,
+                style: TextStyle(
+                  color: _corTextoCinza,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...children,
+        ],
+      ),
+    );
+  }
 
-            // ==================================================
-            // CARD: ADMINISTRADOR
-            // ==================================================
-            _buildSelectionCard(
-              context: context,
-              title: "Administrador",
-              subtitle: "Gerenciar sistema",
-              icon: Icons.admin_panel_settings,
-              color: Colors.red[900]!,
-              cardColor: corCard,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CriarConta(
-                      isAdmin: true,
-                      corPrincipal: Colors.red[900]!,
-                      corSecundaria: Colors.blue[300]!,
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 20),
-
-            // ==================================================
-            // CARD: USUÁRIO COMUM
-            // ==================================================
-            _buildSelectionCard(
-              context: context,
-              title: "Usuário Comum",
-              subtitle: "Acesso padrão",
-              icon: Icons.person,
-              color: Colors.blue[900]!,
-              cardColor: corCard,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CriarConta(
-                      isAdmin: false,
-                      corPrincipal: Colors.blue[900]!,
-                      corSecundaria: Colors.cyan[400]!,
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            const Spacer(flex: 2),
-          ],
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+    List<MaskTextInputFormatter>? inputFormatters,
+    String? Function(String?)? validator,
+    void Function(String)? onChanged,
+    Widget? suffixIcon,
+    String? hintText,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      onChanged: onChanged,
+      validator: validator,
+      style: TextStyle(color: _corTextoBranco),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        hintStyle: TextStyle(color: _corTextoCinza.withValues(alpha: 0.5)),
+        labelStyle: TextStyle(color: _corTextoCinza),
+        prefixIcon: Icon(icon, color: widget.corSecundaria),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.black26,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: widget.corSecundaria),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.redAccent),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.redAccent),
         ),
       ),
     );
   }
 
-  /// Widget auxiliar para construir os cartões de seleção
-  Widget _buildSelectionCard({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required Color cardColor,
-    required VoidCallback onTap,
+  Widget _buildValidationIndicator({
+    required bool isValid,
+    required String text,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        splashColor: color.withValues(alpha: 0.2),
-        highlightColor: color.withValues(alpha: 0.1),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.05),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Ícone Circular
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: color, // Usa a cor principal (Vermelho ou Azul)
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 20),
-
-              // Textos
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Seta indicativa
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                color: Colors.grey[600],
-                size: 18,
-              ),
-            ],
+    return Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.cancel,
+          color: isValid ? Colors.greenAccent : Colors.redAccent,
+          size: 14,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(
+            color: isValid ? Colors.greenAccent : Colors.redAccent,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
           ),
         ),
-      ),
+      ],
     );
   }
 }

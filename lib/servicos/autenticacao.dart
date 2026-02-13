@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../modelos/Usuario.dart';
+import '../modelos/Usuario.dart'; // Certifique-se que o caminho está certo
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -11,24 +11,26 @@ class AuthService {
   // LOGIN
   // =====================================================
   Future<void> login(String email, String password) async {
-    final response = await _supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
 
-    if (response.user == null) {
-      throw const AuthException('Erro ao realizar login.');
+      if (response.user == null) {
+        throw const AuthException('Erro ao realizar login: Usuário nulo.');
+      }
+
+      // --- ATUALIZAÇÃO IMPORTANTE ---
+      // Após o login, buscamos o perfil na tabela 'public.usuarios'
+      // para ter certeza se ele é admin ou não.
+      final usuarioProfile = await recuperarDadosUsuario();
+      final bool isAdmin = usuarioProfile?.isAdmin ?? false;
+
+      await _salvarDadosLocais(isAdmin);
+    } catch (e) {
+      rethrow; // Repassa o erro para a tela tratar (exibir SnackBar)
     }
-
-    final appMetadata = response.user!.appMetadata;
-    final userMetadata = response.user!.userMetadata;
-
-    final bool isAdmin =
-        (appMetadata['role'] == 'admin') ||
-        (appMetadata['is_admin'] == true) ||
-        (userMetadata?['is_admin'] == true);
-
-    await _salvarDadosLocais(isAdmin);
   }
 
   // =====================================================
@@ -39,34 +41,54 @@ class AuthService {
     required String password,
     required String nome,
     required String telefone,
-    bool isAdmin = false,
+    required bool isAdmin,
   }) async {
     try {
-      print("🚀 Iniciando Teste de Cadastro Limpo...");
-
-      // 1. Chamada Direta (Sem regex, sem tratamentos extras)
-      // Estamos enviando as VARIÁVEIS reais agora, não strings fixas.
+      // O Trigger 'on_auth_user_created' no Banco vai pegar esses dados
+      // e criar a linha na tabela 'usuarios' automaticamente.
       await _supabase.auth.signUp(
         email: email,
         password: password,
         data: {
-          'nome': nome, // Envia o valor da variável nome
-          'telefone': telefone, // Envia o valor da variável telefone
-          'is_admin': isAdmin, // Envia o boolean real (true/false)
+          'nome': nome, // Vai para: new.raw_user_meta_data ->> 'nome'
+          'telefone':
+              telefone, // Vai para: new.raw_user_meta_data ->> 'telefone'
+          // OBS: Não enviamos 'is_admin' aqui por segurança.
+          // O banco define padrão como FALSE.
         },
       );
 
-      print("✅ Sucesso! O usuário foi criado (O erro não está no Flutter).");
-      return null;
+      return null; // Sucesso (null significa sem erro)
+    } on AuthException catch (e) {
+      return e.message;
     } catch (e) {
-      // Log do erro cru para diagnóstico
-      print("❌ O Erro Persiste: $e");
-      return e.toString();
+      return "Erro desconhecido: $e";
     }
   }
 
   // =====================================================
-  // CACHE LOCAL (Persistência, não UI)
+  // RECUPERAR DADOS DO PERFIL (Tabela 'usuarios')
+  // =====================================================
+  Future<Usuario?> recuperarDadosUsuario() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      final data = await _supabase
+          .from('usuarios') // Nome da tabela no Supabase
+          .select()
+          .eq('id', user.id)
+          .single();
+
+      return Usuario.fromMap(data);
+    } catch (e) {
+      print('Erro ao buscar perfil do usuário: $e');
+      return null;
+    }
+  }
+
+  // =====================================================
+  // CACHE LOCAL (SharedPreferences)
   // =====================================================
   Future<void> _salvarDadosLocais(bool isAdmin) async {
     final prefs = await SharedPreferences.getInstance();
@@ -78,80 +100,30 @@ class AuthService {
     await prefs.remove('IS_ADMIN');
   }
 
+  Future<bool> isUsuarioAdminLocal() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('IS_ADMIN') ?? false;
+  }
+
   // =====================================================
-  // OUTROS MÉTODOS
+  // LOGOUT
   // =====================================================
   Future<void> deslogar() async {
     await _limparDadosLocais();
     await _supabase.auth.signOut();
   }
 
-  Future<String?> recuperarSenha({required String email}) async {
-    try {
-      await _supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo:
-            'https://riuza02.github.io/minaslar_aplicativo/RecuperarEmail.html',
-      );
-      return null;
-    } on AuthException catch (e) {
-      return e.message;
-    } catch (e) {
-      return "Erro ao enviar e-mail.";
-    }
-  }
+  // =====================================================
+  // RECUPERAÇÃO DE SENHA (FLUXO COMPLETO)
+  // =====================================================
 
-  // Apenas lógica booleana, sem UI
-  bool isUsuarioAdmin() {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return false;
-    final appMetadata = user.appMetadata;
-    final userMetadata = user.userMetadata;
-    return (appMetadata['role'] == 'admin') ||
-        (appMetadata['is_admin'] == true) ||
-        (userMetadata?['is_admin'] == true);
-  }
-
-  Future<bool> verificarSeEmailExiste(String email) async {
-    try {
-      final res = await _supabase.rpc(
-        'email_existe',
-        params: {'email_check': email},
-      );
-      return res as bool;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<Usuario?> recuperarDadosUsuario() async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return null;
-
-    try {
-      // ATENÇÃO: Confirme se o nome da sua tabela no Supabase é 'usuarios' ou 'profiles'
-      final data = await _supabase
-          .from('usuarios') // <--- NOME DA TABELA
-          .select()
-          .eq('id', user.id) // O ID da tabela deve bater com o ID do Auth
-          .single();
-
-      // Usa o seu Modelo para converter os dados
-      return Usuario.fromMap(data);
-    } catch (e) {
-      // Se der erro (ex: usuário não existe na tabela ainda), retorna null
-      return null;
-    }
-  }
-
-  // No AuthService.dart
-
+  /// Passo 1: Envia o código (Token) por e-mail
   Future<String?> enviarTokenRecuperacao(String email) async {
     try {
       await _supabase.auth.signInWithOtp(
         email: email,
-        // Isso envia um código de 6 dígitos (Token) em vez de um Magic Link
-        // Nota: Configure o template de e-mail no Supabase para mostrar {{ .Token }}
+        // Se quiser usar Link Mágico, mude para: emailRedirectTo: '...'
+        // Se quiser usar Código (Token), deixe assim.
       );
       return null;
     } catch (e) {
@@ -159,13 +131,14 @@ class AuthService {
     }
   }
 
+  /// Passo 2: Valida o código e troca a senha
   Future<String?> validarTokenEAtualizarSenha(
     String email,
     String token,
     String novaSenha,
   ) async {
     try {
-      // 1. Valida o token (código de 6 dígitos)
+      // Verifica o código de 6 dígitos
       final res = await _supabase.auth.verifyOTP(
         token: token,
         type: OtpType.email,
@@ -174,12 +147,26 @@ class AuthService {
 
       if (res.session == null) return "Código inválido ou expirado.";
 
-      // 2. Atualiza a senha
+      // Se verificou com sucesso, o usuário está logado. Agora trocamos a senha.
       await _supabase.auth.updateUser(UserAttributes(password: novaSenha));
 
       return null; // Sucesso
     } catch (e) {
       return "Erro ao atualizar senha: $e";
+    }
+  }
+
+  // Opcional: Verifica se o e-mail já existe (Requer RPC no banco)
+  Future<bool> verificarSeEmailExiste(String email) async {
+    try {
+      final res = await _supabase.rpc(
+        'email_existe', // Nome da função criada no SQL do Supabase
+        params: {'email_check': email},
+      );
+      return res as bool;
+    } catch (e) {
+      // Se a função RPC não existir ou der erro, assumimos false para não travar
+      return false;
     }
   }
 }

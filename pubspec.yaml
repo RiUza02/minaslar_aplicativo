@@ -50,4 +50,3 @@ flutter:
   # Configuração de Assets
   assets:
     - assets/
-    - .env  # <--- ADICIONADO AQUI (Isso permite que o app leia o arquivo)
