@@ -150,8 +150,9 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
                             counterText: "", // Esconde o contador de caracteres
                           ),
                       validator: (v) {
-                        if (v == null || v.length < 6)
+                        if (v == null || v.length < 6) {
                           return 'Digite o código completo';
+                        }
                         return null;
                       },
                     ),

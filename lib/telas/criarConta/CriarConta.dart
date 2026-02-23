@@ -5,15 +5,8 @@ import '../../servicos/VerificacaoEmail.dart';
 
 class CriarConta extends StatefulWidget {
   final bool isAdmin;
-  final Color corPrincipal;
-  final Color corSecundaria;
 
-  const CriarConta({
-    super.key,
-    required this.isAdmin,
-    required this.corPrincipal,
-    required this.corSecundaria,
-  });
+  const CriarConta({super.key, required this.isAdmin});
 
   @override
   State<CriarConta> createState() => _CriarContaState();
@@ -21,8 +14,10 @@ class CriarConta extends StatefulWidget {
 
 class _CriarContaState extends State<CriarConta> {
   // ==================================================
-  // CONSTANTES VISUAIS
+  // CONFIGURAÇÕES DE CORES
   // ==================================================
+  late Color _corPrincipal;
+  late Color _corSecundaria;
   final Color _corFundo = Colors.black;
   final Color _corCard = const Color(0xFF1E1E1E);
   final Color _corTextoCinza = Colors.grey[500]!;
@@ -30,24 +25,19 @@ class _CriarContaState extends State<CriarConta> {
 
   final _formKey = GlobalKey<FormState>();
 
-  // ==================================================
-  // CONTROLADORES
-  // ==================================================
   late final TextEditingController _nomeController;
   late final TextEditingController _emailController;
   late final TextEditingController _telefoneController;
   late final TextEditingController _senhaController;
   late final TextEditingController _confirmaSenhaController;
-  late final TextEditingController _codigoSegurancaController; // Só p/ Admin
+  late final TextEditingController _codigoSegurancaController;
 
-  // Máscara de Telefone
   final _maskFormatter = MaskTextInputFormatter(
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
     type: MaskAutoCompletionType.lazy,
   );
 
-  // Estados
   String? _erroEmailJaCadastrado;
   bool _isLoading = false;
   bool _senhaValida = false;
@@ -60,6 +50,11 @@ class _CriarContaState extends State<CriarConta> {
   @override
   void initState() {
     super.initState();
+
+    // Define as cores com base no perfil do usuário
+    _corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
+    _corSecundaria = widget.isAdmin ? Colors.blue[300]! : Colors.cyan[400]!;
+
     _nomeController = TextEditingController();
     _emailController = TextEditingController();
     _telefoneController = TextEditingController();
@@ -79,34 +74,25 @@ class _CriarContaState extends State<CriarConta> {
     super.dispose();
   }
 
-  // ==================================================
-  // AÇÃO DE CADASTRO (LÓGICA REAL)
-  // ==================================================
   Future<void> _realizarCadastro() async {
-    // 1. Validação do formulário
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     setState(() => _isLoading = true);
-
-    // Fecha o teclado
     FocusScope.of(context).unfocus();
 
-    // 2. Chama o serviço de autenticação
     final erro = await _authService.cadastrarUsuario(
       email: _emailController.text.trim(),
       password: _senhaController.text,
       nome: _nomeController.text.trim(),
-      telefone: _telefoneController.text, // O Service vai limpar os caracteres
+      telefone: _telefoneController.text,
       isAdmin: widget.isAdmin,
     );
 
     setState(() => _isLoading = false);
 
-    // 3. Tratamento da resposta
     if (erro == null) {
-      // SUCESSO!
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -116,13 +102,11 @@ class _CriarContaState extends State<CriarConta> {
         );
       }
     } else {
-      // ERRO
       if (erro == 'EMAIL_JA_CADASTRADO') {
         setState(() {
           _erroEmailJaCadastrado = 'E-mail já está em uso';
         });
-        _formKey.currentState!
-            .validate(); // Revalida para mostrar o erro no campo
+        _formKey.currentState!.validate();
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -133,9 +117,6 @@ class _CriarContaState extends State<CriarConta> {
     }
   }
 
-  // ==================================================
-  // CONSTRUÇÃO DA TELA (UI)
-  // ==================================================
   @override
   Widget build(BuildContext context) {
     final String tituloAppbar = widget.isAdmin
@@ -156,7 +137,7 @@ class _CriarContaState extends State<CriarConta> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: widget.corPrincipal,
+        backgroundColor: _corPrincipal,
         foregroundColor: Colors.white,
         elevation: 0,
         shape: const RoundedRectangleBorder(
@@ -176,7 +157,7 @@ class _CriarContaState extends State<CriarConta> {
                     child: Column(
                       children: [
                         const SizedBox(height: 10),
-                        Icon(iconeHeader, size: 50, color: widget.corPrincipal),
+                        Icon(iconeHeader, size: 50, color: _corPrincipal),
                         const SizedBox(height: 8),
                         Text(
                           textoHeader,
@@ -285,8 +266,9 @@ class _CriarContaState extends State<CriarConta> {
                               onChanged: (_) => setState(() {}),
                               validator: (v) {
                                 if (v!.isEmpty) return 'Confirme sua senha';
-                                if (v != _senhaController.text)
+                                if (v != _senhaController.text) {
                                   return 'As senhas não coincidem';
+                                }
                                 return null;
                               },
                               suffixIcon: IconButton(
@@ -305,7 +287,6 @@ class _CriarContaState extends State<CriarConta> {
                           ],
                         ),
 
-                        // ÁREA RESTRITA (SÓ ADMIN)
                         if (widget.isAdmin) ...[
                           const SizedBox(height: 20),
                           _buildCardContainer(
@@ -333,15 +314,15 @@ class _CriarContaState extends State<CriarConta> {
                           child: _isLoading
                               ? Center(
                                   child: CircularProgressIndicator(
-                                    color: widget.corPrincipal,
+                                    color: _corPrincipal,
                                   ),
                                 )
                               : ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: widget.corPrincipal,
+                                    backgroundColor: _corPrincipal,
                                     foregroundColor: Colors.white,
                                     elevation: 8,
-                                    shadowColor: widget.corPrincipal.withValues(
+                                    shadowColor: _corPrincipal.withValues(
                                       alpha: 0.5,
                                     ),
                                     shape: RoundedRectangleBorder(
@@ -359,7 +340,34 @@ class _CriarContaState extends State<CriarConta> {
                                   ),
                                 ),
                         ),
-                        const SizedBox(height: 40),
+
+                        const SizedBox(height: 24),
+
+                        // --- NOVO: LINK PARA VOLTAR AO LOGIN ---
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Já tem uma conta?",
+                              style: TextStyle(color: _corTextoCinza),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                // Navigator.pop remove a tela atual e volta para a anterior (Login)
+                                Navigator.pop(context);
+                              },
+                              child: Text(
+                                "Faça Login",
+                                style: TextStyle(
+                                  color: _corPrincipal,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -372,7 +380,6 @@ class _CriarContaState extends State<CriarConta> {
     );
   }
 
-  // HELPER WIDGETS
   Widget _buildCardContainer({
     required String titulo,
     required IconData icone,
@@ -435,7 +442,7 @@ class _CriarContaState extends State<CriarConta> {
         hintText: hintText,
         hintStyle: TextStyle(color: _corTextoCinza.withValues(alpha: 0.5)),
         labelStyle: TextStyle(color: _corTextoCinza),
-        prefixIcon: Icon(icon, color: widget.corSecundaria),
+        prefixIcon: Icon(icon, color: _corSecundaria),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.black26,
@@ -449,7 +456,7 @@ class _CriarContaState extends State<CriarConta> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: widget.corSecundaria),
+          borderSide: BorderSide(color: _corSecundaria),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

@@ -2,8 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../servicos/Autenticacao.dart';
-import '../../servicos/Roteador.dart'; // Certifique-se que o caminho está certo
+import '../../servicos/Roteador.dart';
 import 'RecuperaSenha.dart';
+import 'CriarConta.dart'; // <--- Importe a tela de Cadastro
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -17,44 +18,32 @@ class _LoginState extends State<Login> {
   final _senhaController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  // Instância do serviço
   final AuthService _authService = AuthService();
-
   bool _isLoading = false;
 
-  // Cores (Mantendo seu padrão)
   final Color _corFundo = Colors.black;
   final Color _corCard = const Color(0xFF1E1E1E);
 
   Future<void> _fazerLogin() async {
     if (!_formKey.currentState!.validate()) return;
-
-    // Fecha o teclado
     FocusScope.of(context).unfocus();
-
     setState(() => _isLoading = true);
 
     try {
       final email = _emailController.text.trim();
       final senha = _senhaController.text.trim();
 
-      // Chama o login do AuthService (que já salva o cache local)
       await _authService.login(email, senha);
 
       if (!mounted) return;
 
-      // ============================================================
-      // A CORREÇÃO PRINCIPAL ESTÁ AQUI:
-      // ============================================================
-      // Em vez de esperar o StreamBuilder atualizar "por baixo",
-      // nós forçamos a navegação para o Roteador, limpando a tela de Login.
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const Roteador()),
-        (route) => false, // Remove todas as rotas anteriores
+        (route) => false,
       );
     } on AuthException catch (e) {
       _mostrarErro(e.message);
-      setState(() => _isLoading = false); // Para o loading em caso de erro
+      setState(() => _isLoading = false);
     } on SocketException {
       _mostrarErro("Sem conexão com a internet.");
       setState(() => _isLoading = false);
@@ -73,7 +62,6 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
-    // Layout visual mantido igual
     return Scaffold(
       backgroundColor: _corFundo,
       body: Center(
@@ -82,7 +70,6 @@ class _LoginState extends State<Login> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Ícone ou Logo
               Icon(Icons.lock_person, size: 80, color: Colors.blue[900]),
               const SizedBox(height: 30),
 
@@ -97,7 +84,6 @@ class _LoginState extends State<Login> {
               ),
               const SizedBox(height: 40),
 
-              // Formulário
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -109,7 +95,6 @@ class _LoginState extends State<Login> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      // E-mail
                       TextFormField(
                         controller: _emailController,
                         style: const TextStyle(color: Colors.white),
@@ -128,7 +113,6 @@ class _LoginState extends State<Login> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Senha
                       TextFormField(
                         controller: _senhaController,
                         obscureText: true,
@@ -143,7 +127,6 @@ class _LoginState extends State<Login> {
                       ),
                       const SizedBox(height: 30),
 
-                      // Botão Entrar
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -172,7 +155,6 @@ class _LoginState extends State<Login> {
 
                       const SizedBox(height: 20),
 
-                      // Esqueci a senha
                       TextButton(
                         onPressed: () {
                           Navigator.push(
@@ -182,14 +164,48 @@ class _LoginState extends State<Login> {
                             ),
                           );
                         },
-                        child: Text(
+                        child: const Text(
                           "Esqueci minha senha",
-                          style: TextStyle(color: Colors.grey[500]),
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 30),
+
+              // --- NOVO: LINK PARA CRIAR CONTA ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Não tem uma conta?",
+                    style: TextStyle(color: Colors.grey[500]),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const CriarConta(isAdmin: false),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Cadastre-se",
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

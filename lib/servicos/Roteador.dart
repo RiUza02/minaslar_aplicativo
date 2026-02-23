@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../telas/TelasPrincipais/HomeUsuario.dart';
 import '../Telas/TelasPrincipais/HomeAdmin.dart';
 import '../telas/criarConta/Login.dart';
-import '../telas/criarConta/Cadastro.dart';
+import '../telas/criarConta/CriarConta.dart';
 import '../modelos/Usuario.dart';
 import 'Autenticacao.dart';
 
@@ -138,11 +138,7 @@ class TelaApresentacao extends StatelessWidget {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => CriarConta(
-                              isAdmin: false,
-                              corPrincipal: Colors.blue[900]!,
-                              corSecundaria: Colors.cyan[400]!,
-                            ),
+                            builder: (_) => const CriarConta(isAdmin: false),
                           ),
                         );
                       },

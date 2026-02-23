@@ -155,18 +155,4 @@ class AuthService {
       return "Erro ao atualizar senha: $e";
     }
   }
-
-  // Opcional: Verifica se o e-mail já existe (Requer RPC no banco)
-  Future<bool> verificarSeEmailExiste(String email) async {
-    try {
-      final res = await _supabase.rpc(
-        'email_existe', // Nome da função criada no SQL do Supabase
-        params: {'email_check': email},
-      );
-      return res as bool;
-    } catch (e) {
-      // Se a função RPC não existir ou der erro, assumimos false para não travar
-      return false;
-    }
-  }
 }

@@ -43,7 +43,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
 
       final email = _emailController.text.trim();
 
-      // CORREÇÃO AQUI: Removemos o "email: " pois o parâmetro é posicional
       String? erro = await _authService.enviarTokenRecuperacao(email);
 
       if (erro != null) throw erro;
@@ -66,6 +65,22 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  // NOVA FUNÇÃO: Navegação manual
+  void _irParaValidacaoManual() {
+    // Validamos se o email foi digitado, pois a tela seguinte precisa dele
+    if (!_formKey.currentState!.validate()) {
+      _showSnackBar("Informe o e-mail para validar o código.", isError: true);
+      return;
+    }
+
+    final email = _emailController.text.trim();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ValidarCodigo(email: email)),
+    );
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -196,8 +211,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                 ),
                               ),
                               const SizedBox(height: 10),
-
-                              // ATUALIZADO: Texto mudado de "link" para "código"
                               Text(
                                 "Não se preocupe. Digite seu e-mail abaixo e enviaremos um código de verificação.",
                                 textAlign: TextAlign.center,
@@ -221,12 +234,15 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
                                   if (v!.isEmpty) return 'Informe o e-mail';
-                                  if (!v.contains('@'))
+                                  if (!v.contains('@')) {
                                     return 'E-mail inválido';
+                                  }
                                   return null;
                                 },
                               ),
                               const SizedBox(height: 24),
+
+                              // BOTÃO PRINCIPAL (ENVIAR CÓDIGO)
                               _isLoading
                                   ? const CircularProgressIndicator(
                                       color: Colors.blue,
@@ -246,7 +262,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                           ),
                                         ),
                                         onPressed: _enviarEmailRecuperacao,
-                                        // ATUALIZADO: Texto do botão
                                         child: const Text(
                                           'ENVIAR CÓDIGO',
                                           style: TextStyle(
@@ -257,6 +272,20 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                         ),
                                       ),
                                     ),
+
+                              const SizedBox(height: 16),
+
+                              // --- NOVO BOTÃO: JÁ TENHO CÓDIGO ---
+                              TextButton(
+                                onPressed: _irParaValidacaoManual,
+                                child: const Text(
+                                  "Já tenho um código",
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
