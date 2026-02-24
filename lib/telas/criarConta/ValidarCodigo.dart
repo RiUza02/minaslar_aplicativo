@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
+import '../../servicos/servicos.dart'; // <--- Importe os serviços para verificar a conexão
 
 class ValidarCodigo extends StatefulWidget {
   final String email;
@@ -31,6 +32,23 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
     // Fecha teclado
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
+
+    bool internetAtiva = await Servicos.temConexao();
+    if (!internetAtiva) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Sem conexão com a internet. Verifique sua rede e tente novamente.",
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return; // Interrompe a função aqui, não tenta cadastrar
+    }
 
     try {
       final codigo = _codigoController.text.trim();

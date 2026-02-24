@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 
 import '../modelos/Usuario.dart';
 import '../modelos/Cliente.dart';
@@ -159,7 +160,6 @@ class Servicos {
           .select()
           .ilike('nome', '$primeiroNome%')
           .ilike('rua', rua.trim())
-          .eq('numero', numero.trim())
           .limit(1)
           .maybeSingle();
 
@@ -172,5 +172,19 @@ class Servicos {
       debugPrint("Erro ao verificar cliente duplicado: $e");
       return null;
     }
+  }
+
+  /// Retorna [true] se houver conexão com a internet, e [false] caso contrário.
+  static Future<bool> temConexao() async {
+    try {
+      // Tenta procurar o IP do Google. Se a rede não tiver internet, isso vai falhar.
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true; // Tem internet!
+      }
+    } on SocketException catch (_) {
+      return false; // Sem internet (SocketException disparada)
+    }
+    return false;
   }
 }

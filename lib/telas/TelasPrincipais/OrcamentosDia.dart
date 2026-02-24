@@ -1,14 +1,15 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../servicos/servicosGoogle.dart';
 import '../../servicos/CalculaRota.dart';
 import '../../modelos/Cliente.dart';
 import 'Configuracoes.dart';
 import '../TelasSecundarias/ListagemClientes.dart';
 import '../TelasSecundarias/DetalhesOrcamento.dart';
 import '../TelasSecundarias/AdicionarOrcamento.dart';
+import '../../servicos/servicos.dart';
 
 class OrcamentosDia extends StatefulWidget {
   final DateTime dataSelecionada;
@@ -59,6 +60,12 @@ class _OrcamentosDiaState extends State<OrcamentosDia>
   }
 
   Future<List<Map<String, dynamic>>> _buscarOrcamentosDoDia() async {
+    // Adiciona verificação de internet no início.
+    if (!await Servicos.temConexao()) {
+      // Lança uma exceção que será capturada pelo FutureBuilder.
+      throw const SocketException("Sem conexão com a internet.");
+    }
+
     final startOfDay = DateTime(
       widget.dataSelecionada.year,
       widget.dataSelecionada.month,
@@ -254,7 +261,13 @@ class _OrcamentosDiaState extends State<OrcamentosDia>
               child: CircularProgressIndicator(color: corPrincipal),
             );
           }
+
           if (snapshot.hasError) {
+            // Se o erro for de conexão, mostra a tela específica.
+            if (snapshot.error is SocketException) {
+              return _semInternet();
+            }
+            // Para outros erros, exibe a mensagem.
             return Center(
               child: Text(
                 "Erro: ${snapshot.error}",
@@ -305,6 +318,35 @@ class _OrcamentosDiaState extends State<OrcamentosDia>
                 const SizedBox(height: 16),
                 Text(
                   "Agenda livre para hoje.",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 18),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _semInternet() {
+    return RefreshIndicator(
+      onRefresh: () async => _atualizarLista(),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.wifi_off_outlined,
+                  size: 80,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Sem conexão com a internet.",
                   style: TextStyle(color: Colors.grey[600], fontSize: 18),
                 ),
               ],

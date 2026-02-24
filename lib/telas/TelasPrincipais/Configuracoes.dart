@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../modelos/Usuario.dart';
 import '../criarConta/Login.dart';
+import '../../servicos/servicos.dart';
 
 class Configuracoes extends StatefulWidget {
   final bool isAdmin;
@@ -21,6 +21,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
   // ESTADO E VARIÁVEIS
   // ==================================================
   bool _isLoading = true;
+  bool _semInternet = false;
   final String _myUserId = Supabase.instance.client.auth.currentUser!.id;
 
   Usuario? _meuUsuario;
@@ -63,7 +64,22 @@ class _ConfiguracoesState extends State<Configuracoes> {
   // ==================================================
 
   Future<void> _carregarDados() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _semInternet = false;
+      });
+    }
+
+    if (!await Servicos.temConexao()) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _semInternet = true;
+        });
+      }
+      return;
+    }
     try {
       final supabase = Supabase.instance.client;
 
@@ -166,32 +182,12 @@ class _ConfiguracoesState extends State<Configuracoes> {
     }
   }
 
-  // Helpers para abrir telefone/whatsapp
-  void _abrirWhatsApp(String telefone) async {
-    final cleanPhone = telefone.replaceAll(RegExp(r'[^0-9]'), '');
-    final url = Uri.parse("https://wa.me/55$cleanPhone");
-    if (await canLaunchUrl(url)) await launchUrl(url);
-  }
-
-  void _fazerLigacao(String telefone) async {
-    final cleanPhone = telefone.replaceAll(RegExp(r'[^0-9]'), '');
-    final url = Uri.parse("tel:$cleanPhone");
-    if (await canLaunchUrl(url)) await launchUrl(url);
-  }
-
   // ==================================================
   // UI
   // ==================================================
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: corFundo,
-        body: Center(child: CircularProgressIndicator(color: corPrincipal)),
-      );
-    }
-
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
@@ -210,131 +206,168 @@ class _ConfiguracoesState extends State<Configuracoes> {
           ),
         ],
       ),
-      body: Column(
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: corPrincipal))
+          : _semInternet
+          ? _semInternetWidget()
+          : _buildContent(),
+    );
+  }
+
+  Widget _semInternetWidget() {
+    return RefreshIndicator(
+      onRefresh: _carregarDados,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          // 1. ÁREA EDITÁVEL (EXPANSÍVEL)
-          Container(
-            color: corCard,
-            child: ExpansionTile(
-              collapsedIconColor: corPrincipal,
-              iconColor: corPrincipal,
-              leading: CircleAvatar(
-                backgroundColor: corPrincipal.withValues(alpha: 0.2),
-                child: Text(
-                  _getInitials(_meuUsuario?.nome ?? ""),
-                  style: TextStyle(
-                    color: corPrincipal,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              title: Text(
-                _meuUsuario?.nome ?? "Meu Perfil",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              subtitle: const Text(
-                "Toque para editar seus dados",
-                style: TextStyle(color: Colors.grey, fontSize: 12),
-              ),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      _buildTextField(
-                        controller: _nomeController,
-                        label: "Meu Nome",
-                        icon: Icons.person,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildTextField(
-                        controller: _telefoneController,
-                        label: "Meu Telefone",
-                        icon: Icons.phone,
-                        formatter: maskTelefone,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 45,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: corPrincipal,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: _salvarPerfil,
-                          child: const Text(
-                            "SALVAR MEUS DADOS",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                Icon(
+                  Icons.wifi_off_outlined,
+                  size: 80,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Sem conexão com a internet.",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 18),
                 ),
               ],
             ),
-          ),
-
-          // Divisor visual
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Icon(Icons.group, color: corTextoCinza, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  "CONTATOS DO SISTEMA",
-                  style: TextStyle(
-                    color: corTextoCinza,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                    fontSize: 12,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  "${_outrosUsuarios.length} encontrados",
-                  style: TextStyle(color: corTextoCinza, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-
-          // 2. CONTEÚDO PRINCIPAL: LISTA DE USUÁRIOS
-          Expanded(
-            child: _outrosUsuarios.isEmpty
-                ? Center(
-                    child: Text(
-                      "Nenhum outro usuário encontrado.",
-                      style: TextStyle(color: corTextoCinza),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    itemCount: _outrosUsuarios.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final user = _outrosUsuarios[index];
-                      return _buildUserCard(user);
-                    },
-                  ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Column(
+      children: [
+        // 1. ÁREA EDITÁVEL (EXPANSÍVEL)
+        Container(
+          color: corCard,
+          child: ExpansionTile(
+            collapsedIconColor: corPrincipal,
+            iconColor: corPrincipal,
+            leading: CircleAvatar(
+              backgroundColor: corPrincipal.withValues(alpha: 0.2),
+              child: Text(
+                _getInitials(_meuUsuario?.nome ?? ""),
+                style: TextStyle(
+                  color: corPrincipal,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            title: Text(
+              _meuUsuario?.nome ?? "Meu Perfil",
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: const Text(
+              "Toque para editar seus dados",
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildTextField(
+                      controller: _nomeController,
+                      label: "Meu Nome",
+                      icon: Icons.person,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField(
+                      controller: _telefoneController,
+                      label: "Meu Telefone",
+                      icon: Icons.phone,
+                      formatter: maskTelefone,
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 45,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: corPrincipal,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: _salvarPerfil,
+                        child: const Text(
+                          "SALVAR MEUS DADOS",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Divisor visual
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Icon(Icons.group, color: corTextoCinza, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                "CONTATOS DO SISTEMA",
+                style: TextStyle(
+                  color: corTextoCinza,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  fontSize: 12,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                "${_outrosUsuarios.length} encontrados",
+                style: TextStyle(color: corTextoCinza, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+
+        // 2. CONTEÚDO PRINCIPAL: LISTA DE USUÁRIOS
+        Expanded(
+          child: _outrosUsuarios.isEmpty
+              ? Center(
+                  child: Text(
+                    "Nenhum outro usuário encontrado.",
+                    style: TextStyle(color: corTextoCinza),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount: _outrosUsuarios.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final user = _outrosUsuarios[index];
+                    return _buildUserCard(user);
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -406,7 +439,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
             if (user.telefone.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.phone, color: Colors.blueAccent),
-                onPressed: () => _fazerLigacao(user.telefone),
+                onPressed: () => Servicos.fazerLigacao(user.telefone),
                 tooltip: "Ligar",
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.blueAccent.withValues(alpha: 0.1),
@@ -417,7 +450,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
             if (user.telefone.isNotEmpty)
               IconButton(
                 icon: const Icon(Icons.chat, color: Colors.greenAccent),
-                onPressed: () => _abrirWhatsApp(user.telefone),
+                onPressed: () => Servicos.abrirWhatsApp(user.telefone),
                 tooltip: "WhatsApp",
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.greenAccent.withValues(alpha: 0.1),

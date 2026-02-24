@@ -181,6 +181,21 @@ class _EditarClienteState extends State<EditarCliente> {
     }
   }
 
+  /// Título padrão para os campos do formulário.
+  Widget _tituloCampo(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
   // ==================================================
   // INTERFACE VISUAL (UI)
   // ==================================================
@@ -212,17 +227,20 @@ class _EditarClienteState extends State<EditarCliente> {
                 corCard,
                 corTextoClaro,
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _tituloCampo("Nome Completo"),
                     _buildTextField(
                       controller: _nomeController,
-                      label: "Nome Completo",
+                      hintText: "Nome do cliente",
                       icon: Icons.person,
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                     const SizedBox(height: 16),
+                    _tituloCampo("Telefone"),
                     _buildTextField(
                       controller: _telefoneController,
-                      label: "Telefone",
+                      hintText: "(32) 99999-9999",
                       icon: Icons.phone,
                       keyboardType: TextInputType.phone,
                       inputFormatters: [maskTelefone],
@@ -231,10 +249,10 @@ class _EditarClienteState extends State<EditarCliente> {
                     const SizedBox(height: 16),
 
                     // --- RUA (Agora ocupa a largura total) ---
+                    _tituloCampo("Rua"),
                     _buildTextField(
                       controller: _ruaController,
-                      keyboardType: TextInputType.number,
-                      label: 'Rua',
+                      hintText: "Ex: Rua das Flores",
                       icon: Icons.add_road,
                       validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
                     ),
@@ -249,8 +267,8 @@ class _EditarClienteState extends State<EditarCliente> {
                           flex: 1,
                           child: _buildTextField(
                             controller: _numeroController,
-                            keyboardType: TextInputType.number,
-                            label: 'Nº',
+                            keyboardType: TextInputType.phone,
+                            hintText: 'Nº',
                             icon: Icons.home_filled,
                             validator: (v) => v!.isEmpty ? 'Req.' : null,
                           ),
@@ -262,8 +280,8 @@ class _EditarClienteState extends State<EditarCliente> {
                           flex: 1,
                           child: _buildTextField(
                             controller: _apartamentoController,
-                            keyboardType: TextInputType.number,
-                            label: 'Apt/Comp',
+                            keyboardType: TextInputType.phone,
+                            hintText: 'Apt / Comp.',
                             icon: Icons.apartment,
                             // Sem validador pois é opcional
                           ),
@@ -273,9 +291,10 @@ class _EditarClienteState extends State<EditarCliente> {
 
                     const SizedBox(height: 16),
 
+                    _tituloCampo("Bairro"),
                     _buildTextField(
                       controller: _bairroController,
-                      label: "Bairro",
+                      hintText: "Ex: Centro",
                       icon: Icons.location_city,
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
@@ -289,18 +308,19 @@ class _EditarClienteState extends State<EditarCliente> {
                 corCard,
                 corTextoClaro,
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _tituloCampo("CPF (Opcional)"),
                     _buildTextField(
                       controller: _cpfController,
-                      label: "CPF (Opcional)",
                       icon: Icons.badge_outlined,
                       keyboardType: TextInputType.number,
                       inputFormatters: [maskCPF],
                     ),
                     const SizedBox(height: 16),
+                    _tituloCampo("CNPJ (Opcional)"),
                     _buildTextField(
                       controller: _cnpjController,
-                      label: "CNPJ (Opcional)",
                       icon: Icons.domain,
                       keyboardType: TextInputType.number,
                       inputFormatters: [maskCNPJ],
@@ -311,10 +331,13 @@ class _EditarClienteState extends State<EditarCliente> {
               const SizedBox(height: 16),
 
               // --- SEÇÃO: STATUS E OBSERVAÇÕES ---
+              _tituloCampo("Status e Observações"),
+              const SizedBox(height: 8),
               _buildCard(
                 corCard,
                 corTextoClaro,
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SwitchListTile(
                       activeThumbColor: Colors.redAccent,
@@ -334,10 +357,10 @@ class _EditarClienteState extends State<EditarCliente> {
                       onChanged: (val) => setState(() => _isProblematico = val),
                     ),
                     const Divider(color: Colors.white24),
+                    const SizedBox(height: 16),
+                    _tituloCampo("Observações (Opcional)"),
                     _buildTextField(
                       controller: _obsController,
-                      keyboardType: TextInputType.visiblePassword,
-                      label: "Observações",
                       icon: Icons.note,
                       maxLines: 3,
                     ),
@@ -395,10 +418,9 @@ class _EditarClienteState extends State<EditarCliente> {
     );
   }
 
-  // Widget para padronizar TextFields e reduzir repetição de código
   Widget _buildTextField({
     required TextEditingController controller,
-    required String label,
+    String? hintText,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
@@ -413,8 +435,8 @@ class _EditarClienteState extends State<EditarCliente> {
       validator: validator,
       inputFormatters: inputFormatters,
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.grey),
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey[600]),
         prefixIcon: Icon(icon, color: Colors.blue[300]),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: Colors.white24),

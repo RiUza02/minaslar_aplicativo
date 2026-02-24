@@ -6,6 +6,7 @@ import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../modelos/Cliente.dart';
 import '../TelasSecundarias/DetalhesCliente.dart';
 import '../TelasSecundarias/AdicionarCliente.dart';
+import '../../servicos/servicos.dart';
 
 /// Define os critérios de ordenação da lista de clientes.
 enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
@@ -49,6 +50,7 @@ class _ListaClientesState extends State<ListaClientes>
   List<Map<String, dynamic>> _listaExibida = [];
 
   bool _estaCarregando = true;
+  bool _semInternet = false;
   TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
 
   // Formatador para exibir o telefone
@@ -79,7 +81,22 @@ class _ListaClientesState extends State<ListaClientes>
 
   /// Busca TODOS os clientes do banco de dados (sem filtro na query)
   Future<void> _carregarClientes() async {
-    if (mounted) setState(() => _estaCarregando = true);
+    if (mounted) {
+      setState(() {
+        _estaCarregando = true;
+        _semInternet = false;
+      });
+    }
+
+    if (!await Servicos.temConexao()) {
+      if (mounted) {
+        setState(() {
+          _estaCarregando = false;
+          _semInternet = true;
+        });
+      }
+      return;
+    }
 
     try {
       // Busca simples: Traz tudo.
@@ -346,6 +363,8 @@ class _ListaClientesState extends State<ListaClientes>
       // --- LISTA DE CLIENTES ---
       body: _estaCarregando
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
+          : _semInternet
+          ? _semInternetWidget()
           : RefreshIndicator(
               color: corPrincipal,
               backgroundColor: corCard,
@@ -378,14 +397,58 @@ class _ListaClientesState extends State<ListaClientes>
     String msg = _searchController.text.isNotEmpty
         ? "Nenhum resultado para \"${_searchController.text}\""
         : "Nenhum cliente cadastrado.";
+    // Envolve com ListView para permitir o RefreshIndicator funcionar mesmo com a tela vazia.
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.person_off_outlined,
+                  size: 60,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  msg,
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _semInternetWidget() {
+    return RefreshIndicator(
+      onRefresh: _carregarClientes,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Icon(Icons.person_off_outlined, size: 60, color: Colors.grey[800]),
-          const SizedBox(height: 16),
-          Text(msg, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.wifi_off_outlined,
+                  size: 80,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Sem conexão com a internet.",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 18),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

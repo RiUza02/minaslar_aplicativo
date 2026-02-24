@@ -128,6 +128,23 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
     setState(() => _isLoading = true);
 
+    // Pega o ID do usuário logado para associar ao orçamento
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+
+    // Validação de segurança: Garante que há um usuário logado
+    if (userId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Erro de autenticação. Faça login novamente."),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
+
     try {
       // TRATAMENTO LÓGICO PARA CAMPOS OPCIONAIS
       // Valor: Se vazio, envia null. Se preenchido, converte.
@@ -143,6 +160,7 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
 
       // Prepara o payload para inserção
       final Map<String, dynamic> dadosNovoOrcamento = {
+        'user_id': userId, // Adiciona o ID do usuário que está criando
         'cliente_id': widget.cliente.id,
         'titulo': _tituloController.text.trim(),
         'descricao': descricaoFinal, // Agora aceita vazio
@@ -207,8 +225,15 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
   /// Título padrão para os campos do formulário.
   Widget _tituloCampo(String texto) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Text(texto, style: TextStyle(color: corTextoCinza, fontSize: 14)),
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: corTextoCinza,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 

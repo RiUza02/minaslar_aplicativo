@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../servicos/Autenticacao.dart';
-import '../../servicos/VerificacaoEmail.dart';
+import '../../servicos/servicos.dart';
 
 class CriarConta extends StatefulWidget {
   final bool isAdmin;
@@ -81,6 +81,23 @@ class _CriarContaState extends State<CriarConta> {
 
     setState(() => _isLoading = true);
     FocusScope.of(context).unfocus();
+
+    bool internetAtiva = await Servicos.temConexao();
+    if (!internetAtiva) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Sem conexão com a internet. Verifique sua rede e tente novamente.",
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return; // Interrompe a função aqui, não tenta cadastrar
+    }
 
     final erro = await _authService.cadastrarUsuario(
       email: _emailController.text.trim(),

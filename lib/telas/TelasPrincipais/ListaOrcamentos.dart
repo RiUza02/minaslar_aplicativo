@@ -7,6 +7,7 @@ import '../../modelos/Cliente.dart';
 import '../TelasSecundarias/DetalhesOrcamento.dart';
 import '../TelasSecundarias/AdicionarOrcamento.dart';
 import '../TelasSecundarias/ListagemClientes.dart';
+import '../../servicos/servicos.dart';
 
 enum TipoOrdenacaoOrcamento { dataRecente, valorMaior, clienteAZ, atraso }
 
@@ -44,6 +45,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
 
   // Variável de controle de carregamento
   bool _isLoading = true;
+  bool _semInternet = false;
 
   TipoOrdenacaoOrcamento _ordenacaoAtual = TipoOrdenacaoOrcamento.dataRecente;
 
@@ -71,26 +73,41 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   // ==================================================
 
   Future<void> _carregarOrcamentos() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _semInternet = false;
+      });
+    }
+
+    if (!await Servicos.temConexao()) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _semInternet = true;
+        });
+      }
+      return;
+    }
+
     final client = Supabase.instance.client;
     final userId = client.auth.currentUser?.id;
 
+    // Query Base
+    dynamic query = client
+        .from('orcamentos')
+        .select('*, clientes(*)') // CORREÇÃO: Busca todos os dados do cliente
+        .order('created_at', ascending: false);
+
+    // Se NÃO for admin, filtra apenas os do usuário logado
+    if (!widget.isAdmin && userId != null) {
+      query = query.eq('user_id', userId);
+    }
+
     try {
-      if (mounted) setState(() => _isLoading = true);
-
-      // Query Base
-      dynamic query = client
-          .from('orcamentos')
-          .select('*, clientes(nome, telefone, endereco)')
-          .order('created_at', ascending: false);
-
-      // Se NÃO for admin, filtra apenas os do usuário logado
-      if (!widget.isAdmin && userId != null) {
-        query = query.eq('user_id', userId);
-      }
-
+      // CORREÇÃO: A resposta da query já é a lista de dados.
       final response = await query;
-      final dados = List<Map<String, dynamic>>.from(response.data ?? []);
-
+      final dados = List<Map<String, dynamic>>.from(response ?? []);
       if (mounted) {
         setState(() {
           _listaCompleta = dados;
@@ -147,8 +164,8 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
         break;
       case TipoOrdenacaoOrcamento.dataRecente:
         temp.sort((a, b) {
-          final dA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime(2000);
-          final dB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime(2000);
+          final dA = DateTime.tryParse(a['data_pega'] ?? '') ?? DateTime(2000);
+          final dB = DateTime.tryParse(b['data_pega'] ?? '') ?? DateTime(2000);
           return dB.compareTo(dA);
         });
         break;
@@ -324,6 +341,8 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
       // --- CORPO DA LISTA ---
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
+          : _semInternet
+          ? _semInternetWidget()
           : RefreshIndicator(
               color: corPrincipal,
               backgroundColor: corCard,
@@ -350,14 +369,58 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
     String msg = _searchController.text.isNotEmpty
         ? "Nenhum resultado para \"${_searchController.text}\""
         : "Nenhum orçamento cadastrado.";
+    // Envolve com ListView para permitir o RefreshIndicator funcionar mesmo com a tela vazia.
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.assignment_outlined,
+                  size: 60,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  msg,
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _semInternetWidget() {
+    return RefreshIndicator(
+      onRefresh: _carregarOrcamentos,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Icon(Icons.assignment_outlined, size: 60, color: Colors.grey[800]),
-          const SizedBox(height: 16),
-          Text(msg, style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.wifi_off_outlined,
+                  size: 80,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Sem conexão com a internet.",
+                  style: TextStyle(color: Colors.grey[600], fontSize: 18),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -398,11 +461,11 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
 
     // Formatação de datas
     final dataEntradaFormatada = dataPegaStr != null
-        ? DateFormat('dd/MM').format(DateTime.parse(dataPegaStr))
+        ? DateFormat('dd/MM/yy').format(DateTime.parse(dataPegaStr))
         : '--/--';
 
     final dataEntregaFormatada = dataEntregaStr != null
-        ? DateFormat('dd/MM').format(DateTime.parse(dataEntregaStr))
+        ? DateFormat('dd/MM/yy').format(DateTime.parse(dataEntregaStr))
         : '--/--';
 
     final valorFormatado = valor != null

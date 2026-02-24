@@ -6,7 +6,6 @@ import '../telas/TelasPrincipais/HomeUsuario.dart';
 import '../Telas/TelasPrincipais/HomeAdmin.dart';
 import '../telas/criarConta/Login.dart';
 import '../telas/criarConta/CriarConta.dart';
-import '../modelos/Usuario.dart';
 import 'Autenticacao.dart';
 
 class Roteador extends StatelessWidget {
@@ -35,29 +34,28 @@ class Roteador extends StatelessWidget {
 
         // 3. Se ESTIVER logado -> Busca os dados no Banco (Tabela Usuarios)
         // Usamos FutureBuilder para aguardar a leitura do banco de dados
-        return FutureBuilder<Usuario?>(
-          future: AuthService().recuperarDadosUsuario(),
-          builder: (context, userSnapshot) {
+        return FutureBuilder<bool>(
+          future: AuthService().verificarStatusAdmin(),
+          builder: (context, adminSnapshot) {
             // Enquanto busca no banco, mostra loading
-            if (userSnapshot.connectionState == ConnectionState.waiting) {
+            if (adminSnapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 backgroundColor: Colors.black,
                 body: Center(
-                  child: CircularProgressIndicator(color: Colors.red),
+                  child: CircularProgressIndicator(color: Colors.blue),
                 ),
               );
             }
 
-            final usuarioModelo = userSnapshot.data;
-
-            // Se não achou o usuário na tabela (erro de cadastro) ou deu erro
-            // Manda para HomeUsuario por segurança (ou tela de erro)
-            if (usuarioModelo == null) {
+            // Se deu erro na verificação, manda para a tela de usuário como fallback seguro
+            if (adminSnapshot.hasError) {
               return const HomeUsuario();
             }
 
+            final bool isAdmin = adminSnapshot.data ?? false;
+
             // 4. VERIFICAÇÃO FINAL USANDO SEU MODELO
-            if (usuarioModelo.isAdmin) {
+            if (isAdmin) {
               return const HomeAdmin();
             } else {
               return const HomeUsuario();

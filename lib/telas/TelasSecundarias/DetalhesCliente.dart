@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../servicos/servicosGoogle.dart';
+import '../../servicos/servicos.dart';
 import '../../modelos/Cliente.dart';
 import 'adicionarOrcamento.dart';
 import 'EditarCliente.dart';

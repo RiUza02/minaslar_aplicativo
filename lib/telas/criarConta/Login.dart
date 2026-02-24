@@ -5,6 +5,7 @@ import '../../servicos/Autenticacao.dart';
 import '../../servicos/Roteador.dart';
 import 'RecuperaSenha.dart';
 import 'CriarConta.dart'; // <--- Importe a tela de Cadastro
+import '../../servicos/servicos.dart'; // <--- Importe os serviços para verificar a conexão
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -28,6 +29,23 @@ class _LoginState extends State<Login> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
+
+    bool internetAtiva = await Servicos.temConexao();
+    if (!internetAtiva) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Sem conexão com a internet. Verifique sua rede e tente novamente.",
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return; // Interrompe a função aqui, não tenta cadastrar
+    }
 
     try {
       final email = _emailController.text.trim();

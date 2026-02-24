@@ -444,10 +444,19 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
   }
 
   /// Títulos padronizados para os inputs
-  Widget _tituloCampo(String texto) => Padding(
-    padding: const EdgeInsets.only(bottom: 8.0),
-    child: Text(texto, style: TextStyle(color: corTextoCinza, fontSize: 14)),
-  );
+  Widget _tituloCampo(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: corTextoCinza,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
 
   /// Botão customizado para seleção de turno (Manhã/Tarde)
   Widget _botaoSelecaoHorario({required String valor, required IconData icon}) {

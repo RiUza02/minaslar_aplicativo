@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
 import 'ValidarCodigo.dart';
+import '../../servicos/servicos.dart';
 
 class RecuperarSenha extends StatefulWidget {
   const RecuperarSenha({super.key});
@@ -29,20 +30,42 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
-    try {
-      try {
-        final result = await InternetAddress.lookup(
-          'google.com',
-        ).timeout(const Duration(seconds: 5));
-        if (result.isEmpty || result[0].rawAddress.isEmpty) {
-          throw const SocketException("Sem resposta");
-        }
-      } catch (_) {
-        throw const SocketException("Sem internet");
+    bool internetAtiva = await Servicos.temConexao();
+    if (!internetAtiva) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "Sem conexão com a internet. Verifique sua rede e tente novamente.",
+            ),
+            backgroundColor: Colors.redAccent,
+            duration: Duration(seconds: 4),
+          ),
+        );
       }
+      return; // Interrompe a função aqui, não tenta cadastrar
+    }
 
+    try {
       final email = _emailController.text.trim();
 
+      // PASSO 1: Verificar se o e-mail existe na base de dados.
+      // A ação só prossegue se o e-mail for encontrado.
+      final bool emailExiste = await _authService.emailExiste(email);
+
+      if (!mounted) return; // Checagem de segurança
+
+      if (!emailExiste) {
+        _showSnackBar(
+          "E-mail não encontrado em nossa base de dados.",
+          isError: true,
+        );
+        // O 'finally' abaixo vai garantir que o _isLoading seja setado para false.
+        return;
+      }
+
+      // PASSO 2: Se o e-mail existe, enviar o token de recuperação.
       String? erro = await _authService.enviarTokenRecuperacao(email);
 
       if (erro != null) throw erro;
@@ -68,19 +91,47 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
   }
 
   // NOVA FUNÇÃO: Navegação manual
-  void _irParaValidacaoManual() {
+  Future<void> _irParaValidacaoManual() async {
     // Validamos se o email foi digitado, pois a tela seguinte precisa dele
     if (!_formKey.currentState!.validate()) {
-      _showSnackBar("Informe o e-mail para validar o código.", isError: true);
       return;
     }
 
-    final email = _emailController.text.trim();
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ValidarCodigo(email: email)),
-    );
+    try {
+      // PASSO 1: Verificar conexão com a internet
+      bool internetAtiva = await Servicos.temConexao();
+      if (!internetAtiva) {
+        _showSnackBar("Sem conexão com a internet. Verifique sua rede.",
+            isError: true);
+        return;
+      }
+
+      final email = _emailController.text.trim();
+
+      // PASSO 2: Verificar se o e-mail existe na base de dados.
+      final bool emailExiste = await _authService.emailExiste(email);
+
+      if (!mounted) return;
+
+      if (!emailExiste) {
+        _showSnackBar("E-mail não encontrado em nossa base de dados.",
+            isError: true);
+        return;
+      }
+
+      // PASSO 3: Se o e-mail existe, navegar para a tela de validação.
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => ValidarCodigo(email: email)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -277,7 +328,7 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
 
                               // --- NOVO BOTÃO: JÁ TENHO CÓDIGO ---
                               TextButton(
-                                onPressed: _irParaValidacaoManual,
+                                onPressed: _isLoading ? null : _irParaValidacaoManual,
                                 child: const Text(
                                   "Já tenho um código",
                                   style: TextStyle(

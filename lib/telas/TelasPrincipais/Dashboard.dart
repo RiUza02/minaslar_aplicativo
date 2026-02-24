@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../servicos/ProcessaOrcamentos.dart';
+import '../../servicos/servicos.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -16,12 +18,10 @@ class _DashboardState extends State<Dashboard>
 
   // Estados
   bool isLoading = true;
+  bool _isSyncing = false;
 
   // Instância do Repositório
   final ProcessaOrcamentos _repo = ProcessaOrcamentos();
-
-  // Dados para o Gráfico de Pizza
-  List<Map<String, dynamic>> statsPizza = [];
 
   // Métricas
   double faturamentoMesAtual = 0;
@@ -34,18 +34,23 @@ class _DashboardState extends State<Dashboard>
   final Color corClientes = Colors.green;
   final Color corRetornos = Colors.orange;
 
-  // Formatter para os meses
-  final monthFormat = DateFormat('MMM', 'pt_BR');
-
   @override
   void initState() {
     super.initState();
-    _carregarDados();
+    // Garante que a localização 'pt_BR' está carregada antes de usar os formatadores
+    initializeDateFormatting('pt_BR', null).then((_) {
+      // Apenas carrega os dados DEPOIS que a localização estiver pronta.
+      _carregarDados();
+    });
   }
 
   /// Busca e processa os dados do Supabase para alimentar os gráficos
-  void _carregarDados() async {
+  Future<void> _carregarDados() async {
     if (!mounted) return;
+
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       // 1. Chama o repositório (uma linha!)
@@ -56,16 +61,76 @@ class _DashboardState extends State<Dashboard>
         setState(() {
           faturamentoMesAtual = dados['faturamentoMesAtual'];
           faturamento6Meses = dados['graficoFaturamento'];
-          statsPizza = dados['graficoStatus'];
           servicosPorTurno = dados['turnos'];
+          stats6Meses = dados['graficoBarras'];
           isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() => isLoading = false);
-        // Opcional: Mostrar erro
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro ao carregar dashboard: $e")),
+        );
       }
+    }
+  }
+
+  Future<void> _sincronizarDashboard() async {
+    if (!mounted) return;
+    setState(() => _isSyncing = true);
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    // Adiciona a verificação de conexão antes de prosseguir
+    if (!await Servicos.temConexao()) {
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(
+            content: Text("Sem conexão com a internet para sincronizar."),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+        setState(() => _isSyncing = false);
+      }
+      return;
+    }
+
+    try {
+      final mesesAtualizados = await _repo.sincronizarFinancas();
+
+      if (mounted) {
+        if (mesesAtualizados > 0) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                '$mesesAtualizados ${mesesAtualizados == 1 ? 'mês foi atualizado' : 'meses foram atualizados'}.',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Recarrega os dados do dashboard para refletir a mudança
+          await _carregarDados();
+        } else {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('Seus dados já estão sincronizados!'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("Erro ao sincronizar: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSyncing = false);
     }
   }
 
@@ -78,35 +143,60 @@ class _DashboardState extends State<Dashboard>
         backgroundColor: Colors.red[900],
         centerTitle: true,
         foregroundColor: Colors.white,
+        actions: [
+          _isSyncing
+              ? const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.0,
+                    ),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.sync),
+                  tooltip: 'Sincronizar Dados',
+                  onPressed: _sincronizarDashboard,
+                ),
+        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. Faturamento do Mês
-                  _buildFaturamentoMesCard(),
-                  const SizedBox(height: 24),
+          : RefreshIndicator(
+              onRefresh: _carregarDados,
+              color: Colors.red[900],
+              backgroundColor: const Color(0xFF1E1E1E),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Faturamento do Mês
+                    _buildFaturamentoMesCard(),
+                    const SizedBox(height: 24),
 
-                  // 2. Gráfico de Linha
-                  _buildSectionTitle("Faturamento (Últimos 6 Meses)"),
-                  const SizedBox(height: 16),
-                  _buildLineChart(),
-                  const SizedBox(height: 24),
+                    // 2. Gráfico de Linha
+                    _buildSectionTitle("Faturamento (Últimos 6 Meses)"),
+                    const SizedBox(height: 16),
+                    _buildLineChart(),
+                    const SizedBox(height: 24),
 
-                  // 3. Gráfico de Barras
-                  _buildSectionTitle("Visão Geral (Últimos 6 Meses)"),
-                  const SizedBox(height: 16),
-                  _buildBarChart(),
-                  const SizedBox(height: 24),
+                    // 3. Gráfico de Barras
+                    _buildSectionTitle("Visão Geral (Últimos 6 Meses)"),
+                    const SizedBox(height: 16),
+                    _buildBarChart(),
+                    const SizedBox(height: 24),
 
-                  // 4. Gráfico de Pizza
-                  _buildSectionTitle("Distribuição de Serviços por Turno"),
-                  const SizedBox(height: 16),
-                  _buildPieChart(),
-                ],
+                    // 4. Gráfico de Pizza
+                    _buildSectionTitle("Distribuição de Serviços por Turno"),
+                    const SizedBox(height: 16),
+                    _buildPieChart(),
+                  ],
+                ),
               ),
             ),
     );

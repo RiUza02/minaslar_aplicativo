@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import 'package:flutter/services.dart';
 import '../../modelos/Cliente.dart';
+import '../../servicos/servicos.dart';
+import 'AdicionarOrcamento.dart';
 
 class AdicionarCliente extends StatefulWidget {
   const AdicionarCliente({super.key});
@@ -250,14 +252,36 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   // ==================================================
   Future<void> _salvarCliente() async {
     // 1. Validação do formulário
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
 
+    // 2. VERIFICAÇÃO DE DUPLICIDADE
+    final clienteEncontrado = await Servicos.verificarClienteDuplicado(
+      nome: _nomeController.text,
+      rua: _ruaController.text,
+      numero: _numeroController.text,
+    );
+
+    // Se encontrou um cliente parecido, mostra o diálogo de opções
+    if (clienteEncontrado != null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _mostrarDialogoClienteDuplicado(clienteEncontrado);
+      }
+    } else {
+      // Se não encontrou, prossegue com a criação normal
+      await _criarNovoCliente();
+    }
+  }
+
+  /// Lógica final de criação do cliente no banco de dados.
+  /// É chamada diretamente ou após a confirmação do admin no diálogo.
+  Future<void> _criarNovoCliente() async {
+    if (mounted) setState(() => _isLoading = true);
     try {
-      // ============================================================
-      // APLICAÇÃO DA FORMATAÇÃO (CAPITALIZAÇÃO)
-      // ============================================================
       final String nomeFormatado = _formatarTexto(_nomeController.text);
       final String ruaFormatada = _formatarTexto(_ruaController.text);
       final String bairroFormatado = _formatarTexto(_bairroController.text);
@@ -265,7 +289,6 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
       final String? aptoFormatado = _apartamentoController.text.trim().isEmpty
           ? null
           : _formatarTexto(_apartamentoController.text);
-
       // Criação do objeto Cliente com os textos já formatados
       final novoCliente = Cliente(
         nome: nomeFormatado, // <--- Usando variável formatada
@@ -285,13 +308,10 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
             : _observacaoController.text.trim(),
         clienteProblematico: _isProblematico,
       );
-
       // Envio para o Supabase
       await Supabase.instance.client
           .from('clientes')
-          .insert(
-            novoCliente.toMap(),
-          ); // O toMap() pega os dados do objeto formatado
+          .insert(novoCliente.toMap());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -300,10 +320,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(
-          context,
-          true,
-        ); // Retorna true para atualizar a lista anterior
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -317,6 +334,120 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Mostra um diálogo quando um cliente potencialmente duplicado é encontrado.
+  void _mostrarDialogoClienteDuplicado(Cliente clienteEncontrado) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Impede de fechar clicando fora
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: corCard,
+          title: const Row(
+            children: [
+              Icon(Icons.people_alt_outlined, color: Colors.amber),
+              SizedBox(width: 10),
+              Text("Cliente Parecido", style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Encontramos um cliente com nome e endereço semelhantes:",
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              // --- CARD DE INFORMAÇÕES DO CLIENTE ENCONTRADO ---
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      clienteEncontrado.nome,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "${clienteEncontrado.rua}, ${clienteEncontrado.numero} - ${clienteEncontrado.bairro}",
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      maskTelefone.maskText(clienteEncontrado.telefone),
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                "O que você deseja fazer?",
+                style: TextStyle(color: Colors.grey, fontSize: 14),
+              ),
+            ],
+          ),
+          actions: [
+            // Ação 1: Cancelar
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                "Cancelar",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+            // Ação 2: Criar Mesmo Assim
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white38),
+              ),
+              onPressed: () {
+                Navigator.pop(context); // Fecha o diálogo
+                _criarNovoCliente(); // Chama a função de criação
+              },
+              child: const Text(
+                "Criar Mesmo Assim",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            // Ação 3: Criar Orçamento
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: corPrincipal),
+              onPressed: () {
+                Navigator.pop(context); // Fecha o diálogo
+                // Substitui a tela atual pela de adicionar orçamento
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AdicionarOrcamento(
+                      cliente: clienteEncontrado,
+                      dataSelecionada: DateTime.now(),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add_comment, color: Colors.white),
+              label: const Text(
+                "Criar Orçamento",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // ==================================================
@@ -382,17 +513,20 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
               // ------------------------------------------
               _buildCard(
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _tituloCampo("Nome Completo"),
                     _buildTextField(
                       controller: _nomeController,
-                      label: "Nome Completo",
+                      hintText: "Nome do cliente",
                       icon: Icons.person,
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
                     const SizedBox(height: 16),
+                    _tituloCampo("Telefone"),
                     _buildTextField(
                       controller: _telefoneController,
-                      label: "Telefone",
+                      hintText: "(32) 99999-9999",
                       icon: Icons.phone,
                       keyboardType: TextInputType.phone,
                       inputFormatters: [maskTelefone],
@@ -400,9 +534,10 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           v!.length < 15 ? 'Telefone incompleto' : null,
                     ),
                     const SizedBox(height: 16),
+                    _tituloCampo("Rua"),
                     _buildTextField(
                       controller: _ruaController,
-                      label: 'Rua',
+                      hintText: "Ex: Rua das Flores",
                       icon: Icons.add_road,
                       validator: (v) =>
                           v == null || v.isEmpty ? 'Obrigatório' : null,
@@ -414,9 +549,9 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                         Expanded(
                           flex: 1,
                           child: _buildTextField(
+                            keyboardType: TextInputType.phone,
                             controller: _numeroController,
-                            keyboardType: TextInputType.number,
-                            label: 'Nº',
+                            hintText: 'Nº',
                             icon: Icons.home_filled,
                             validator: (v) =>
                                 v == null || v.isEmpty ? 'Req.' : null,
@@ -429,8 +564,8 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                           flex: 1,
                           child: _buildTextField(
                             controller: _apartamentoController,
-                            keyboardType: TextInputType.number,
-                            label: 'Apt/Comp', // Label curto para caber
+                            keyboardType: TextInputType.phone,
+                            hintText: 'Apt / Comp.',
                             icon: Icons.apartment,
                             // Sem validator pois é opcional
                           ),
@@ -438,9 +573,10 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                       ],
                     ),
                     const SizedBox(height: 16),
+                    _tituloCampo("Bairro"),
                     _buildTextField(
                       controller: _bairroController,
-                      label: "Bairro",
+                      hintText: "Ex: Centro",
                       icon: Icons.location_city,
                       validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                     ),
@@ -453,8 +589,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
               // ------------------------------------------
               // SEÇÃO 2: DOCUMENTAÇÃO (TOGGLE CPF/CNPJ)
               // ------------------------------------------
+              _tituloCampo("Documentação (Opcional)"),
+              const SizedBox(height: 8),
               _buildCard(
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Seletor Pessoa Física vs Jurídica
                     Container(
@@ -483,33 +622,43 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
 
                     // Alternância animada entre os campos de documento
                     AnimatedCrossFade(
-                      firstChild: _buildTextField(
-                        controller: _cpfController,
-                        label: "CPF",
-                        icon: Icons.badge_outlined,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [maskCPF],
-                        validator: (v) {
-                          if (!_isPessoaFisica) return null;
-                          if (v != null && v.isNotEmpty && v.length < 14) {
-                            return 'CPF incompleto';
-                          }
-                          return null;
-                        },
+                      firstChild: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _tituloCampo("CPF (Opcional)"),
+                          _buildTextField(
+                            controller: _cpfController,
+                            icon: Icons.badge_outlined,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [maskCPF],
+                            validator: (v) {
+                              if (!_isPessoaFisica) return null;
+                              if (v != null && v.isNotEmpty && v.length < 14) {
+                                return 'CPF incompleto';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
-                      secondChild: _buildTextField(
-                        controller: _cnpjController,
-                        label: "CNPJ",
-                        icon: Icons.domain,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [maskCNPJ],
-                        validator: (v) {
-                          if (_isPessoaFisica) return null;
-                          if (v != null && v.isNotEmpty && v.length < 18) {
-                            return 'CNPJ incompleto';
-                          }
-                          return null;
-                        },
+                      secondChild: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _tituloCampo("CNPJ (Opcional)"),
+                          _buildTextField(
+                            controller: _cnpjController,
+                            icon: Icons.domain,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [maskCNPJ],
+                            validator: (v) {
+                              if (_isPessoaFisica) return null;
+                              if (v != null && v.isNotEmpty && v.length < 18) {
+                                return 'CNPJ incompleto';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                       ),
                       crossFadeState: _isPessoaFisica
                           ? CrossFadeState.showFirst
@@ -525,8 +674,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
               // ------------------------------------------
               // SEÇÃO 3: STATUS E OBSERVAÇÕES
               // ------------------------------------------
+              _tituloCampo("Status e Observações"),
+              const SizedBox(height: 8),
               _buildCard(
                 Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SwitchListTile(
                       activeThumbColor: Colors.redAccent,
@@ -546,12 +698,11 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                       onChanged: (val) => setState(() => _isProblematico = val),
                     ),
                     const Divider(color: Colors.white24),
+                    const SizedBox(height: 16),
+                    _tituloCampo("Observações (Opcional)"),
                     _buildTextField(
                       controller: _observacaoController,
-                      label: "Observações (Opcional)",
                       icon: Icons.note,
-                      keyboardType: TextInputType.visiblePassword,
-
                       maxLines: 3,
                     ),
                   ],
@@ -597,6 +748,21 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
   // WIDGETS AUXILIARES
   // ==================================================
 
+  /// Título padrão para os campos do formulário.
+  Widget _tituloCampo(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Text(
+        texto,
+        style: TextStyle(
+          color: Colors.grey[400],
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
   Widget _buildCard(Widget child) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -611,7 +777,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
 
   Widget _buildTextField({
     required TextEditingController controller,
-    required String label,
+    String? hintText,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
@@ -626,8 +792,8 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
       validator: validator,
       inputFormatters: inputFormatters,
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.grey),
+        hintText: hintText,
+        hintStyle: TextStyle(color: Colors.grey[600]),
         prefixIcon: Icon(icon, color: corSecundaria),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: Colors.white24),
