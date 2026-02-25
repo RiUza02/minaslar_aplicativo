@@ -627,6 +627,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                         children: [
                           _tituloCampo("CPF (Opcional)"),
                           _buildTextField(
+                            hintText: "000.000.000-00",
                             controller: _cpfController,
                             icon: Icons.badge_outlined,
                             keyboardType: TextInputType.number,
@@ -646,6 +647,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                         children: [
                           _tituloCampo("CNPJ (Opcional)"),
                           _buildTextField(
+                            hintText: "00.000.000/0000-00",
                             controller: _cnpjController,
                             icon: Icons.domain,
                             keyboardType: TextInputType.number,
@@ -701,6 +703,7 @@ class _AdicionarClienteState extends State<AdicionarCliente> {
                     const SizedBox(height: 16),
                     _tituloCampo("Observações (Opcional)"),
                     _buildTextField(
+                      hintText: "Anotações adicionais sobre o cliente",
                       controller: _observacaoController,
                       icon: Icons.note,
                       maxLines: 3,

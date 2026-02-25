@@ -77,8 +77,9 @@ class _AdicionarOrcamentoState extends State<AdicionarOrcamento> {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isEntrega ? (_dataEntrega ?? _dataPega) : _dataPega,
-      // Impede que a data de entrega seja anterior à data de entrada
-      firstDate: isEntrega ? _dataPega : DateTime(2020),
+      // Impede que a data de entrega seja anterior à de entrada.
+      // Usamos DateUtils.dateOnly para remover a informação de hora, permitindo selecionar o mesmo dia.
+      firstDate: isEntrega ? DateUtils.dateOnly(_dataPega) : DateTime(2020),
       lastDate: DateTime(2030),
       builder: (context, child) {
         // Personalização do tema do DatePicker

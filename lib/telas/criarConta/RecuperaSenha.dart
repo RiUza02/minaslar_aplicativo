@@ -50,29 +50,23 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
     try {
       final email = _emailController.text.trim();
 
-      // PASSO 1: Verificar se o e-mail existe na base de dados.
-      // A ação só prossegue se o e-mail for encontrado.
-      final bool emailExiste = await _authService.emailExiste(email);
+      // PASSO 1: Verificar se o e-mail existe (REMOVIDO PARA EVITAR ENUMERAÇÃO DE E-MAIL)
+      // A verificação agora é implícita. Sempre tentamos enviar.
+      await _authService.emailExiste(email);
 
       if (!mounted) return; // Checagem de segurança
 
-      if (!emailExiste) {
-        _showSnackBar(
-          "E-mail não encontrado em nossa base de dados.",
-          isError: true,
-        );
-        // O 'finally' abaixo vai garantir que o _isLoading seja setado para false.
-        return;
-      }
-
-      // PASSO 2: Se o e-mail existe, enviar o token de recuperação.
       String? erro = await _authService.enviarTokenRecuperacao(email);
 
       if (erro != null) throw erro;
 
       if (!mounted) return;
 
-      _showSnackBar('Código enviado! Verifique seu e-mail.', isError: false);
+      // MENSAGEM GENÉRICA: Para evitar que um invasor saiba se o e-mail existe ou não.
+      _showSnackBar(
+        'Se o e-mail estiver cadastrado, um código será enviado.',
+        isError: false,
+      );
 
       Navigator.push(
         context,
@@ -81,8 +75,9 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
     } on SocketException {
       _showSnackBar("Sem conexão com a internet.", isError: true);
     } catch (e) {
-      String msg = e.toString().replaceAll("Exception: ", "");
-      _showSnackBar(msg, isError: true);
+      e.toString().replaceAll("Exception: ", "");
+      // Mostra uma mensagem genérica para outros erros também
+      _showSnackBar("Ocorreu um erro. Tente novamente.", isError: true);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -104,23 +99,19 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
       // PASSO 1: Verificar conexão com a internet
       bool internetAtiva = await Servicos.temConexao();
       if (!internetAtiva) {
-        _showSnackBar("Sem conexão com a internet. Verifique sua rede.",
-            isError: true);
+        _showSnackBar(
+          "Sem conexão com a internet. Verifique sua rede.",
+          isError: true,
+        );
         return;
       }
 
       final email = _emailController.text.trim();
 
       // PASSO 2: Verificar se o e-mail existe na base de dados.
-      final bool emailExiste = await _authService.emailExiste(email);
+      await _authService.emailExiste(email);
 
       if (!mounted) return;
-
-      if (!emailExiste) {
-        _showSnackBar("E-mail não encontrado em nossa base de dados.",
-            isError: true);
-        return;
-      }
 
       // PASSO 3: Se o e-mail existe, navegar para a tela de validação.
       Navigator.push(
@@ -328,7 +319,9 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
 
                               // --- NOVO BOTÃO: JÁ TENHO CÓDIGO ---
                               TextButton(
-                                onPressed: _isLoading ? null : _irParaValidacaoManual,
+                                onPressed: _isLoading
+                                    ? null
+                                    : _irParaValidacaoManual,
                                 child: const Text(
                                   "Já tenho um código",
                                   style: TextStyle(

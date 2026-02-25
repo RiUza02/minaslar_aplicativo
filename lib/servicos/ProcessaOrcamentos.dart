@@ -110,112 +110,20 @@ class ProcessaOrcamentos {
   // 3. SINCRONIZAÇÃO (Calcula e atualiza a tabela 'financas')
   // ==============================================================================
   /// Calcula os dados financeiros dos últimos 6 meses e atualiza a tabela 'financas'.
+  ///
+  /// **MELHORIA DE PERFORMANCE E ARQUITETURA:**
+  /// A lógica complexa de cálculo foi movida do aplicativo para uma **Função de Banco de Dados (RPC)**
+  /// no Supabase chamada `sincronizar_dados_financeiros`.
+  ///
+  /// Isso resolve o problema de performance "N+1", onde o app fazia múltiplas
+  /// chamadas de rede em um loop. Agora, uma única chamada resolve tudo no servidor,
+  /// de forma muito mais rápida e segura.
+  ///
   /// Retorna o número de meses que foram efetivamente atualizados.
   Future<int> sincronizarFinancas() async {
-    final agora = DateTime.now();
-    int mesesAtualizados = 0;
-
-    // Itera sobre o mês atual e os 5 anteriores
-    for (int i = 0; i < 6; i++) {
-      final dataAlvo = DateTime(agora.year, agora.month - i, 1);
-      final mes = dataAlvo.month;
-      final ano = dataAlvo.year;
-
-      final inicioMes = DateTime(ano, mes, 1);
-      final fimMes = DateTime(ano, mes + 1, 0, 23, 59, 59);
-
-      // 1. CALCULA OS DADOS DO MÊS ATUAL A PARTIR DAS FONTES PRIMÁRIAS
-
-      // Busca orçamentos do mês para os cálculos
-      final orcamentosDoMes = await _client
-          .from('orcamentos')
-          .select(
-            'entregue, valor, horario_do_dia, eh_retorno',
-          ) // O filtro é feito no DB, não precisa selecionar a data
-          .gte(
-            'data_pega',
-            inicioMes.toIso8601String(),
-          ) // Filtra pela data de início do serviço
-          .lte(
-            'data_pega',
-            fimMes.toIso8601String(),
-          ); // E não pela data de criação do registro
-
-      // Calcula as métricas a partir dos orçamentos
-      double faturamento = 0;
-      int orcamentosDia = 0;
-      int orcamentosTarde = 0;
-      int retornosGarantia = 0;
-
-      for (var orc in orcamentosDoMes) {
-        if (orc['entregue'] == true) {
-          faturamento += (orc['valor'] ?? 0.0).toDouble();
-        }
-        if (orc['horario_do_dia'] == 'Manhã') {
-          orcamentosDia++;
-        } else if (orc['horario_do_dia'] == 'Tarde') {
-          orcamentosTarde++;
-        }
-        if (orc['eh_retorno'] == true) {
-          retornosGarantia++;
-        }
-      }
-
-      // Conta quantos clientes novos foram criados no mês
-      final novosClientesCount = await _client
-          .from('clientes')
-          .count(CountOption.exact)
-          .gte('created_at', inicioMes.toIso8601String())
-          .lte('created_at', fimMes.toIso8601String());
-
-      // Cria um objeto 'Financas' com os dados recém-calculados
-      final financasCalculado = Financas(
-        mes: mes,
-        ano: ano,
-        faturamento: faturamento,
-        orcamentosDia: orcamentosDia,
-        orcamentosTarde: orcamentosTarde,
-        totalOrcamentos: orcamentosDoMes.length,
-        novosClientes: novosClientesCount,
-        retornosGarantia: retornosGarantia,
-      );
-
-      // 2. BUSCA O REGISTRO EXISTENTE NA TABELA 'financas'
-      final registroExistenteMap = await _client
-          .from('financas')
-          .select()
-          .eq('mes', mes)
-          .eq('ano', ano)
-          .maybeSingle();
-
-      // 3. COMPARA E ATUALIZA OU INSERE
-      if (registroExistenteMap == null) {
-        await _client.from('financas').insert(financasCalculado.toMap());
-        mesesAtualizados++;
-      } else {
-        final financasDoBanco = Financas.fromMap(registroExistenteMap);
-        // Compara campo a campo para ver se houve mudança
-        bool hasChanged =
-            financasDoBanco.faturamento != financasCalculado.faturamento ||
-            financasDoBanco.orcamentosDia != financasCalculado.orcamentosDia ||
-            financasDoBanco.orcamentosTarde !=
-                financasCalculado.orcamentosTarde ||
-            financasDoBanco.totalOrcamentos !=
-                financasCalculado.totalOrcamentos ||
-            financasDoBanco.novosClientes != financasCalculado.novosClientes ||
-            financasDoBanco.retornosGarantia !=
-                financasCalculado.retornosGarantia;
-
-        if (hasChanged) {
-          await _client
-              .from('financas')
-              .update(financasCalculado.toMap())
-              .eq('id', financasDoBanco.id!);
-          mesesAtualizados++;
-        }
-      }
-    }
-    return mesesAtualizados;
+    // Chama a função no banco de dados que faz todo o trabalho pesado.
+    final mesesAtualizados = await _client.rpc('sincronizar_dados_financeiros');
+    return mesesAtualizados as int? ?? 0;
   }
 
   // ==============================================================================
@@ -230,8 +138,10 @@ class ProcessaOrcamentos {
     final response = await _client
         .from('orcamentos')
         .select('*, clientes(nome)')
-        .gte('data_servico', DateFormat('yyyy-MM-dd').format(inicioMes))
-        .lte('data_servico', DateFormat('yyyy-MM-dd').format(fimMes));
+        // CORREÇÃO DE BUG: O campo 'data_servico' não existe.
+        // A busca agora é feita pelo campo 'data_pega', que representa o início do serviço.
+        .gte('data_pega', inicioMes.toIso8601String())
+        .lte('data_pega', fimMes.toIso8601String());
 
     return List<Map<String, dynamic>>.from(response);
   }

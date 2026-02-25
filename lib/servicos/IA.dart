@@ -5,16 +5,13 @@ class IaService {
   final _supabase = Supabase.instance.client;
 
   /// Envia a pergunta para a nossa Edge Function e retorna a resposta da IA
-  Future<String> perguntarParaIA({
-    required String perguntaUsuario,
-    required bool isAdmin,
-  }) async {
+  Future<String> perguntarParaIA({required String perguntaUsuario}) async {
     try {
       final resposta = await _supabase.functions.invoke(
         'assistente-ia',
         body: {
           'pergunta': perguntaUsuario,
-          'isAdmin': isAdmin, // Agora o status é dinâmico!
+          // O status de admin agora é verificado no servidor pela segurança.
         },
       );
 

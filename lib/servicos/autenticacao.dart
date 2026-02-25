@@ -167,6 +167,29 @@ class AuthService {
   }
 
   // =====================================================
+  // GERENCIAMENTO DE PERFIS DE USUÁRIO
+  // =====================================================
+
+  /// Busca todos os usuários cadastrados no sistema.
+  Future<List<Usuario>> buscarTodosUsuarios() async {
+    final response = await _supabase.from('usuarios').select().order('nome');
+    final dados = response as List<dynamic>? ?? [];
+    return dados.map((map) => Usuario.fromMap(map)).toList();
+  }
+
+  /// Atualiza os dados (nome e telefone) de um usuário específico.
+  Future<void> atualizarPerfilUsuario({
+    required String userId,
+    required String nome,
+    required String telefone,
+  }) async {
+    await _supabase
+        .from('usuarios')
+        .update({'nome': nome, 'telefone': telefone})
+        .eq('id', userId);
+  }
+
+  // =====================================================
   // RECUPERAÇÃO DE SENHA (FLUXO COMPLETO)
   // =====================================================
 

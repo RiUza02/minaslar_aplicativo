@@ -134,9 +134,7 @@ class TelaApresentacao extends StatelessWidget {
                       ),
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const CriarConta(isAdmin: false),
-                          ),
+                          MaterialPageRoute(builder: (_) => const CriarConta()),
                         );
                       },
                       child: const Text(

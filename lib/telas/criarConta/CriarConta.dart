@@ -4,9 +4,7 @@ import '../../servicos/Autenticacao.dart';
 import '../../servicos/servicos.dart';
 
 class CriarConta extends StatefulWidget {
-  final bool isAdmin;
-
-  const CriarConta({super.key, required this.isAdmin});
+  const CriarConta({super.key});
 
   @override
   State<CriarConta> createState() => _CriarContaState();
@@ -30,7 +28,6 @@ class _CriarContaState extends State<CriarConta> {
   late final TextEditingController _telefoneController;
   late final TextEditingController _senhaController;
   late final TextEditingController _confirmaSenhaController;
-  late final TextEditingController _codigoSegurancaController;
 
   final _maskFormatter = MaskTextInputFormatter(
     mask: '(##) #####-####',
@@ -51,16 +48,14 @@ class _CriarContaState extends State<CriarConta> {
   void initState() {
     super.initState();
 
-    // Define as cores com base no perfil do usuário
-    _corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
-    _corSecundaria = widget.isAdmin ? Colors.blue[300]! : Colors.cyan[400]!;
+    _corPrincipal = Colors.blue[900]!;
+    _corSecundaria = Colors.cyan[400]!;
 
     _nomeController = TextEditingController();
     _emailController = TextEditingController();
     _telefoneController = TextEditingController();
     _senhaController = TextEditingController();
     _confirmaSenhaController = TextEditingController();
-    _codigoSegurancaController = TextEditingController();
   }
 
   @override
@@ -70,7 +65,6 @@ class _CriarContaState extends State<CriarConta> {
     _telefoneController.dispose();
     _senhaController.dispose();
     _confirmaSenhaController.dispose();
-    _codigoSegurancaController.dispose();
     super.dispose();
   }
 
@@ -104,7 +98,7 @@ class _CriarContaState extends State<CriarConta> {
       password: _senhaController.text,
       nome: _nomeController.text.trim(),
       telefone: _telefoneController.text,
-      isAdmin: widget.isAdmin,
+      isAdmin: false, // Sempre falso para cadastro público
     );
 
     setState(() => _isLoading = false);
@@ -136,15 +130,9 @@ class _CriarContaState extends State<CriarConta> {
 
   @override
   Widget build(BuildContext context) {
-    final String tituloAppbar = widget.isAdmin
-        ? 'Novo Administrador'
-        : 'Novo Usuário';
-    final String textoHeader = widget.isAdmin
-        ? "DADOS DO ADMINISTRADOR"
-        : "CRIE SUA CONTA";
-    final IconData iconeHeader = widget.isAdmin
-        ? Icons.admin_panel_settings
-        : Icons.person_add_outlined;
+    const String tituloAppbar = 'Novo Usuário';
+    const String textoHeader = "CRIE SUA CONTA";
+    const IconData iconeHeader = Icons.person_add_outlined;
 
     return Scaffold(
       backgroundColor: _corFundo,
@@ -303,24 +291,6 @@ class _CriarContaState extends State<CriarConta> {
                             ),
                           ],
                         ),
-
-                        if (widget.isAdmin) ...[
-                          const SizedBox(height: 20),
-                          _buildCardContainer(
-                            titulo: "ÁREA RESTRITA",
-                            icone: Icons.vpn_key,
-                            children: [
-                              _buildTextField(
-                                controller: _codigoSegurancaController,
-                                label: 'Código da Empresa',
-                                icon: Icons.security,
-                                obscureText: true,
-                                validator: (v) =>
-                                    v != '123456' ? 'Código incorreto' : null,
-                              ),
-                            ],
-                          ),
-                        ],
 
                         const SizedBox(height: 40),
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
@@ -44,11 +45,8 @@ class _ListaClientesState extends State<ListaClientes>
   // Controladores e variáveis de estado
   final TextEditingController _searchController = TextEditingController();
 
-  // CACHE: Armazena todos os clientes vindos do banco
-  List<Map<String, dynamic>> _listaCompleta = [];
-  // TELA: Armazena os clientes filtrados e ordenados para exibição
+  // Armazena os clientes para exibição. A lista agora é sempre obtida do servidor.
   List<Map<String, dynamic>> _listaExibida = [];
-
   bool _estaCarregando = true;
   bool _semInternet = false;
   TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
@@ -58,6 +56,9 @@ class _ListaClientesState extends State<ListaClientes>
     mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
   );
+
+  // Debouncer para evitar buscas excessivas no banco ao digitar
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -72,6 +73,7 @@ class _ListaClientesState extends State<ListaClientes>
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -79,7 +81,10 @@ class _ListaClientesState extends State<ListaClientes>
   // LÓGICA DE DADOS (SUPABASE)
   // ==================================================
 
-  /// Busca TODOS os clientes do banco de dados (sem filtro na query)
+  /// **MELHORIA DE PERFORMANCE:** Busca os clientes no Supabase, aplicando
+  /// filtros de busca e ordenação diretamente na query do banco de dados.
+  /// Isso evita carregar todos os clientes para a memória do dispositivo,
+  /// tornando a tela muito mais rápida e eficiente.
   Future<void> _carregarClientes() async {
     if (mounted) {
       setState(() {
@@ -99,23 +104,44 @@ class _ListaClientesState extends State<ListaClientes>
     }
 
     try {
-      // Busca simples: Traz tudo.
-      // O filtro será feito na memória do celular.
-      final response = await Supabase.instance.client
-          .from('clientes')
-          .select('*, orcamentos(data_pega)')
-          .order('nome', ascending: true); // Ordenação padrão do banco
+      final termoBusca = _searchController.text.trim();
 
-      final dados = List<Map<String, dynamic>>.from(response);
+      dynamic query = Supabase.instance.client
+          .from('clientes')
+          .select('*, orcamentos(data_pega)');
+      // 1. Aplica filtro de busca no servidor
+      if (termoBusca.isNotEmpty) {
+        final termoFormatado = '%$termoBusca%';
+        // O filtro 'or' busca o termo em qualquer um dos campos especificados
+        query = query.or(
+          'nome.ilike.$termoFormatado,bairro.ilike.$termoFormatado,telefone.ilike.$termoFormatado',
+        );
+      }
+
+      // 2. Aplica ordenação no servidor
+      switch (_ordenacaoAtual) {
+        case TipoOrdenacao.alfabetica:
+          query = query.order('nome', ascending: true);
+          break;
+        case TipoOrdenacao.bairro:
+          // Ordena por bairro e depois por nome como critério de desempate
+          query = query
+              .order('bairro', ascending: true)
+              .order('nome', ascending: true);
+          break;
+        case TipoOrdenacao.ultimoServico:
+          // A ordenação por data de último serviço é complexa para fazer na query
+          // e é mantida no lado do cliente por enquanto para simplicidade.
+          // Uma view ou função no DB seria a solução ideal para performance máxima.
+          break;
+      }
+
+      final dados = List<Map<String, dynamic>>.from(await query);
 
       if (mounted) {
         setState(() {
-          // Guarda os dados brutos na lista completa
-          _listaCompleta = dados;
-
-          // Aplica o filtro (caso já tenha algo digitado) e ordena
-          _aplicarFiltrosLocais();
-
+          _listaExibida = dados;
+          _ordenarListaLocalmente(); // Aplica ordenações que ficaram no cliente
           _estaCarregando = false;
         });
       }
@@ -130,53 +156,14 @@ class _ListaClientesState extends State<ListaClientes>
     }
   }
 
-  /// Filtra a lista completa baseado no texto digitado e aplica ordenação
-  void _aplicarFiltrosLocais() {
-    final termo = _searchController.text.trim().toLowerCase();
-
-    // Começa com uma cópia da lista completa
-    List<Map<String, dynamic>> temp = List.from(_listaCompleta);
-
-    // 1. FILTRAGEM
-    if (termo.isNotEmpty) {
-      temp = temp.where((cliente) {
-        final nome = (cliente['nome'] ?? '').toString().toLowerCase();
-        final bairro = (cliente['bairro'] ?? '').toString().toLowerCase();
-        final telefone = (cliente['telefone'] ?? '').toString().toLowerCase();
-
-        // Verifica se o termo existe em qualquer um dos campos
-        return nome.contains(termo) ||
-            bairro.contains(termo) ||
-            telefone.contains(termo);
-      }).toList();
-    }
-
-    // 2. ORDENAÇÃO
-    _ordenarLista(temp);
-
-    // Atualiza a tela
-    setState(() {
-      _listaExibida = temp;
-    });
-  }
-
-  /// Lógica de ordenação (extraída para ficar mais organizado)
-  void _ordenarLista(List<Map<String, dynamic>> lista) {
-    if (_ordenacaoAtual == TipoOrdenacao.alfabetica) {
-      lista.sort(
-        (a, b) => (a['nome'] as String).toLowerCase().compareTo(
-          (b['nome'] as String).toLowerCase(),
-        ),
-      );
-    } else if (_ordenacaoAtual == TipoOrdenacao.bairro) {
-      lista.sort(
-        (a, b) => (a['bairro'] ?? '').toString().toLowerCase().compareTo(
-          (b['bairro'] ?? '').toString().toLowerCase(),
-        ),
-      );
-    } else {
+  /// Aplica ordenações que não foram feitas no servidor (ex: por data aninhada).
+  void _ordenarListaLocalmente() {
+    // Apenas a ordenação por "Último Serviço" permanece no cliente, pois
+    // depende de dados aninhados (`orcamentos`) que são mais complexos
+    // de ordenar diretamente na query principal.
+    if (_ordenacaoAtual == TipoOrdenacao.ultimoServico) {
       // Último Serviço (Mais complexo)
-      lista.sort(
+      _listaExibida.sort(
         (a, b) => _obterUltimaData(
           b['orcamentos'],
         ).compareTo(_obterUltimaData(a['orcamentos'])),
@@ -205,14 +192,19 @@ class _ListaClientesState extends State<ListaClientes>
 
   void _mudarOrdenacao(TipoOrdenacao novaOrdem) {
     if (_ordenacaoAtual != novaOrdem) {
-      _ordenacaoAtual = novaOrdem;
-      _aplicarFiltrosLocais(); // Reordena a lista atual
+      setState(() {
+        _ordenacaoAtual = novaOrdem;
+        _carregarClientes(); // Recarrega do servidor com a nova ordenação
+      });
     }
   }
 
-  // Busca Instantânea (sem Timer/Debounce)
+  /// Acionado a cada letra digitada, usando um debouncer para não sobrecarregar o servidor.
   void _onSearchChanged(String value) {
-    _aplicarFiltrosLocais();
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      _carregarClientes();
+    });
   }
 
   /// Exibe um diálogo de confirmação antes de excluir um cliente.
@@ -368,7 +360,7 @@ class _ListaClientesState extends State<ListaClientes>
           : RefreshIndicator(
               color: corPrincipal,
               backgroundColor: corCard,
-              onRefresh: _carregarClientes,
+              onRefresh: () => _carregarClientes(),
               child: _listaExibida.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(

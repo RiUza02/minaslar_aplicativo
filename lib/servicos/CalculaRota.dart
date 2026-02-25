@@ -27,29 +27,38 @@ class ServicoRota {
       if (pontoPartida == null || !context.mounted) return;
 
       // 3. Converter Endereços (Texto) em Coordenadas (Lat/Lng)
-      List<PontoParada> paradas = [];
-
-      for (var item in orcamentos) {
+      // MELHORIA DE PERFORMANCE: Executa todas as buscas de endereço em paralelo.
+      final List<Future<PontoParada?>> geocodingFutures = orcamentos.map((
+        item,
+      ) async {
         String enderecoCompleto =
             "${item['rua']}, ${item['numero']} - ${item['bairro']}, ${item['cidade']}";
-
         try {
           List<Location> locs = await locationFromAddress(enderecoCompleto);
           if (locs.isNotEmpty) {
-            paradas.add(
-              PontoParada(
-                nome: item['nome_cliente'] ?? 'Cliente',
-                lat: locs.first.latitude,
-                lng: locs.first.longitude,
-              ),
+            return PontoParada(
+              nome: item['nome_cliente'] ?? 'Cliente',
+              lat: locs.first.latitude,
+              lng: locs.first.longitude,
             );
           }
         } catch (e) {
+          // Ignora erros de geocodificação para não parar a rota inteira
           if (kDebugMode) {
-            print("Erro ao encontrar endereço: $enderecoCompleto");
+            print(
+              "Erro de geocodificação para o endereço: $enderecoCompleto. Erro: $e",
+            );
           }
         }
-      }
+        return null; // Retorna nulo se não encontrar ou der erro
+      }).toList();
+
+      // Aguarda todas as buscas terminarem
+      final List<PontoParada?> resultados = await Future.wait(geocodingFutures);
+      // Filtra apenas os que tiveram sucesso (remove nulos)
+      final List<PontoParada> paradas = resultados
+          .whereType<PontoParada>()
+          .toList();
 
       // Verificação de segurança: O usuário ainda está na tela após o loop demorado?
       if (!context.mounted) return;

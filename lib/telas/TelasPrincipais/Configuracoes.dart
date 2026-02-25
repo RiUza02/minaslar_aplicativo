@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
+import '../../servicos/Autenticacao.dart';
 import '../../modelos/Usuario.dart';
 import '../criarConta/Login.dart';
 import '../../servicos/servicos.dart';
@@ -23,6 +24,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
   bool _isLoading = true;
   bool _semInternet = false;
   final String _myUserId = Supabase.instance.client.auth.currentUser!.id;
+  final AuthService _authService = AuthService();
 
   Usuario? _meuUsuario;
   List<Usuario> _outrosUsuarios = []; // Lista para armazenar os contatos
@@ -81,13 +83,8 @@ class _ConfiguracoesState extends State<Configuracoes> {
       return;
     }
     try {
-      final supabase = Supabase.instance.client;
-
-      // 1. Busca TODOS os usuários ordenados por nome
-      final response = await supabase.from('usuarios').select().order('nome');
-
-      final List<dynamic> dados = response;
-      final todosUsuarios = dados.map((map) => Usuario.fromMap(map)).toList();
+      // 1. Busca todos os usuários através do serviço de autenticação
+      final todosUsuarios = await _authService.buscarTodosUsuarios();
 
       // 2. Separa "Eu" dos "Outros"
       final meuPerfil = todosUsuarios.firstWhere(
@@ -137,12 +134,12 @@ class _ConfiguracoesState extends State<Configuracoes> {
 
     setState(() => _isLoading = true);
     try {
-      final dadosParaEnvio = {'nome': nomeFinal, 'telefone': telefoneFinal};
-
-      await Supabase.instance.client
-          .from('usuarios')
-          .update(dadosParaEnvio)
-          .eq('id', _myUserId);
+      // Usa o serviço para atualizar o perfil
+      await _authService.atualizarPerfilUsuario(
+        userId: _myUserId,
+        nome: nomeFinal,
+        telefone: telefoneFinal,
+      );
 
       if (mounted) {
         setState(() {
@@ -173,7 +170,7 @@ class _ConfiguracoesState extends State<Configuracoes> {
   }
 
   Future<void> _fazerLogout() async {
-    await Supabase.instance.client.auth.signOut();
+    await _authService.deslogar();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const Login()),

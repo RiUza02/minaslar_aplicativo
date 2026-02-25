@@ -37,16 +37,15 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
 
   final TextEditingController _searchController = TextEditingController();
 
-  // Armazena TODOS os dados vindos do banco
-  List<Map<String, dynamic>> _listaCompleta = [];
-
-  // Armazena a lista filtrada que é exibida na tela
+  // Armazena a lista que é exibida na tela, agora vinda do servidor já filtrada.
   List<Map<String, dynamic>> _listaExibida = [];
 
   // Variável de controle de carregamento
   bool _isLoading = true;
   bool _semInternet = false;
 
+  // Debouncer para a busca
+  Timer? _debounce;
   TipoOrdenacaoOrcamento _ordenacaoAtual = TipoOrdenacaoOrcamento.dataRecente;
 
   // ==================================================
@@ -65,6 +64,7 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -72,6 +72,10 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
   // LÓGICA DE DADOS (DIRETO NO ARQUIVO)
   // ==================================================
 
+  /// **MELHORIA DE PERFORMANCE:** Busca os orçamentos no Supabase, aplicando
+  /// filtros de busca e ordenação diretamente na query do banco de dados.
+  /// Isso evita carregar todos os registros para a memória, tornando a tela
+  /// muito mais rápida e eficiente.
   Future<void> _carregarOrcamentos() async {
     if (mounted) {
       setState(() {
@@ -91,89 +95,60 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
     }
 
     final client = Supabase.instance.client;
-    final userId = client.auth.currentUser?.id;
-
-    // Query Base
-    dynamic query = client
-        .from('orcamentos')
-        .select('*, clientes(*)') // CORREÇÃO: Busca todos os dados do cliente
-        .order('created_at', ascending: false);
-
-    // Se NÃO for admin, filtra apenas os do usuário logado
-    if (!widget.isAdmin && userId != null) {
-      query = query.eq('user_id', userId);
-    }
 
     try {
-      // CORREÇÃO: A resposta da query já é a lista de dados.
-      final response = await query;
-      final dados = List<Map<String, dynamic>>.from(response ?? []);
+      final termoBusca = _searchController.text.trim();
+
+      // Query Base
+      dynamic query = client
+          .from('orcamentos')
+          .select('*, clientes(*)'); // Busca todos os dados do cliente
+
+      // Filtro de busca por texto
+      if (termoBusca.isNotEmpty) {
+        // Para buscar no nome do cliente (tabela aninhada), a sintaxe é `tabela!coluna`
+        query = query.or(
+          'titulo.ilike.%$termoBusca%,descricao.ilike.%$termoBusca%,clientes.nome.ilike.%$termoBusca%',
+          // Adiciona o foreignTable para indicar que parte do filtro
+          // se aplica a uma tabela relacionada.
+          referencedTable: 'clientes',
+        );
+      }
+
+      // Ordenação
+      switch (_ordenacaoAtual) {
+        case TipoOrdenacaoOrcamento.clienteAZ:
+          // Ordenação por coluna de tabela relacionada
+          query = query.order(
+            // CORREÇÃO: A sintaxe correta é 'tabela_estrangeira.coluna'
+            'clientes.nome',
+            ascending: true,
+          );
+          break;
+        case TipoOrdenacaoOrcamento.valorMaior:
+          query = query.order('valor', ascending: false, nullsFirst: false);
+          break;
+        case TipoOrdenacaoOrcamento.dataRecente:
+          query = query.order('data_pega', ascending: false);
+          break;
+        case TipoOrdenacaoOrcamento.atraso:
+          // Ordenação por atraso é complexa e mantida no cliente por enquanto.
+          break;
+      }
+
+      final dados = List<Map<String, dynamic>>.from(await query);
+
       if (mounted) {
         setState(() {
-          _listaCompleta = dados;
-          _filtrarOrcamentos(); // Aplica o filtro inicial
+          _listaExibida = dados;
+          _ordenarLocalmente(); // Aplica ordenações complexas
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
-      debugPrint("Erro ao carregar: $e");
+      debugPrint("Erro ao carregar orçamentos: $e");
     }
-  }
-
-  /// Filtra e Ordena a lista localmente
-  void _filtrarOrcamentos() {
-    final termo = _searchController.text.trim().toLowerCase();
-    List<Map<String, dynamic>> temp = List.from(_listaCompleta);
-
-    // 1. BUSCA
-    if (termo.isNotEmpty) {
-      temp = temp.where((orcamento) {
-        final titulo = (orcamento['titulo'] ?? '').toString().toLowerCase();
-        final descricao = (orcamento['descricao'] ?? '')
-            .toString()
-            .toLowerCase();
-        final nomeCliente = (orcamento['clientes']?['nome'] ?? '')
-            .toString()
-            .toLowerCase();
-
-        return titulo.contains(termo) ||
-            descricao.contains(termo) ||
-            nomeCliente.contains(termo);
-      }).toList();
-    }
-
-    // 2. ORDENAÇÃO
-    switch (_ordenacaoAtual) {
-      case TipoOrdenacaoOrcamento.atraso:
-        temp.sort((a, b) => _compararPorAtraso(a, b));
-        break;
-      case TipoOrdenacaoOrcamento.clienteAZ:
-        temp.sort((a, b) {
-          final cA = (a['clientes']?['nome'] ?? '').toString().toLowerCase();
-          final cB = (b['clientes']?['nome'] ?? '').toString().toLowerCase();
-          return cA.compareTo(cB);
-        });
-        break;
-      case TipoOrdenacaoOrcamento.valorMaior:
-        temp.sort((a, b) {
-          final vA = (a['valor'] as num?) ?? 0;
-          final vB = (b['valor'] as num?) ?? 0;
-          return vB.compareTo(vA);
-        });
-        break;
-      case TipoOrdenacaoOrcamento.dataRecente:
-        temp.sort((a, b) {
-          final dA = DateTime.tryParse(a['data_pega'] ?? '') ?? DateTime(2000);
-          final dB = DateTime.tryParse(b['data_pega'] ?? '') ?? DateTime(2000);
-          return dB.compareTo(dA);
-        });
-        break;
-    }
-
-    setState(() {
-      _listaExibida = temp;
-    });
   }
 
   // Lógica auxiliar de ordenação por atraso
@@ -207,26 +182,40 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
     return pA.compareTo(pB);
   }
 
+  /// Aplica ordenações que são muito complexas para a query, como a de "Atraso".
+  void _ordenarLocalmente() {
+    if (_ordenacaoAtual == TipoOrdenacaoOrcamento.atraso) {
+      _listaExibida.sort((a, b) => _compararPorAtraso(a, b));
+    }
+  }
+
   // ==================================================
   // AÇÕES DO USUÁRIO
   // ==================================================
 
   void _mudarOrdenacao(TipoOrdenacaoOrcamento novaOrdem) {
     if (_ordenacaoAtual != novaOrdem) {
-      _ordenacaoAtual = novaOrdem;
-      _filtrarOrcamentos();
+      setState(() {
+        _ordenacaoAtual = novaOrdem;
+        _carregarOrcamentos(); // Recarrega do servidor com a nova ordenação
+      });
     }
   }
 
   void _onSearchChanged(String value) {
-    _filtrarOrcamentos();
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _carregarOrcamentos);
   }
 
   void _abrirNovoOrcamento() async {
     final Cliente? clienteEscolhido = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const ListaClientes(isSelecao: true),
+        // CORREÇÃO: A tela para selecionar um cliente é a 'ListagemClientes',
+        // que é projetada para o modo de seleção. A tela 'ListaClientes' é
+        // para visualização geral e não possui o parâmetro 'isSelecao'.
+        builder: (context) =>
+            ListagemClientes(isSelecao: true, isAdmin: widget.isAdmin),
       ),
     );
 

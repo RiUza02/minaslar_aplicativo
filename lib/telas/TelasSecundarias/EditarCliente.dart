@@ -313,6 +313,7 @@ class _EditarClienteState extends State<EditarCliente> {
                     _tituloCampo("CPF (Opcional)"),
                     _buildTextField(
                       controller: _cpfController,
+                      hintText: "000.000.000-00",
                       icon: Icons.badge_outlined,
                       keyboardType: TextInputType.number,
                       inputFormatters: [maskCPF],
@@ -321,6 +322,7 @@ class _EditarClienteState extends State<EditarCliente> {
                     _tituloCampo("CNPJ (Opcional)"),
                     _buildTextField(
                       controller: _cnpjController,
+                      hintText: "00.000.000/0000-00",
                       icon: Icons.domain,
                       keyboardType: TextInputType.number,
                       inputFormatters: [maskCNPJ],
@@ -360,6 +362,7 @@ class _EditarClienteState extends State<EditarCliente> {
                     const SizedBox(height: 16),
                     _tituloCampo("Observações (Opcional)"),
                     _buildTextField(
+                      hintText: "Anotações adicionais sobre o cliente",
                       controller: _obsController,
                       icon: Icons.note,
                       maxLines: 3,

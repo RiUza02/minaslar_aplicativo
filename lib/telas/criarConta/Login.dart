@@ -210,8 +210,7 @@ class _LoginState extends State<Login> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const CriarConta(isAdmin: false),
+                          builder: (context) => const CriarConta(),
                         ),
                       );
                     },

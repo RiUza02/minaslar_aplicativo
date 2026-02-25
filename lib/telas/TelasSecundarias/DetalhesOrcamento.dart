@@ -203,7 +203,7 @@ class _DetalhesOrcamentoState extends State<DetalhesOrcamento> {
   Widget build(BuildContext context) {
     // Tratamento de nulos e status
     final bool isConcluido = _orcamentoObj.entregue;
-    final String horario = _orcamentoObj.horarioDoDia;
+    final String horario = _orcamentoObj.horarioDoDia.valor;
     final bool isTarde = horario.toLowerCase() == 'tarde';
     final bool ehRetorno = _orcamentoObj.ehRetorno;
 

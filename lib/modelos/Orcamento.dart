@@ -1,3 +1,13 @@
+/// Enum para representar os turnos de agendamento,
+/// evitando o uso de "magic strings".
+enum Turno {
+  manha('Manhã'),
+  tarde('Tarde');
+
+  const Turno(this.valor);
+  final String valor;
+}
+
 /// Modelo que representa um orçamento no sistema
 class Orcamento {
   /// ID do registro no Supabase (nulo durante a criação)
@@ -5,6 +15,9 @@ class Orcamento {
 
   /// ID do cliente relacionado ao orçamento (chave estrangeira)
   final String clienteId;
+
+  /// ID do usuário que criou o orçamento (chave estrangeira)
+  final String? userId;
 
   /// Título do serviço (Ex: "Formatação PC", "Troca de Tela")
   final String titulo;
@@ -22,7 +35,7 @@ class Orcamento {
   final double? valor;
 
   /// Turno do agendamento ('Manhã' ou 'Tarde')
-  final String horarioDoDia;
+  final Turno horarioDoDia;
 
   /// Indica se o serviço foi concluído/entregue
   final bool entregue;
@@ -34,6 +47,7 @@ class Orcamento {
   Orcamento({
     this.id,
     required this.clienteId,
+    this.userId,
     required this.titulo,
     this.descricao,
     required this.dataPega,
@@ -49,12 +63,14 @@ class Orcamento {
     return {
       // O ID não é enviado pois o Supabase gera automaticamente
       'cliente_id': clienteId,
+      'user_id': userId,
       'titulo': titulo,
       'descricao': descricao,
       'data_pega': dataPega.toIso8601String(),
       'data_entrega': dataEntrega?.toIso8601String(),
       'valor': valor,
-      'horario_do_dia': horarioDoDia,
+      'horario_do_dia':
+          horarioDoDia.valor, // Converte o enum para a string do banco
       'entregue': entregue,
       'eh_retorno': ehRetorno,
     };
@@ -65,10 +81,13 @@ class Orcamento {
     return Orcamento(
       id: map['id']?.toString(),
       clienteId: map['cliente_id'] ?? '',
+      userId: map['user_id'],
       titulo: map['titulo'] ?? 'Sem Título',
       descricao: map['descricao'] ?? '',
 
-      dataPega: DateTime.parse(map['data_pega']),
+      dataPega: map['data_pega'] != null
+          ? DateTime.parse(map['data_pega'])
+          : DateTime.now(), // Fallback para evitar crash com dados antigos/nulos
 
       dataEntrega: map['data_entrega'] != null
           ? DateTime.parse(map['data_entrega'])
@@ -76,8 +95,11 @@ class Orcamento {
 
       valor: map['valor'] != null ? (map['valor'] as num).toDouble() : null,
 
-      // Recupera do banco. Se for nulo (registros antigos), define como 'Manhã'
-      horarioDoDia: map['horario_do_dia'] ?? 'Manhã',
+      // Converte a string do banco para o enum.
+      // Se for nulo ou inválido, assume 'Manhã' como padrão.
+      horarioDoDia: (map['horario_do_dia'] ?? 'Manhã') == 'Tarde'
+          ? Turno.tarde
+          : Turno.manha,
 
       // Recupera do banco. Se for nulo, assume false
       entregue: map['entregue'] ?? false,
@@ -96,6 +118,7 @@ class Orcamento {
     return other is Orcamento &&
         other.id == id &&
         other.clienteId == clienteId &&
+        other.userId == userId &&
         other.titulo == titulo &&
         other.descricao == descricao &&
         other.dataPega == dataPega &&
@@ -111,6 +134,7 @@ class Orcamento {
     return Object.hash(
       id,
       clienteId,
+      userId,
       titulo,
       descricao,
       dataPega,

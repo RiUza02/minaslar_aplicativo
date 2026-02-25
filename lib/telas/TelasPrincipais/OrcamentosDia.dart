@@ -146,7 +146,8 @@ class _OrcamentosDiaState extends State<OrcamentosDia>
     final Cliente? clienteEscolhido = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const ListaClientes(isSelecao: true),
+        builder: (context) =>
+            ListagemClientes(isSelecao: true, isAdmin: widget.isAdmin),
       ),
     );
 

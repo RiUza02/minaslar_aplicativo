@@ -100,8 +100,11 @@ class _EditarOrcamentoState extends State<EditarOrcamento> {
     if (!_formKey.currentState!.validate()) return;
 
     // Validação extra: Data de entrega não pode ser anterior à de entrada
+    // CORREÇÃO: Compara as datas ignorando o horário em ambas.
     if (_dataEntrega != null &&
-        _dataEntrega!.isBefore(DateUtils.dateOnly(_dataServico))) {
+        DateUtils.dateOnly(
+          _dataEntrega!,
+        ).isBefore(DateUtils.dateOnly(_dataServico))) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

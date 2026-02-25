@@ -1,10 +1,32 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+/// Busca o perfil do usuário no banco de dados para verificar suas permissões.
+async function getUserProfile(supabaseAdmin: SupabaseClient, token: string) {
+  // Valida o token e obtém os dados do usuário autenticado
+  const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+  if (userError) {
+    console.error('Erro ao obter usuário pelo token:', userError.message);
+    return null;
+  }
+  if (!user) return null;
+
+  // Busca o perfil correspondente na tabela 'usuarios'
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('usuarios')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError) console.error('Erro ao buscar perfil do usuário:', profileError.message);
+  
+  return profile;
 }
 
 serve(async (req: Request) => {
@@ -13,13 +35,31 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { pergunta, isAdmin } = await req.json()
+    // VULNERABILIDADE CORRIGIDA: O status de 'admin' não é mais lido do cliente.
+    // Ele será verificado de forma segura no servidor.
+    const { pergunta } = await req.json()
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
     if (!geminiApiKey) throw new Error("Chave do Gemini ausente.");
+
+    // ==================================================================
+    // PASSO DE SEGURANÇA: Validar o privilégio do usuário no backend
+    // ==================================================================
+    // 1. Cria um cliente Supabase com privilégios de administrador (service_role)
+    const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    // 2. Extrai o token de autenticação do cabeçalho da requisição
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error("Cabeçalho de autorização ausente.");
+    const token = authHeader.replace('Bearer ', '');
+
+    // 3. Busca o perfil do usuário e define 'isAdmin' com base no banco de dados
+    const userProfile = await getUserProfile(supabaseAdmin, token);
+    const isAdmin = userProfile?.is_admin ?? false;
+    // ==================================================================
 
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });

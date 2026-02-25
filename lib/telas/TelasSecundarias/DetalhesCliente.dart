@@ -17,11 +17,13 @@ import 'EditarOrcamento.dart';
 class DetalhesCliente extends StatefulWidget {
   final Cliente cliente;
   final bool isAdmin;
+  final String? orcamentoIdDestaque;
 
   const DetalhesCliente({
     super.key,
     required this.cliente,
     this.isAdmin = false, // Padrão admin
+    this.orcamentoIdDestaque,
   });
 
   @override
@@ -44,6 +46,17 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
   // Adiciona o formatador de máscara para exibir o telefone formatado
   final maskTelefone = MaskTextInputFormatter(
     mask: '(##) #####-####',
+    filter: {"#": RegExp(r'[0-9]')},
+  );
+
+  // Adiciona os formatadores para CPF e CNPJ
+  final maskCPF = MaskTextInputFormatter(
+    mask: '###.###.###-##',
+    filter: {"#": RegExp(r'[0-9]')},
+  );
+
+  final maskCNPJ = MaskTextInputFormatter(
+    mask: '##.###.###/####-##',
     filter: {"#": RegExp(r'[0-9]')},
   );
 
@@ -243,6 +256,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
     List<Map<String, dynamic>> listaOrcamentos,
   ) {
     // 1. Extração de dados
+    final String? orcamentoId = orcamento['id']?.toString();
     final titulo = orcamento['titulo'] ?? 'Serviço';
     final descricao = orcamento['descricao'] ?? 'Sem descrição';
     final valor = orcamento['valor'];
@@ -260,24 +274,34 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
 
     // Lógica de Destaque
     final bool isUltimo = listaOrcamentos.indexOf(orcamento) == 0;
+    final bool isDestaque =
+        orcamentoId != null && orcamentoId == widget.orcamentoIdDestaque;
     final bool isProblematico = _clienteExibido.clienteProblematico;
 
-    final Color corDestaqueItem = isUltimo
+    final Color corDestaqueItem = isDestaque
+        ? corSecundaria // Cor para o orçamento que veio da outra tela
+        : isUltimo
         ? (isProblematico ? Colors.redAccent : Colors.greenAccent)
         : Colors.grey;
 
-    final Color corFundoIcone = isUltimo
+    final Color corFundoIcone = isDestaque
+        ? corSecundaria.withValues(alpha: 0.2)
+        : isUltimo
         ? (isProblematico
               ? Colors.red.withValues(alpha: 0.2)
               : Colors.green.withValues(alpha: 0.2))
         : Colors.black26;
+
+    final IconData iconePrincipal = isDestaque
+        ? Icons.star
+        : (isUltimo ? Icons.new_releases : Icons.build_circle_outlined);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: corCard,
         borderRadius: BorderRadius.circular(12),
-        border: isUltimo
+        border: (isUltimo || isDestaque)
             ? Border.all(color: corDestaqueItem.withValues(alpha: 0.5))
             : null,
       ),
@@ -296,8 +320,10 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isUltimo ? Icons.new_releases : Icons.build_circle_outlined,
-                color: isUltimo ? corDestaqueItem : corTextoCinza,
+                iconePrincipal,
+                color: (isUltimo || isDestaque)
+                    ? corDestaqueItem
+                    : corTextoCinza,
                 size: 20,
               ),
             ),
@@ -314,7 +340,9 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
-                  color: isUltimo ? corDestaqueItem : corTextoClaro,
+                  color: (isUltimo || isDestaque)
+                      ? corDestaqueItem
+                      : corTextoClaro,
                 ),
               ),
             ),
@@ -868,7 +896,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 _buildInfoCard(
                   icon: Icons.badge_outlined,
                   label: "CPF",
-                  value: _clienteExibido.cpf!,
+                  value: maskCPF.maskText(_clienteExibido.cpf!),
                   onLongPress: () =>
                       _copiarParaClipboard(_clienteExibido.cpf!, 'CPF'),
                 ),
@@ -878,7 +906,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
                 _buildInfoCard(
                   icon: Icons.domain,
                   label: "CNPJ",
-                  value: _clienteExibido.cnpj!,
+                  value: maskCNPJ.maskText(_clienteExibido.cnpj!),
                   onLongPress: () =>
                       _copiarParaClipboard(_clienteExibido.cnpj!, 'CNPJ'),
                 ),

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../../modelos/Cliente.dart';
+import '../../servicos/servicos.dart';
 import 'DetalhesCliente.dart';
 import 'AdicionarCliente.dart';
 
@@ -12,20 +15,25 @@ enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
 // ==================================================
 // TELA DE LISTAGEM DE CLIENTES
 // ==================================================
-class ListaClientes extends StatefulWidget {
+class ListagemClientes extends StatefulWidget {
   final bool isSelecao;
+  final bool isAdmin;
 
-  const ListaClientes({super.key, this.isSelecao = false});
+  const ListagemClientes({
+    super.key,
+    this.isSelecao = false,
+    this.isAdmin = false,
+  });
 
   @override
-  State<ListaClientes> createState() => _ListaClientesState();
+  State<ListagemClientes> createState() => _ListagemClientesState();
 }
 
-class _ListaClientesState extends State<ListaClientes> {
+class _ListagemClientesState extends State<ListagemClientes> {
   // ==================================================
   // CONFIGURAÇÕES VISUAIS E ESTADO
   // ==================================================
-  final Color corPrincipal = Colors.red[900]!;
+  late Color corPrincipal;
   final Color corSecundaria = Colors.blueAccent;
   final Color corComplementar = Colors.green[600]!;
   final Color corAlerta = Colors.redAccent;
@@ -35,16 +43,14 @@ class _ListaClientesState extends State<ListaClientes> {
 
   final TextEditingController _searchController = TextEditingController();
 
-  // MUDANÇA 1: Lista tipada com o Objeto
-  List<Cliente> _listaClientes = [];
-
-  // AUXILIAR: Guarda a data do último serviço vinculada ao ID do cliente
-  // Isso permite ordenar sem sujar o Model Cliente com dados de relatório
-  final Map<String, DateTime> _cacheUltimasDatas = {};
-
-  String _termoBuscaNome = '';
+  // Armazena os clientes para exibição. A lista agora é sempre obtida do servidor.
+  List<Map<String, dynamic>> _listaExibida = [];
   bool _estaCarregando = true;
+  bool _semInternet = false;
   TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
+
+  // Debouncer para evitar buscas excessivas no banco ao digitar
+  Timer? _debounce;
 
   final maskTelefone = MaskTextInputFormatter(
     mask: '(##) #####-####',
@@ -54,6 +60,7 @@ class _ListaClientesState extends State<ListaClientes> {
   @override
   void initState() {
     super.initState();
+    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
     _carregarClientes();
   }
 
@@ -61,50 +68,65 @@ class _ListaClientesState extends State<ListaClientes> {
   // LÓGICA DE DADOS (SUPABASE)
   // ==================================================
 
-  Future<void> _carregarClientes([bool isRefresh = false]) async {
+  /// **MELHORIA DE PERFORMANCE:** Busca os clientes no Supabase, aplicando
+  /// filtros de busca e ordenação diretamente na query do banco de dados.
+  Future<void> _carregarClientes() async {
     if (!mounted) return;
 
-    if (!isRefresh) setState(() => _estaCarregando = true);
+    setState(() {
+      _estaCarregando = true;
+      _semInternet = false;
+    });
+
+    if (!await Servicos.temConexao()) {
+      if (mounted) {
+        setState(() {
+          _estaCarregando = false;
+          _semInternet = true;
+        });
+      }
+      return;
+    }
 
     try {
-      // Busca dados brutos (Maps)
-      final response = await Supabase.instance.client
+      final termoBusca = _searchController.text.trim();
+
+      dynamic query = Supabase.instance.client
           .from('clientes')
           .select('*, orcamentos(data_pega)');
-
-      final List<Map<String, dynamic>> dadosBrutos =
-          List<Map<String, dynamic>>.from(response);
-
-      // Limpa listas atuais
-      final List<Cliente> novosClientes = [];
-      _cacheUltimasDatas.clear();
-
-      // Processa os dados: Converte Map -> Cliente e extrai a Data
-      for (var json in dadosBrutos) {
-        // 1. Cria o objeto
-        final cliente = Cliente.fromMap(json);
-
-        // 2. Calcula a data (Lógica extraída para manter o Model limpo)
-        final dataUltimoServico = _calcularUltimaData(json['orcamentos']);
-
-        // 3. Guarda no cache se o cliente tiver ID
-        if (cliente.id != null) {
-          _cacheUltimasDatas[cliente.id!] = dataUltimoServico;
-        }
-
-        novosClientes.add(cliente);
+      // 1. Aplica filtro de busca no servidor
+      if (termoBusca.isNotEmpty) {
+        final termoFormatado = '%$termoBusca%';
+        query = query.or(
+          'nome.ilike.$termoFormatado,bairro.ilike.$termoFormatado,telefone.ilike.$termoFormatado',
+        );
       }
 
-      // Aplica ordenação na lista de Objetos
-      _aplicarOrdenacao(novosClientes);
+      // 2. Aplica ordenação no servidor
+      switch (_ordenacaoAtual) {
+        case TipoOrdenacao.alfabetica:
+          query = query.order('nome', ascending: true);
+          break;
+        case TipoOrdenacao.bairro:
+          query = query
+              .order('bairro', ascending: true)
+              .order('nome', ascending: true);
+          break;
+        case TipoOrdenacao.ultimoServico:
+          break;
+      }
+
+      final dados = List<Map<String, dynamic>>.from(await query);
 
       if (mounted) {
         setState(() {
-          _listaClientes = novosClientes;
+          _listaExibida = dados;
+          _ordenarListaLocalmente(); // Aplica ordenações que ficaram no cliente
           _estaCarregando = false;
         });
       }
     } catch (e) {
+      debugPrint('Erro ao buscar clientes: $e');
       if (mounted) {
         setState(() => _estaCarregando = false);
         ScaffoldMessenger.of(
@@ -114,8 +136,19 @@ class _ListaClientesState extends State<ListaClientes> {
     }
   }
 
-  // Helper para extrair data do JSON bruto
-  DateTime _calcularUltimaData(dynamic orcamentos) {
+  /// Aplica ordenações que não foram feitas no servidor (ex: por data aninhada).
+  void _ordenarListaLocalmente() {
+    if (_ordenacaoAtual == TipoOrdenacao.ultimoServico) {
+      _listaExibida.sort(
+        (a, b) => _obterUltimaData(
+          b['orcamentos'],
+        ).compareTo(_obterUltimaData(a['orcamentos'])),
+      );
+    }
+  }
+
+  /// Percorre a lista de orçamentos aninhada para encontrar a data mais recente.
+  DateTime _obterUltimaData(dynamic orcamentos) {
     if (orcamentos == null || (orcamentos as List).isEmpty) {
       return DateTime(1900);
     }
@@ -129,30 +162,11 @@ class _ListaClientesState extends State<ListaClientes> {
     return maiorData;
   }
 
-  void _aplicarOrdenacao(List<Cliente> lista) {
-    if (_ordenacaoAtual == TipoOrdenacao.alfabetica) {
-      lista.sort(
-        (a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()),
-      );
-    } else if (_ordenacaoAtual == TipoOrdenacao.bairro) {
-      lista.sort(
-        (a, b) => a.bairro.toLowerCase().compareTo(b.bairro.toLowerCase()),
-      );
-    } else {
-      // Ordenação por data usando o Cache Auxiliar
-      lista.sort((a, b) {
-        final dataA = _cacheUltimasDatas[a.id] ?? DateTime(1900);
-        final dataB = _cacheUltimasDatas[b.id] ?? DateTime(1900);
-        return dataB.compareTo(dataA); // Mais recente primeiro
-      });
-    }
-  }
-
   void _mudarOrdenacao(TipoOrdenacao novaOrdem) {
     if (_ordenacaoAtual != novaOrdem) {
       setState(() {
         _ordenacaoAtual = novaOrdem;
-        _aplicarOrdenacao(_listaClientes);
+        _carregarClientes(); // Recarrega do servidor com a nova ordenação
       });
     }
   }
@@ -160,11 +174,13 @@ class _ListaClientesState extends State<ListaClientes> {
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
   void _onSearchChanged(String value) {
-    setState(() => _termoBuscaNome = value.toLowerCase());
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), _carregarClientes);
   }
 
   Future<void> _confirmarExclusao(Cliente cliente) async {
@@ -203,13 +219,12 @@ class _ListaClientesState extends State<ListaClientes> {
     );
 
     if (confirmar == true && cliente.id != null) {
+      if (!mounted) return;
       try {
         await Supabase.instance.client
             .from('clientes')
             .delete()
-            .eq('id', cliente.id!); // MUDANÇA: Acesso seguro ao ID
-
-        if (!mounted) return;
+            .eq('id', cliente.id as Object);
         _carregarClientes();
       } catch (e) {
         if (!mounted) return;
@@ -226,54 +241,17 @@ class _ListaClientesState extends State<ListaClientes> {
 
   @override
   Widget build(BuildContext context) {
-    // Filtragem agora usa as propriedades do objeto Cliente
-    final listaFiltrada = _termoBuscaNome.isEmpty
-        ? _listaClientes
-        : _listaClientes
-              .where(
-                (cliente) =>
-                    cliente.nome.toLowerCase().contains(_termoBuscaNome),
-              )
-              .toList();
-
     return Scaffold(
       backgroundColor: corFundo,
       appBar: AppBar(
         backgroundColor: corPrincipal,
         elevation: 0,
         toolbarHeight: 80,
-        title: Container(
-          height: 45,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: _onSearchChanged,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            cursorColor: Colors.white,
-            decoration: InputDecoration(
-              hintText: "Busca por nome...",
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-              prefixIcon: const Icon(Icons.search, color: Colors.white70),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.white70),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
-            ),
-          ),
-        ),
+        title: widget.isSelecao
+            ? const Text("Selecione um Cliente")
+            : const Text("Clientes"),
+        centerTitle: true,
+        bottom: _buildSearchBar(),
         actions: [
           PopupMenuButton<TipoOrdenacao>(
             icon: const Icon(Icons.sort, color: Colors.white, size: 28),
@@ -300,21 +278,24 @@ class _ListaClientesState extends State<ListaClientes> {
       ),
       body: _estaCarregando
           ? Center(child: CircularProgressIndicator(color: corPrincipal))
+          : _semInternet
+          ? _semInternetWidget()
           : RefreshIndicator(
               color: corPrincipal,
               backgroundColor: corCard,
-              onRefresh: () async => await _carregarClientes(true),
-              child: listaFiltrada.isEmpty
+              onRefresh: _carregarClientes,
+              child: _listaExibida.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 90),
-                      itemCount: listaFiltrada.length,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+                      itemCount: _listaExibida.length,
                       itemBuilder: (context, index) {
-                        final cliente = listaFiltrada[index];
-                        // Recupera a data do cache auxiliar
-                        final ultimaData =
-                            _cacheUltimasDatas[cliente.id] ?? DateTime(1900);
+                        final dados = _listaExibida[index];
+                        final cliente = Cliente.fromMap(dados);
+                        final ultimaData = _obterUltimaData(
+                          dados['orcamentos'],
+                        );
 
                         return _buildClienteCard(cliente, ultimaData);
                       },
@@ -323,19 +304,76 @@ class _ListaClientesState extends State<ListaClientes> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person_off_outlined, size: 80, color: Colors.grey[800]),
-          const SizedBox(height: 16),
-          Text(
-            "Nenhum cliente encontrado.",
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+  PreferredSizeWidget _buildSearchBar() {
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(60),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: TextField(
+          controller: _searchController,
+          onChanged: _onSearchChanged,
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          cursorColor: Colors.white,
+          decoration: InputDecoration(
+            hintText: "Nome, Bairro ou Telefone...",
+            hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+            prefixIcon: const Icon(Icons.search, color: Colors.white70),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, color: Colors.white70),
+                    onPressed: () {
+                      _searchController.clear();
+                      _onSearchChanged('');
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: Colors.black.withOpacity(0.3),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 0),
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    String msg = _searchController.text.isNotEmpty
+        ? "Nenhum resultado para \"${_searchController.text}\""
+        : "Nenhum cliente cadastrado.";
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.person_off_outlined,
+                  size: 60,
+                  color: Colors.grey[800],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  msg,
+                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _semInternetWidget() {
+    return Center(
+      child: Text("Sem internet", style: TextStyle(color: corTextoCinza)),
     );
   }
 
@@ -356,7 +394,8 @@ class _ListaClientesState extends State<ListaClientes> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DetalhesCliente(cliente: cliente),
+            builder: (context) =>
+                DetalhesCliente(cliente: cliente, isAdmin: widget.isAdmin),
           ),
         );
       }
@@ -367,18 +406,6 @@ class _ListaClientesState extends State<ListaClientes> {
       decoration: BoxDecoration(
         color: corCard,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [corCard, const Color(0xFF252525)],
-        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -398,12 +425,11 @@ class _ListaClientesState extends State<ListaClientes> {
                         children: [
                           Expanded(
                             child: Text(
-                              cliente.nome, // MUDANÇA: Acesso via propriedade
+                              cliente.nome,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
-                                letterSpacing: 0.5,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -415,16 +441,16 @@ class _ListaClientesState extends State<ListaClientes> {
                                 message: "Cliente Problemático",
                                 child: Icon(
                                   Icons.warning_amber_rounded,
-                                  color: corAlerta,
+                                  color: Colors.orangeAccent,
                                   size: 24,
                                 ),
                               ),
                             ),
-                          if (!widget.isSelecao)
+                          if (!widget.isSelecao && widget.isAdmin)
                             IconButton(
                               icon: Icon(
-                                Icons.delete_outline,
-                                color: Colors.red[300]!.withValues(alpha: 0.7),
+                                Icons.delete_forever_outlined,
+                                color: Colors.red[300],
                                 size: 24,
                               ),
                               onPressed: () => _confirmarExclusao(cliente),
@@ -433,10 +459,10 @@ class _ListaClientesState extends State<ListaClientes> {
                       ),
                       const SizedBox(height: 12),
                       _buildInfoRow(
-                        Icons.phone_iphone,
+                        Icons.phone_android_outlined,
                         maskTelefone.maskText(
-                          cliente.telefone,
-                        ), // MUDANÇA: Propriedade
+                          cliente.telefone, // MUDANÇA: Propriedade
+                        ),
                       ),
                       const SizedBox(height: 6),
                       _buildInfoRow(
@@ -444,59 +470,38 @@ class _ListaClientesState extends State<ListaClientes> {
                         cliente.bairro.isEmpty
                             ? "Bairro não informado"
                             : cliente.bairro,
-                      ),
-                      const SizedBox(height: 8),
+                      ), // MUDANÇA: Propriedade
+                      const SizedBox(height: 12),
+                      const Divider(color: Colors.white10, height: 1),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Icon(
                             Icons.history,
-                            size: 18,
+                            size: 16,
                             color: Colors.grey[500],
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "Último serviço: ",
+                            "ÚLTIMO SERVIÇO:",
                             style: TextStyle(
                               color: Colors.grey[500],
-                              fontSize: 14,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
+                          const Spacer(),
                           Text(
                             dataFormatada,
                             style: TextStyle(
                               color: temServico
-                                  ? corSecundaria
+                                  ? Colors.white
                                   : Colors.grey[600],
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                               fontSize: 14,
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: corSecundaria,
-                            side: BorderSide(
-                              color: corSecundaria.withValues(alpha: 0.5),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          icon: Icon(
-                            widget.isSelecao
-                                ? Icons.check
-                                : Icons.arrow_forward,
-                            size: 18,
-                          ),
-                          label: Text(
-                            widget.isSelecao ? "SELECIONAR" : "Detalhes",
-                          ),
-                          onPressed: handleCardTap,
-                        ),
                       ),
                     ],
                   ),
@@ -512,12 +517,12 @@ class _ListaClientesState extends State<ListaClientes> {
   Widget _buildInfoRow(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: Colors.grey[500]),
+        Icon(icon, size: 16, color: Colors.grey[500]),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: TextStyle(fontSize: 15, color: Colors.grey[300]),
+            style: TextStyle(fontSize: 14, color: Colors.grey[300]),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -537,7 +542,7 @@ class _ListaClientesState extends State<ListaClientes> {
             _ordenacaoAtual == value
                 ? Icons.radio_button_checked
                 : Icons.radio_button_unchecked,
-            color: _ordenacaoAtual == value ? corSecundaria : Colors.grey,
+            color: _ordenacaoAtual == value ? corPrincipal : Colors.grey,
             size: 20,
           ),
           const SizedBox(width: 12),

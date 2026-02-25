@@ -36,7 +36,6 @@ class _TelaAssistenteState extends State<TelaAssistente> {
     // Chama o serviço de IA passando a pergunta e o status de admin do widget
     final resposta = await _iaService.perguntarParaIA(
       perguntaUsuario: _controller.text,
-      isAdmin: widget.isAdmin,
     );
 
     setState(() {
