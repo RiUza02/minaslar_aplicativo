@@ -206,7 +206,7 @@ class AuthService {
       return null; // Sucesso
     } on AuthException catch (e) {
       // O Supabase pode retornar 400 ou 403 para OTP inválido/expirado
-      if (e.statusCode == 403 || e.statusCode == 400) {
+      if (e.statusCode == "403" || e.statusCode == "400") {
         return "Código inválido ou expirado.";
       }
       return "Erro do servidor: $e";

@@ -1,43 +1,41 @@
 /// Modelo que representa um cliente no sistema
 class Cliente {
-  /// ID do registro no Supabase
-  /// (nulo durante a criação)
+  /// ID único do cliente, gerado pelo Supabase.
+  /// É nulo ao criar um novo cliente localmente.
   final String? id;
 
-  /// Nome completo do cliente
+  /// Nome completo do cliente.
   final String nome;
 
-  /// Rua do cliente
+  /// Nome da rua do endereço do cliente.
   final String rua;
 
-  /// Número do endereço
+  /// Número do imóvel no endereço.
   final String numero;
 
-  /// Apartamento ou complemento
+  /// Complemento do endereço, como número do apartamento ou bloco.
   final String? apartamento;
 
-  /// Bairro do cliente
+  /// Bairro do endereço do cliente.
   final String bairro;
 
-  /// Telefone para contato
+  /// Número de telefone para contato.
   final String telefone;
 
-  /// CPF do cliente (pessoa física)
-  /// Pode ser nulo se for pessoa jurídica
+  /// CPF do cliente, caso seja pessoa física.
   final String? cpf;
 
-  /// CNPJ do cliente (pessoa jurídica)
-  /// Pode ser nulo se for pessoa física
-  String? cnpj;
+  /// CNPJ do cliente, caso seja pessoa jurídica.
+  final String? cnpj;
 
-  /// Indica se o cliente possui histórico problemático
-  bool clienteProblematico;
+  /// Sinalizador que indica se o cliente possui um histórico problemático.
+  final bool clienteProblematico;
 
-  /// Observações adicionais sobre o cliente
-  String? observacao;
+  /// Campo para anotações e observações gerais sobre o cliente.
+  final String? observacao;
 
-  /// Construtor do modelo
-  Cliente({
+  /// Construtor principal para criar uma instância de [Cliente].
+  const Cliente({
     this.id,
     required this.nome,
     required this.rua,
@@ -51,8 +49,12 @@ class Cliente {
     this.observacao,
   });
 
-  /// Converte o objeto Dart em um Map
-  /// para envio ao Supabase
+  // ==================================================
+  // MÉTODOS DE SERIALIZAÇÃO (SUPABASE)
+  // ==================================================
+
+  /// Converte a instância do objeto [Cliente] em um [Map] para ser
+  /// enviado ao Supabase. O `id` não é incluído, pois é gerenciado pelo banco.
   Map<String, dynamic> toMap() {
     return {
       'nome': nome,
@@ -68,8 +70,8 @@ class Cliente {
     };
   }
 
-  /// Cria um objeto Cliente a partir
-  /// de um Map retornado pelo Supabase
+  /// Cria uma instância de [Cliente] a partir de um [Map] (JSON)
+  /// retornado pelo Supabase.
   factory Cliente.fromMap(Map<String, dynamic> map) {
     return Cliente(
       id: map['id']?.toString(),
@@ -87,8 +89,41 @@ class Cliente {
   }
 
   // ==================================================
-  // COMPARAÇÃO DE OBJETOS (EQUATABLE MANUAL)
+  // MÉTODOS DE CÓPIA E COMPARAÇÃO
   // ==================================================
+
+  /// Cria uma cópia da instância atual de [Cliente], permitindo a alteração
+  /// de campos específicos. Útil para atualizações de estado imutáveis.
+  Cliente copyWith({
+    String? id,
+    String? nome,
+    String? rua,
+    String? numero,
+    String? apartamento,
+    String? bairro,
+    String? telefone,
+    String? cpf,
+    String? cnpj,
+    bool? clienteProblematico,
+    String? observacao,
+  }) {
+    return Cliente(
+      id: id ?? this.id,
+      nome: nome ?? this.nome,
+      rua: rua ?? this.rua,
+      numero: numero ?? this.numero,
+      apartamento: apartamento ?? this.apartamento,
+      bairro: bairro ?? this.bairro,
+      telefone: telefone ?? this.telefone,
+      cpf: cpf ?? this.cpf,
+      cnpj: cnpj ?? this.cnpj,
+      clienteProblematico: clienteProblematico ?? this.clienteProblematico,
+      observacao: observacao ?? this.observacao,
+    );
+  }
+
+  /// Sobrescreve o operador de igualdade para comparar o conteúdo dos objetos
+  /// [Cliente], em vez de suas referências de memória.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -107,6 +142,8 @@ class Cliente {
         other.observacao == observacao;
   }
 
+  /// Sobrescreve o `hashCode` para que objetos com o mesmo conteúdo tenham
+  /// o mesmo hash. Essencial para uso em coleções como `Set` e `Map`.
   @override
   int get hashCode {
     return Object.hash(

@@ -246,14 +246,14 @@ class _ListaClientesState extends State<ListaClientes>
         );
       },
     );
-
+    if (!mounted) return;
     if (confirmar == true) {
       try {
         await Supabase.instance.client
             .from('clientes')
             .delete()
             .eq('id', cliente.id as Object);
-
+        if (!mounted) return;
         if (!context.mounted) return;
         final scaffoldMessenger = ScaffoldMessenger.of(context);
         _carregarClientes(); // Recarrega do banco para garantir sincronia

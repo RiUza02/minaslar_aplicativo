@@ -1,4 +1,26 @@
 {
-    "cmake.sourceDirectory": "C:/Users/Yuri Souza/Documents/GitHub/MinasLar_Aplicativo/windows",
-    "java.configuration.updateBuildConfiguration": "interactive"
+  "[typescript]": {
+    "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "cmake.sourceDirectory": "C:/Users/Yuri Souza/Documents/GitHub/MinasLar_Aplicativo/windows",
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
+  "deno.lint": true,
+  "deno.unstable": [
+    "bare-node-builtins",
+    "byonm",
+    "sloppy-imports",
+    "unsafe-proto",
+    "webgpu",
+    "broadcast-channel",
+    "worker-options",
+    "cron",
+    "kv",
+    "ffi",
+    "fs",
+    "http",
+    "net"
+  ],
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

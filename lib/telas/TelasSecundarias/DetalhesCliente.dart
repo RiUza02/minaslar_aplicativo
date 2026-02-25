@@ -98,6 +98,7 @@ class _DetalhesClienteState extends State<DetalhesCliente> {
       },
     );
 
+    if (!mounted) return;
     if (confirmar == true) {
       final scaffoldMessenger = ScaffoldMessenger.of(context);
       final navigator = Navigator.of(context);

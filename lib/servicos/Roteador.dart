@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Importe suas telas
-import '../telas/TelasPrincipais/HomeUsuario.dart';
-import '../Telas/TelasPrincipais/HomeAdmin.dart';
+import '../telas/TelasPrincipais/HomePage.dart';
 import '../telas/criarConta/Login.dart';
 import '../telas/criarConta/CriarConta.dart';
 import 'Autenticacao.dart';
@@ -49,16 +48,16 @@ class Roteador extends StatelessWidget {
 
             // Se deu erro na verificação, manda para a tela de usuário como fallback seguro
             if (adminSnapshot.hasError) {
-              return const HomeUsuario();
+              return const HomePage(isAdmin: false);
             }
 
             final bool isAdmin = adminSnapshot.data ?? false;
 
             // 4. VERIFICAÇÃO FINAL USANDO SEU MODELO
             if (isAdmin) {
-              return const HomeAdmin();
+              return const HomePage(isAdmin: true);
             } else {
-              return const HomeUsuario();
+              return const HomePage(isAdmin: false);
             }
           },
         );

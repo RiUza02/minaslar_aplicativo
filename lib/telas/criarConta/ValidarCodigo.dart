@@ -76,6 +76,7 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
       // Volta para a tela de Login (remove tudo da pilha)
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
+      if (!mounted) return;
       String msg = e.toString().replaceAll("Exception: ", "");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
