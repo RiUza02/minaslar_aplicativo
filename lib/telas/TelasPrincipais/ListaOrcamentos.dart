@@ -641,21 +641,25 @@ class _ListaOrcamentosState extends State<ListaOrcamentos>
                         ],
                       ),
                       const SizedBox(height: 16),
-                      const Divider(color: Colors.white10, height: 1),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            valorFormatado,
-                            style: TextStyle(
-                              color: valor != null ? Colors.amber : Colors.grey,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      if (widget.isAdmin) ...[
+                        const Divider(color: Colors.white10, height: 1),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              valorFormatado,
+                              style: TextStyle(
+                                color: valor != null
+                                    ? Colors.amber
+                                    : Colors.grey,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
