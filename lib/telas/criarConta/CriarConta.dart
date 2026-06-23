@@ -137,9 +137,9 @@ class _CriarContaState extends State<CriarConta> {
     return Scaffold(
       backgroundColor: _corFundo,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           tituloAppbar,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         backgroundColor: _corPrincipal,

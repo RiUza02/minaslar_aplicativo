@@ -435,8 +435,8 @@ class _ListagemClientesState extends State<ListagemClientes> {
                             ),
                           ),
                           if (cliente.clienteProblematico)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8.0),
+                            const Padding(
+                              padding: EdgeInsets.only(left: 8.0),
                               child: Tooltip(
                                 message: "Cliente Problemático",
                                 child: Icon(

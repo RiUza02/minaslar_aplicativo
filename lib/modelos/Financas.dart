@@ -3,7 +3,7 @@ class Financas {
   /// ID do registro no Supabase (nulo durante a criação)
   final String? id;
 
-  /// Mês de referência (ex: 10)
+  /// Mês de referência (ex: 1 a 12)
   final int mes;
 
   /// Ano de referência (ex: 2024)
@@ -125,14 +125,16 @@ class Financas {
   /// Necessário para usar o objeto em Sets ou como chave de Maps.
   @override
   int get hashCode {
-    return id.hashCode ^
-        mes.hashCode ^
-        ano.hashCode ^
-        faturamento.hashCode ^
-        orcamentosDia.hashCode ^
-        orcamentosTarde.hashCode ^
-        totalOrcamentos.hashCode ^
-        novosClientes.hashCode ^
-        retornosGarantia.hashCode;
+    return Object.hash(
+      id,
+      mes,
+      ano,
+      faturamento,
+      orcamentosDia,
+      orcamentosTarde,
+      totalOrcamentos,
+      novosClientes,
+      retornosGarantia,
+    );
   }
 }
