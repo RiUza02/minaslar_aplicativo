@@ -92,11 +92,7 @@ class Usuario {
   /// Necessário para usar o objeto em Sets ou como chave de Maps.
   @override
   int get hashCode {
-    return id.hashCode ^
-        nome.hashCode ^
-        email.hashCode ^
-        telefone.hashCode ^
-        isAdmin.hashCode;
+    return Object.hash(id, nome, email, telefone, isAdmin);
   }
 
   /// (Opcional) Facilita a leitura dos dados no console (print)

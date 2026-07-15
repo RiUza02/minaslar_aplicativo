@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
-import '../../servicos/servicos.dart'; // <--- Importe os serviços para verificar a conexão
+import '../../servicos/servicos.dart';
 
 class ValidarCodigo extends StatefulWidget {
   final String email;
 
-  // Recebemos o e-mail da tela anterior para saber quem está trocando a senha
   const ValidarCodigo({super.key, required this.email});
 
   @override
@@ -21,7 +20,6 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
   bool _isLoading = false;
   bool _obscureSenha = true;
 
-  // Cores do tema (mesmo padrão da tela anterior)
   final Color _corFundo = Colors.black;
   final Color _corCard = const Color(0xFF1E1E1E);
   final Color _corInput = Colors.black26;
@@ -29,7 +27,6 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
   Future<void> _validarEAlterar() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Fecha teclado
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
@@ -47,14 +44,13 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
           ),
         );
       }
-      return; // Interrompe a função aqui, não tenta cadastrar
+      return;
     }
 
     try {
       final codigo = _codigoController.text.trim();
       final novaSenha = _senhaController.text.trim();
 
-      // Chama o serviço que valida o token e atualiza a senha
       String? erro = await _authService.validarTokenEAtualizarSenha(
         widget.email,
         codigo,
@@ -65,7 +61,6 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
 
       if (!mounted) return;
 
-      // SUCESSO!
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text("Senha alterada com sucesso! Faça login."),
@@ -73,7 +68,6 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
         ),
       );
 
-      // Volta para a tela de Login (remove tudo da pilha)
       Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
@@ -149,8 +143,6 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
                       style: TextStyle(color: Colors.grey[400]),
                     ),
                     const SizedBox(height: 30),
-
-                    // CAMPO CÓDIGO
                     TextFormField(
                       controller: _codigoController,
                       keyboardType: TextInputType.number,
@@ -161,24 +153,17 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
                         letterSpacing: 5,
                       ),
                       textAlign: TextAlign.center,
-                      decoration:
-                          _buildInputDecoration(
-                            'Código (6 dígitos)',
-                            Icons.numbers,
-                          ).copyWith(
-                            counterText: "", // Esconde o contador de caracteres
-                          ),
+                      decoration: _buildInputDecoration(
+                        'Código recebido no e-mail',
+                        Icons.numbers,
+                      ).copyWith(counterText: ""),
                       validator: (v) {
-                        if (v == null || v.length < 6) {
+                        if (v == null || v.length < 6)
                           return 'Digite o código completo';
-                        }
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 20),
-
-                    // CAMPO NOVA SENHA
                     TextFormField(
                       controller: _senhaController,
                       obscureText: _obscureSenha,
@@ -206,16 +191,17 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 30),
-
-                    // BOTÃO
-                    _isLoading
-                        ? const CircularProgressIndicator(color: Colors.blue)
-                        : SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: ElevatedButton(
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: _isLoading
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.blue,
+                              ),
+                            )
+                          : ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue[900],
                                 shape: RoundedRectangleBorder(
@@ -228,7 +214,7 @@ class _ValidarCodigoState extends State<ValidarCodigo> {
                                 style: TextStyle(color: Colors.white),
                               ),
                             ),
-                          ),
+                    ),
                   ],
                 ),
               ),

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../servicos/Autenticacao.dart';
 import 'ValidarCodigo.dart';
@@ -21,9 +20,6 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
   final Color _corCard = const Color(0xFF1E1E1E);
   final Color _corInput = Colors.black26;
 
-  // ============================================================
-  // LÓGICA DE ENVIO COM VALIDAÇÕES
-  // ============================================================
   Future<void> _enviarEmailRecuperacao() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -34,69 +30,45 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
     if (!internetAtiva) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Sem conexão com a internet. Verifique sua rede e tente novamente.",
-            ),
-            backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 4),
-          ),
+        _showSnackBar(
+          "Sem conexão com a internet. Verifique sua rede e tente novamente.",
+          isError: true,
         );
       }
-      return; // Interrompe a função aqui, não tenta cadastrar
+      return;
     }
 
     try {
       final email = _emailController.text.trim();
-
-      // PASSO 1: Verificar se o e-mail existe (REMOVIDO PARA EVITAR ENUMERAÇÃO DE E-MAIL)
-      // A verificação agora é implícita. Sempre tentamos enviar.
       await _authService.emailExiste(email);
-
-      if (!mounted) return; // Checagem de segurança
-
-      String? erro = await _authService.enviarTokenRecuperacao(email);
-
-      if (erro != null) throw erro;
-
       if (!mounted) return;
 
-      // MENSAGEM GENÉRICA: Para evitar que um invasor saiba se o e-mail existe ou não.
+      String? erro = await _authService.enviarTokenRecuperacao(email);
+      if (erro != null) throw erro;
+      if (!mounted) return;
+
       _showSnackBar(
         'Se o e-mail estiver cadastrado, um código será enviado.',
         isError: false,
       );
-
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => ValidarCodigo(email: email)),
       );
-    } on SocketException {
-      _showSnackBar("Sem conexão com a internet.", isError: true);
     } catch (e) {
-      e.toString().replaceAll("Exception: ", "");
-      // Mostra uma mensagem genérica para outros erros também
-      _showSnackBar("Ocorreu um erro. Tente novamente.", isError: true);
+      _showSnackBar(e.toString().replaceAll("Exception: ", ""), isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // NOVA FUNÇÃO: Navegação manual
   Future<void> _irParaValidacaoManual() async {
-    // Validamos se o email foi digitado, pois a tela seguinte precisa dele
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
     try {
-      // PASSO 1: Verificar conexão com a internet
       bool internetAtiva = await Servicos.temConexao();
       if (!internetAtiva) {
         _showSnackBar(
@@ -107,21 +79,17 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
       }
 
       final email = _emailController.text.trim();
-
-      // PASSO 2: Verificar se o e-mail existe na base de dados.
       await _authService.emailExiste(email);
-
       if (!mounted) return;
 
-      // PASSO 3: Se o e-mail existe, navegar para a tela de validação.
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => ValidarCodigo(email: email)),
       );
+    } catch (e) {
+      _showSnackBar("Erro ao validar e-mail.", isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -276,23 +244,22 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
                                   if (v!.isEmpty) return 'Informe o e-mail';
-                                  if (!v.contains('@')) {
+                                  if (!v.contains('@'))
                                     return 'E-mail inválido';
-                                  }
                                   return null;
                                 },
                               ),
                               const SizedBox(height: 24),
-
-                              // BOTÃO PRINCIPAL (ENVIAR CÓDIGO)
-                              _isLoading
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.blue,
-                                    )
-                                  : SizedBox(
-                                      width: double.infinity,
-                                      height: 55,
-                                      child: ElevatedButton(
+                              SizedBox(
+                                width: double.infinity,
+                                height: 55,
+                                child: _isLoading
+                                    ? const Center(
+                                        child: CircularProgressIndicator(
+                                          color: Colors.blue,
+                                        ),
+                                      )
+                                    : ElevatedButton(
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.blue[900],
                                           foregroundColor: Colors.white,
@@ -313,11 +280,8 @@ class _RecuperarSenhaState extends State<RecuperarSenha> {
                                           ),
                                         ),
                                       ),
-                                    ),
-
+                              ),
                               const SizedBox(height: 16),
-
-                              // --- NOVO BOTÃO: JÁ TENHO CÓDIGO ---
                               TextButton(
                                 onPressed: _isLoading
                                     ? null

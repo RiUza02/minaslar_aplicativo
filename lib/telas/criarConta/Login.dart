@@ -1,11 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../servicos/Autenticacao.dart';
 import '../../servicos/Roteador.dart';
 import 'RecuperaSenha.dart';
-import 'CriarConta.dart'; // <--- Importe a tela de Cadastro
-import '../../servicos/servicos.dart'; // <--- Importe os serviços para verificar a conexão
+import 'CriarConta.dart';
+import '../../servicos/servicos.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -34,17 +32,11 @@ class _LoginState extends State<Login> {
     if (!internetAtiva) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Sem conexão com a internet. Verifique sua rede e tente novamente.",
-            ),
-            backgroundColor: Colors.redAccent,
-            duration: Duration(seconds: 4),
-          ),
+        _mostrarErro(
+          "Sem conexão com a internet. Verifique sua rede e tente novamente.",
         );
       }
-      return; // Interrompe a função aqui, não tenta cadastrar
+      return;
     }
 
     try {
@@ -59,15 +51,15 @@ class _LoginState extends State<Login> {
         MaterialPageRoute(builder: (context) => const Roteador()),
         (route) => false,
       );
-    } on AuthException catch (e) {
-      _mostrarErro(e.message);
-      setState(() => _isLoading = false);
-    } on SocketException {
-      _mostrarErro("Sem conexão com a internet.");
-      setState(() => _isLoading = false);
     } catch (e) {
-      _mostrarErro("Erro inesperado: $e");
-      setState(() => _isLoading = false);
+      // O AuthService já nos retorna mensagens tratadas ou lançadas de forma limpa
+      _mostrarErro(
+        e
+            .toString()
+            .replaceAll("Exception: ", "")
+            .replaceAll("AuthException: ", ""),
+      );
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -90,7 +82,6 @@ class _LoginState extends State<Login> {
             children: [
               Icon(Icons.lock_person, size: 80, color: Colors.blue[900]),
               const SizedBox(height: 30),
-
               const Text(
                 "BEM-VINDO DE VOLTA",
                 style: TextStyle(
@@ -101,7 +92,6 @@ class _LoginState extends State<Login> {
                 ),
               ),
               const SizedBox(height: 40),
-
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -122,15 +112,13 @@ class _LoginState extends State<Login> {
                           Icons.email_outlined,
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
+                          if (value == null || value.isEmpty)
                             return 'Informe o e-mail';
-                          }
                           if (!value.contains('@')) return 'E-mail inválido';
                           return null;
                         },
                       ),
                       const SizedBox(height: 20),
-
                       TextFormField(
                         controller: _senhaController,
                         obscureText: true,
@@ -144,7 +132,6 @@ class _LoginState extends State<Login> {
                             : null,
                       ),
                       const SizedBox(height: 30),
-
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -157,8 +144,10 @@ class _LoginState extends State<Login> {
                           ),
                           onPressed: _isLoading ? null : _fazerLogin,
                           child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
+                              ? const Center(
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                  ),
                                 )
                               : const Text(
                                   "ENTRAR",
@@ -170,9 +159,7 @@ class _LoginState extends State<Login> {
                                 ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
                       TextButton(
                         onPressed: () {
                           Navigator.push(
@@ -194,10 +181,7 @@ class _LoginState extends State<Login> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // --- NOVO: LINK PARA CRIAR CONTA ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

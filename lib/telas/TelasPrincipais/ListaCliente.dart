@@ -1,671 +1,269 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:async';
-import 'package:intl/intl.dart';
-import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
-import '../../modelos/Cliente.dart';
-import '../TelasSecundarias/DetalhesCliente.dart';
-import '../TelasSecundarias/AdicionarCliente.dart';
-import '../../servicos/servicos.dart';
-
-/// Define os critérios de ordenação da lista de clientes.
-enum TipoOrdenacao { alfabetica, ultimoServico, bairro }
-
-// ==================================================
-// TELA DE LISTAGEM DE CLIENTES
-// ==================================================
 class ListaClientes extends StatefulWidget {
-  final bool isAdmin;
-
-  const ListaClientes({super.key, this.isAdmin = false});
+  const ListaClientes({Key? key}) : super(key: key);
 
   @override
   State<ListaClientes> createState() => _ListaClientesState();
 }
 
+// Preservação de estado com AutomaticKeepAliveClientMixin para não perder
+// o scroll e os dados ao navegar pelo PageView da HomePage
 class _ListaClientesState extends State<ListaClientes>
     with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
+  final _supabase = Supabase.instance.client;
 
-  // ==================================================
-  // CONFIGURAÇÕES VISUAIS E ESTADO
-  // ==================================================
+  // Controle de Dados e Paginação
+  final List<Map<String, dynamic>> _clientes = [];
+  final int _tamanhoPagina = 20;
+  int _paginaAtual = 0;
 
-  // Paleta de cores da interface (Admin - Vermelho)
-  late Color corPrincipal;
-  late Color corSecundaria;
-  final Color corComplementar = Colors.green[400]!;
-  final Color corAlerta = Colors.redAccent;
-  final Color corFundo = Colors.black;
-  final Color corCard = const Color(0xFF1E1E1E);
-  final Color corTextoCinza = Colors.grey[500]!;
+  // Controle de Estados da Interface
+  bool _isLoadingInicial = true;
+  bool _isFetchingMore = false;
+  bool _temMaisDados = true;
+  bool _semConexao = false;
 
-  // Controladores e variáveis de estado
+  // Controladores
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
-
-  // Armazena os clientes para exibição. A lista agora é sempre obtida do servidor.
-  List<Map<String, dynamic>> _listaExibida = [];
-  bool _estaCarregando = true;
-  bool _semInternet = false;
-  TipoOrdenacao _ordenacaoAtual = TipoOrdenacao.ultimoServico;
-
-  // Formatador para exibir o telefone
-  final maskTelefone = MaskTextInputFormatter(
-    mask: '(##) #####-####',
-    filter: {"#": RegExp(r'[0-9]')},
-  );
-
-  // Debouncer para evitar buscas excessivas no banco ao digitar
   Timer? _debounce;
+  String _termoBusca = '';
+
+  @override
+  bool get wantKeepAlive => true; // Obrigatório para o mixin de preservação de estado
 
   @override
   void initState() {
     super.initState();
-    // Define as cores com base no perfil
-    corPrincipal = widget.isAdmin ? Colors.red[900]! : Colors.blue[900]!;
-    corSecundaria = widget.isAdmin ? Colors.blue[300]! : Colors.cyan[400]!;
-    // Carrega tudo ao iniciar
-    _carregarClientes();
+    _buscarClientes(reiniciar: true);
+
+    // Listener para rolagem infinita: dispara quando faltam 200 pixels para o fim da lista
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        if (!_isLoadingInicial &&
+            !_isFetchingMore &&
+            _temMaisDados &&
+            !_semConexao) {
+          _buscarClientes(reiniciar: false);
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
-  // ==================================================
-  // LÓGICA DE DADOS (SUPABASE)
-  // ==================================================
-
-  /// **MELHORIA DE PERFORMANCE:** Busca os clientes no Supabase, aplicando
-  /// filtros de busca e ordenação diretamente na query do banco de dados.
-  /// Isso evita carregar todos os clientes para a memória do dispositivo,
-  /// tornando a tela muito mais rápida e eficiente.
-  Future<void> _carregarClientes() async {
-    if (mounted) {
+  // Lógica principal de consulta paginada ao Supabase
+  Future<void> _buscarClientes({required bool reiniciar}) async {
+    if (reiniciar) {
       setState(() {
-        _estaCarregando = true;
-        _semInternet = false;
+        _isLoadingInicial = true;
+        _paginaAtual = 0;
+        _temMaisDados = true;
+        _semConexao = false;
+        _clientes.clear();
       });
-    }
-
-    if (!await Servicos.temConexao()) {
-      if (mounted) {
-        setState(() {
-          _estaCarregando = false;
-          _semInternet = true;
-        });
-      }
-      return;
+    } else {
+      setState(() {
+        _isFetchingMore = true;
+      });
     }
 
     try {
-      final termoBusca = _searchController.text.trim();
+      // Cálculo dos índices para o método .range() do Supabase
+      final int inicio = _paginaAtual * _tamanhoPagina;
+      final int fim = inicio + _tamanhoPagina - 1;
 
-      dynamic query = Supabase.instance.client
-          .from('clientes')
-          .select('*, orcamentos(data_pega)');
-      // 1. Aplica filtro de busca no servidor
-      if (termoBusca.isNotEmpty) {
-        final termoFormatado = '%$termoBusca%';
-        // O filtro 'or' busca o termo em qualquer um dos campos especificados
+      // Query base trazendo os orçamentos aninhados
+      var query = _supabase.from('clientes').select('*, orcamentos(...)');
+
+      // Aplica o filtro de busca textual se houver texto digitado
+      if (_termoBusca.isNotEmpty) {
         query = query.or(
-          'nome.ilike.$termoFormatado,bairro.ilike.$termoFormatado,telefone.ilike.$termoFormatado',
+          'nome.ilike.%$_termoBusca%,telefone.ilike.%$_termoBusca%',
         );
       }
 
-      // 2. Aplica ordenação no servidor
-      switch (_ordenacaoAtual) {
-        case TipoOrdenacao.alfabetica:
-          query = query.order('nome', ascending: true);
-          break;
-        case TipoOrdenacao.bairro:
-          // Ordena por bairro e depois por nome como critério de desempate
-          query = query
-              .order('bairro', ascending: true)
-              .order('nome', ascending: true);
-          break;
-        case TipoOrdenacao.ultimoServico:
-          // A ordenação por data de último serviço é complexa para fazer na query
-          // e é mantida no lado do cliente por enquanto para simplicidade.
-          // Uma view ou função no DB seria a solução ideal para performance máxima.
-          break;
-      }
+      // IMPORTANTE: A ordenação DEVE ocorrer no banco antes do corte da paginação (.range)
+      final resposta = await query
+          .order('nome', ascending: true)
+          .range(inicio, fim);
 
-      final dados = List<Map<String, dynamic>>.from(await query);
+      final List<Map<String, dynamic>> novosDados =
+          List<Map<String, dynamic>>.from(resposta);
 
-      if (mounted) {
-        setState(() {
-          _listaExibida = dados;
-          _ordenarListaLocalmente(); // Aplica ordenações que ficaram no cliente
-          _estaCarregando = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('Erro ao buscar clientes: $e');
-      if (mounted) {
-        setState(() => _estaCarregando = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Erro ao carregar: $e")));
-      }
-    }
-  }
-
-  /// Aplica ordenações que não foram feitas no servidor (ex: por data aninhada).
-  void _ordenarListaLocalmente() {
-    // Apenas a ordenação por "Último Serviço" permanece no cliente, pois
-    // depende de dados aninhados (`orcamentos`) que são mais complexos
-    // de ordenar diretamente na query principal.
-    if (_ordenacaoAtual == TipoOrdenacao.ultimoServico) {
-      // Último Serviço (Mais complexo)
-      _listaExibida.sort(
-        (a, b) => _obterUltimaData(
-          b['orcamentos'],
-        ).compareTo(_obterUltimaData(a['orcamentos'])),
-      );
-    }
-  }
-
-  /// Percorre a lista de orçamentos aninhada para encontrar a data mais recente.
-  DateTime _obterUltimaData(dynamic orcamentos) {
-    if (orcamentos == null || (orcamentos as List).isEmpty) {
-      return DateTime(1900);
-    }
-    DateTime maiorData = DateTime(1900);
-    for (var orc in orcamentos) {
-      if (orc['data_pega'] != null) {
-        DateTime dataAtual = DateTime.parse(orc['data_pega']);
-        if (dataAtual.isAfter(maiorData)) maiorData = dataAtual;
-      }
-    }
-    return maiorData;
-  }
-
-  // ==================================================
-  // AÇÕES DO USUÁRIO
-  // ==================================================
-
-  void _mudarOrdenacao(TipoOrdenacao novaOrdem) {
-    if (_ordenacaoAtual != novaOrdem) {
       setState(() {
-        _ordenacaoAtual = novaOrdem;
-        _carregarClientes(); // Recarrega do servidor com a nova ordenação
+        // Se a busca retornou menos itens que o limite da página, o banco chegou ao fim
+        if (novosDados.length < _tamanhoPagina) {
+          _temMaisDados = false;
+        }
+
+        _clientes.addAll(novosDados);
+        _paginaAtual++;
+        _semConexao = false;
+      });
+    } catch (e) {
+      debugPrint('Erro na busca paginada de clientes: $e');
+      setState(() {
+        if (reiniciar) _semConexao = true;
+      });
+    } finally {
+      setState(() {
+        _isLoadingInicial = false;
+        _isFetchingMore = false;
       });
     }
   }
 
-  /// Acionado a cada letra digitada, usando um debouncer para não sobrecarregar o servidor.
-  void _onSearchChanged(String value) {
+  // Controle de requisições ao digitar (Debouncer de 400ms)
+  void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
+
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      _carregarClientes();
+      final termoLimpo = query.trim();
+      if (_termoBusca != termoLimpo) {
+        _termoBusca = termoLimpo;
+        _buscarClientes(reiniciar: true);
+      }
     });
   }
 
-  /// Exibe um diálogo de confirmação antes de excluir um cliente.
-  Future<void> _confirmarExclusao(Cliente cliente) async {
-    final bool? confirmar = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: corCard,
-          title: const Text(
-            'Confirmar Exclusão',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Text(
-            'Tem certeza que deseja excluir o cliente "${cliente.nome}"? Esta ação não pode ser desfeita.',
-            style: TextStyle(color: Colors.grey[300]),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text('Excluir', style: TextStyle(color: corAlerta)),
-            ),
-          ],
-        );
-      },
-    );
-    if (!mounted) return;
-    if (confirmar == true) {
-      try {
-        await Supabase.instance.client
-            .from('clientes')
-            .delete()
-            .eq('id', cliente.id as Object);
-        if (!mounted) return;
-        if (!context.mounted) return;
-        final scaffoldMessenger = ScaffoldMessenger.of(context);
-        _carregarClientes(); // Recarrega do banco para garantir sincronia
-
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text("Cliente excluído com sucesso!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } catch (e) {
-        if (!context.mounted) return;
-        final scaffoldMessenger = ScaffoldMessenger.of(context);
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text("Erro ao excluir cliente: $e"),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
-  // ==================================================
-  // CONSTRUÇÃO DA INTERFACE (UI)
-  // ==================================================
-
   @override
   Widget build(BuildContext context) {
-    super.build(context);
+    super.build(context); // Necessário pelo AutomaticKeepAliveClientMixin
 
-    // Usamos _listaExibida (filtrada localmente)
     return Scaffold(
-      backgroundColor: corFundo,
-
-      // --- APP BAR CUSTOMIZADA ---
-      appBar: AppBar(
-        backgroundColor: corPrincipal,
-        elevation: 0,
-        toolbarHeight: 80,
-        title: Container(
-          height: 45,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: _onSearchChanged, // Busca instantânea
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            cursorColor: Colors.white,
-            decoration: InputDecoration(
-              hintText: "Nome, Bairro ou Telefone...",
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-              prefixIcon: const Icon(Icons.search, color: Colors.white70),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.white70),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearchChanged('');
-                      },
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
+      body: Column(
+        children: [
+          // Barra de Busca
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                hintText: 'Buscar por nome ou telefone...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _termoBusca.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ),
-        ),
-        actions: [
-          PopupMenuButton<TipoOrdenacao>(
-            icon: const Icon(Icons.sort, color: Colors.white, size: 28),
-            color: corCard,
-            onSelected: _mudarOrdenacao,
-            itemBuilder: (context) => [
-              _buildPopupItem(TipoOrdenacao.alfabetica, "Nome (A-Z)"),
-              _buildPopupItem(TipoOrdenacao.bairro, "Bairro (A-Z)"),
-              _buildPopupItem(TipoOrdenacao.ultimoServico, "Último Serviço"),
-            ],
-          ),
-          const SizedBox(width: 8),
+
+          // Corpo da Lista
+          Expanded(child: _buildBody()),
         ],
       ),
-
-      // --- BOTÃO FLUTUANTE ---
-      floatingActionButton: widget.isAdmin
-          ? FloatingActionButton(
-              backgroundColor: corPrincipal,
-              foregroundColor: Colors.white,
-              elevation: 6,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AdicionarCliente(),
-                ),
-              ).then((_) => _carregarClientes()),
-              child: const Icon(Icons.person_add, size: 28),
-            )
-          : null,
-
-      // --- LISTA DE CLIENTES ---
-      body: _estaCarregando
-          ? Center(child: CircularProgressIndicator(color: corPrincipal))
-          : _semInternet
-          ? _semInternetWidget()
-          : RefreshIndicator(
-              color: corPrincipal,
-              backgroundColor: corCard,
-              onRefresh: () => _carregarClientes(),
-              child: _listaExibida.isEmpty
-                  ? _buildEmptyState()
-                  : ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                      itemCount: _listaExibida.length,
-                      itemBuilder: (context, index) {
-                        final dados = _listaExibida[index];
-                        final cliente = Cliente.fromMap(dados);
-                        final ultimaData = _obterUltimaData(
-                          dados['orcamentos'],
-                        );
-
-                        return _buildClienteCard(cliente, ultimaData);
-                      },
-                    ),
-            ),
     );
   }
 
-  // ==================================================
-  // WIDGETS AUXILIARES
-  // ==================================================
+  Widget _buildBody() {
+    if (_isLoadingInicial) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-  Widget _buildEmptyState() {
-    String msg = _searchController.text.isNotEmpty
-        ? "Nenhum resultado para \"${_searchController.text}\""
-        : "Nenhum cliente cadastrado.";
-    // Envolve com ListView para permitir o RefreshIndicator funcionar mesmo com a tela vazia.
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.7,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.person_off_outlined,
-                  size: 60,
-                  color: Colors.grey[800],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  msg,
-                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+    if (_semConexao) {
+      return _buildSemInternetState();
+    }
 
-  Widget _semInternetWidget() {
+    if (_clientes.isEmpty) {
+      return _buildEmptyState();
+    }
+
     return RefreshIndicator(
-      onRefresh: _carregarClientes,
-      child: ListView(
+      onRefresh: () => _buscarClientes(reiniciar: true),
+      child: ListView.builder(
+        controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.7,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.wifi_off_outlined,
-                  size: 80,
-                  color: Colors.grey[800],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Sem conexão com a internet.",
-                  style: TextStyle(color: Colors.grey[600], fontSize: 18),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        // Adiciona um item extra ao final apenas quando estiver baixando mais dados
+        itemCount: _clientes.length + (_isFetchingMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          // Renderiza o indicador de carregamento no último índice da lista
+          if (index == _clientes.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24.0),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          }
 
-  /// Constrói o cartão do cliente com o visual novo (Container com borda lateral)
-  Widget _buildClienteCard(Cliente cliente, DateTime ultimaData) {
-    final temServico = ultimaData.year > 1900;
-    final dataFormatada = temServico
-        ? DateFormat('dd/MM/yyyy').format(ultimaData)
-        : "--/--/----";
-
-    // Define cor baseada no status
-    final Color corStatus = cliente.clienteProblematico
-        ? corAlerta
-        : corComplementar;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: corCard,
-        borderRadius: BorderRadius.circular(12),
-        // Sombra suave
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      // Clip AntiAlias para a borda lateral respeitar o arredondamento
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  DetalhesCliente(cliente: cliente, isAdmin: widget.isAdmin),
-            ),
-          );
+          final cliente = _clientes[index];
+          return _buildCardCliente(cliente);
         },
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Barra Lateral de Status
-              Container(width: 6, color: corStatus),
-
-              // 2. Conteúdo do Card
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // --- CABEÇALHO DO ITEM ---
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  cliente.nome,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (cliente.clienteProblematico)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: corAlerta.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(
-                                          color: corAlerta.withValues(
-                                            alpha: 0.5,
-                                          ),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        "PROBLEMÁTICO",
-                                        style: TextStyle(
-                                          color: corAlerta,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (widget.isAdmin)
-                            // Botão de Excluir Discreto
-                            InkWell(
-                              onTap: () => _confirmarExclusao(cliente),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4),
-                                child: Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.grey[700],
-                                  size: 22,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 12),
-                      const Divider(color: Colors.white10, height: 1),
-                      const SizedBox(height: 12),
-
-                      // --- INFORMAÇÕES SECUNDÁRIAS ---
-                      _buildInfoRow(
-                        Icons.phone_in_talk,
-                        maskTelefone.maskText(cliente.telefone),
-                        isSecundario: true,
-                      ),
-                      const SizedBox(height: 6),
-                      _buildInfoRow(
-                        Icons.location_city,
-                        cliente.bairro.isEmpty
-                            ? "Bairro não informado"
-                            : cliente.bairro,
-                        isSecundario: true,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // --- DATA DO ÚLTIMO SERVIÇO (Destaque) ---
-                      Row(
-                        children: [
-                          Icon(Icons.history, color: corSecundaria, size: 16),
-                          const SizedBox(width: 8),
-                          Text(
-                            "ÚLTIMO SERVIÇO",
-                            style: TextStyle(
-                              color: corTextoCinza,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            dataFormatada,
-                            style: TextStyle(
-                              color: temServico
-                                  ? Colors.white
-                                  : Colors.grey[700],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildInfoRow(
-    IconData icon,
-    String text, {
-    bool isSecundario = false,
-  }) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: isSecundario ? Colors.grey[600] : corSecundaria,
+  // Componente visual do Cliente (Substitua pelo seu Card customizado)
+  Widget _buildCardCliente(Map<String, dynamic> cliente) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+      child: ListTile(
+        leading: CircleAvatar(
+          child: Text(cliente['nome'].toString().substring(0, 1).toUpperCase()),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              color: isSecundario ? Colors.grey[400] : Colors.white,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
+        title: Text(
+          cliente['nome'] ?? 'Sem nome',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-      ],
+        subtitle: Text(cliente['telefone'] ?? 'Sem telefone cadastrado'),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: () {
+          // Navegação para detalhes do cliente
+        },
+      ),
     );
   }
 
-  PopupMenuItem<TipoOrdenacao> _buildPopupItem(
-    TipoOrdenacao value,
-    String text,
-  ) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          Icon(
-            _ordenacaoAtual == value
-                ? Icons.radio_button_checked
-                : Icons.radio_button_unchecked,
-            color: _ordenacaoAtual == value ? corSecundaria : Colors.grey,
-            size: 18,
+  // Widgets de Estado (Candidatos à modularização no Ponto B)
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.person_off_outlined, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Nenhum cliente encontrado.',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
-          const SizedBox(width: 12),
-          Text(text, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSemInternetState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off, size: 64, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          const Text('Erro ao carregar dados ou sem conexão.'),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => _buscarClientes(reiniciar: true),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Tentar novamente'),
+          ),
         ],
       ),
     );
